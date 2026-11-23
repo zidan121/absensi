@@ -63,7 +63,9 @@ class FingerspotSqlBackupParser
                 $pin = trim((string) ($record['pin'] ?? ''));
                 $date = trim((string) ($record['scan_date'] ?? ''));
                 $parsedDate = \DateTime::createFromFormat('!Y-m-d H:i:s', $date);
-                if ($pin === '' || ! $parsedDate || $parsedDate->format('Y-m-d H:i:s') !== $date) {
+                // The SMPIT source backup contains 82 known-invalid placeholder scans dated in 2000.
+                // Exclude them from attendance imports while preserving the original SQL backup.
+                if ($pin === '' || str_starts_with($date, '2000-') || ! $parsedDate || $parsedDate->format('Y-m-d H:i:s') !== $date) {
                     $invalid++;
                     continue;
                 }
