@@ -19,6 +19,10 @@ $routes->get('/', 'Dashboard::index');
 $routes->get('login', 'Auth::login');
 $routes->post('login', 'Auth::attempt');
 $routes->get('logout', 'Auth::logout');
+$routes->group('rekap', ['filter' => 'auth'], static function ($routes) {
+    $routes->get('/', 'Recap::index');
+    $routes->get('export', 'Recap::export');
+});
 $routes->group('pegawai', ['filter' => 'auth'], static function ($routes) {
     $routes->get('/', 'Employees::index');
     $routes->get('baru', 'Employees::create');
