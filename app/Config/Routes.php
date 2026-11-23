@@ -24,6 +24,13 @@ $routes->group('pegawai', ['filter' => 'auth'], static function ($routes) {
     $routes->get('baru', 'Employees::create');
     $routes->post('simpan', 'Employees::store');
 });
+$routes->group('impor-backup', ['filter' => 'auth'], static function ($routes) {
+    $routes->get('/', 'BackupImports::index');
+    $routes->post('master/preview', 'BackupImports::masterPreview');
+    $routes->post('master/proses', 'BackupImports::masterProcess');
+    $routes->post('logs/preview', 'BackupImports::logPreview');
+    $routes->post('logs/proses', 'BackupImports::logProcess');
+});
 $routes->group('impor', ['filter' => 'auth'], static function ($routes) {
     $routes->get('/', 'Imports::index');
     $routes->post('preview', 'Imports::preview');
