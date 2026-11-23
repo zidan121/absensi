@@ -103,7 +103,7 @@ class Imports extends BaseController
             ], true);
 
             if (! $batchId) {
-                throw new \\RuntimeException('Gagal membuat catatan batch impor.');
+                throw new \RuntimeException('Gagal membuat catatan batch impor.');
             }
 
             $deviceId = (int) $preview['device_id'];
@@ -150,7 +150,7 @@ class Imports extends BaseController
             }
 
             if ($db->transStatus() === false) {
-                throw new \\RuntimeException('Database menolak sebagian data impor.');
+                throw new \RuntimeException('Database menolak sebagian data impor.');
             }
 
             $db->transCommit();
@@ -168,4 +168,5 @@ class Imports extends BaseController
                 'Impor gagal dan transaksi dibatalkan: ' . $e->getMessage()
             );
         }
-    }}
+    }
+}
