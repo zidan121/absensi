@@ -44,3 +44,13 @@ Decoder TXT versi pertama menggunakan operasi XOR byte `0xD7`, lalu mengurai kon
 ## Pengembangan
 
 Lihat [docs/ROADMAP.md](docs/ROADMAP.md) dan [docs/DECISIONS.md](docs/DECISIONS.md).
+
+
+## Impor backup Fingerspot Personnel
+
+Menu **Impor Backup SQL** menyediakan dua proses terpisah:
+
+1. Master pegawai: membaca tabel `pegawai` dari backup SQL dan menyimpan PIN, nama, status, pembagian, serta tanggal kerja. Sumber SMPIT dan gabungan RAIT/KBIT dipilih secara eksplisit.
+2. Riwayat scan: membaca tabel `att_log` dari backup SQL, lalu mengaitkan scan dengan perangkat yang dipilih. Scan duplikat dilewati.
+
+File SQL tidak pernah dieksekusi ke database aplikasi. Selalu periksa sumber perangkat sebelum mengonfirmasi impor riwayat scan. Master RAIT/KBIT pada tahap ini disimpan sebagai kelompok gabungan; pembagian internal tetap dipertahankan sebagai ID sumber dan belum otomatis dipetakan ke RAIT atau KBIT.
