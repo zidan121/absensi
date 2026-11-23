@@ -82,7 +82,37 @@ class Imports extends BaseController
             return redirect()->to('/impor')->with('error', 'Pratinjau impor sudah tidak tersedia. Silakan ulangi.');
         }
 
-        // Large fingerprint files need more than PHP's common 60-second default.
+        $scope = (string) $this->request->getPost('save_scope');
+        if (! in_array($scope, ['all', 'filtered'], true)) {
+            return redirect()->back()->with('error', 'Pilih jenis data yang akan disimpan.');
+        }
+
+        $records = $preview['records'];
+        if ($scope === 'filtered') {
+            $fromDate = (string) $this->request->getPost('from_date');
+            $toDate = (string) $this->request->getPost('to_date');
+            $isValidDate = static function (string $value): bool {
+                if ($value === '') return true;
+                if (! preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $value)) return false;
+                [$year, $month, $day] = array_map('intval', explode('-', $value));
+                return checkdate($month, $day, $year);
+            };
+            if (! $isValidDate($fromDate) || ! $isValidDate($toDate)
+                || ($fromDate !== '' && $toDate !== '' && $fromDate > $toDate)) {
+                return redirect()->back()->with('error', 'Rentang tanggal filter tidak valid.');
+            }
+
+            $records = array_values(array_filter($records, static function ($record) use ($fromDate, $toDate) {
+                $scanDate = substr($record['scanned_at'], 0, 10);
+                return ($fromDate === '' || $scanDate >= $fromDate)
+                    && ($toDate === '' || $scanDate <= $toDate);
+            }));
+
+            if ($records === []) {
+                return redirect()->back()->with('error', 'Tidak ada scan valid dalam rentang tanggal yang dipilih. Tidak ada data yang disimpan.');
+            }
+        }
+
         if (function_exists('set_time_limit')) {
             @set_time_limit(300);
         }
@@ -91,23 +121,23 @@ class Imports extends BaseController
         $db->transBegin();
 
         try {
+            $invalidCount = $scope === 'all' ? count($preview['invalid']) : 0;
             $batchModel = new ImportBatchModel();
             $batchId = $batchModel->insert([
                 'device_id' => $preview['device_id'],
                 'original_filename' => $preview['original_name'],
                 'file_sha256' => $preview['sha256'],
-                'total_rows' => count($preview['records']) + count($preview['invalid']),
-                'valid_rows' => count($preview['records']),
-                'invalid_rows' => count($preview['invalid']),
+                'total_rows' => count($records) + $invalidCount,
+                'valid_rows' => count($records),
+                'invalid_rows' => $invalidCount,
                 'imported_by' => session()->get('user_id'),
             ], true);
 
             if (! $batchId) {
-                throw new \RuntimeException('Gagal membuat catatan batch impor.');
+                throw new \\RuntimeException('Gagal membuat catatan batch impor.');
             }
 
             $deviceId = (int) $preview['device_id'];
-            $records = $preview['records'];
             $inserted = 0;
             $chunkSize = 400;
 
@@ -115,7 +145,6 @@ class Imports extends BaseController
                 $pins = array_values(array_unique(array_column($chunk, 'pin')));
                 $scanTimes = array_values(array_unique(array_column($chunk, 'scanned_at')));
 
-                // Fetch possible duplicates in one query per chunk, then match exact PIN + timestamp pairs.
                 $existingRows = $db->table('attendance_logs')
                     ->select('pin, scanned_at')
                     ->where('device_id', $deviceId)
@@ -132,14 +161,11 @@ class Imports extends BaseController
                 $toInsert = [];
                 foreach ($chunk as $record) {
                     $key = $record['pin'] . '|' . $record['scanned_at'];
-                    if (isset($existing[$key])) {
-                        continue;
-                    }
+                    if (isset($existing[$key])) continue;
                     $toInsert[] = $record + [
                         'device_id' => $deviceId,
                         'import_batch_id' => $batchId,
                     ];
-                    // Avoid duplicate records inside the same uploaded file.
                     $existing[$key] = true;
                 }
 
@@ -150,15 +176,18 @@ class Imports extends BaseController
             }
 
             if ($db->transStatus() === false) {
-                throw new \RuntimeException('Database menolak sebagian data impor.');
+                throw new \\RuntimeException('Database menolak sebagian data impor.');
             }
 
             $db->transCommit();
-            session()->remove('import_preview');
+            if ($scope === 'all') {
+                session()->remove('import_preview');
+            }
 
+            $scopeLabel = $scope === 'all' ? 'seluruh file' : 'hasil filter tanggal';
             return redirect()->to('/impor')->with(
                 'success',
-                "Impor selesai. {$inserted} scan baru disimpan; duplikat dilewati."
+                "Impor {$scopeLabel} selesai. {$inserted} scan baru disimpan; duplikat dilewati."
             );
         } catch (\\Throwable $e) {
             $db->transRollback();
