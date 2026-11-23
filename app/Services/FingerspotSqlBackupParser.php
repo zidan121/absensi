@@ -111,7 +111,7 @@ class FingerspotSqlBackupParser
                     $tuple .= $char;
                     if ($escaped) {
                         $escaped = false;
-                    } elseif ($char === '\\\\') {
+                    } elseif ($char === '\\') {
                         $escaped = true;
                     } elseif ($char === $quote) {
                         if (($sql[$i + 1] ?? '') === $quote) {
@@ -159,7 +159,7 @@ class FingerspotSqlBackupParser
                 if ($escaped) {
                     $value .= $char;
                     $escaped = false;
-                } elseif ($char === '\\\\') {
+                } elseif ($char === '\\') {
                     $escaped = true;
                 } elseif ($char === $quote) {
                     if (($tuple[$i + 1] ?? '') === $quote) {
