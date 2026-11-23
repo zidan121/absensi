@@ -1,7 +1,7 @@
 <?= $this->extend('layout') ?><?= $this->section('content') ?>
 <h2>Pratinjau &amp; Penyuntingan Master Pegawai</h2>
 <p class="text-secondary"><?= esc($filename) ?> · Sumber backup: <?= esc($unit) ?></p>
-<div class="alert alert-info">Periksa dan ubah unit, nama, status, serta tanggal kerja sebelum menyimpan. Guru dari backup RAIT/KBIT otomatis diberi unit sementara <strong>RAIT_KBIT</strong>; Anda dapat mengubahnya menjadi RAIT atau KBIT per pegawai. Kelompok Masak/Dapur otomatis diarahkan ke YAYASAN.</div>
+<div class="alert alert-info">Periksa dan ubah unit, nama, status, serta tanggal kerja sebelum menyimpan. Untuk backup RAIT/KBIT: PIN <strong>18, 19, 20, 21, 22, 25, dan 31</strong> otomatis ditempatkan di <strong>KBIT</strong>. Semua PIN lainnya otomatis ditempatkan di <strong>RAIT</strong>. Silakan periksa kembali sebelum menyimpan.</div>
 <div class="row g-3 mb-4">
 <div class="col-md-4"><div class="card p-3"><div class="text-secondary">Baris ditemukan</div><strong class="fs-3"><?= count($preview['records']) + $preview['invalid'] ?></strong></div></div>
 <div class="col-md-4"><div class="card p-3"><div class="text-secondary">Pegawai valid</div><strong class="fs-3 text-success"><?= count($preview['records']) ?></strong></div></div>
@@ -23,7 +23,8 @@ $division3 = (int) ($row['source_division_3'] ?? 0);
 $division1Names = [1 => 'Manager', 2 => 'Staff', 3 => 'Admin', 4 => 'Guru', 5 => 'Masak'];
 $division2Names = [1 => 'HRD', 2 => 'Keuangan', 3 => 'Penjualan', 4 => 'IT', 5 => 'Guru', 6 => 'Dapur'];
 $division3Names = [1 => 'Head Office', 2 => 'Surabaya', 3 => 'Jakarta', 4 => 'Denpasar', 5 => 'Jogja', 6 => 'Semarang', 7 => 'Malang', 8 => 'Purwodadi'];
-$defaultUnit = $unit === 'SMPIT' ? 'SMPIT' : ($division1 === 5 ? 'YAYASAN' : 'RAIT_KBIT');
+$kbitPins = ['18', '19', '20', '21', '22', '25', '31'];
+$defaultUnit = $unit === 'SMPIT' ? 'SMPIT' : (in_array($pin, $kbitPins, true) ? 'KBIT' : 'RAIT');
 ?>
 <tr><td><strong><?= esc($pin) ?></strong></td>
 <td><input class="form-control form-control-sm" required name="employee_data[<?= esc($pin) ?>][full_name]" value="<?= esc($row['full_name']) ?>"></td>
