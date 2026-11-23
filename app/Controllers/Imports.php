@@ -52,6 +52,29 @@ class Imports extends BaseController
         }
     }
 
+    public function showPreview()
+    {
+        $preview = session()->get('import_preview');
+        if (! $preview) {
+            return redirect()->to('/impor')->with('error', 'Pratinjau impor sudah tidak tersedia. Silakan unggah ulang file TXT.');
+        }
+
+        $device = (new DeviceModel())->find((int) $preview['device_id']);
+        if (! $device) {
+            return redirect()->to('/impor')->with('error', 'Data mesin sumber tidak ditemukan.');
+        }
+
+        return view('imports/preview', [
+            'title' => 'Pratinjau Impor',
+            'device' => $device,
+            'preview' => [
+                'records' => $preview['records'],
+                'invalid' => $preview['invalid'],
+            ],
+            'originalName' => $preview['original_name'],
+        ]);
+    }
+
     public function process()
     {
         $preview = session()->get('import_preview');
