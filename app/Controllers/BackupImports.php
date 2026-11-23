@@ -79,16 +79,42 @@ class BackupImports extends BaseController
         try {
             $records = $this->staged($token);
             if (! in_array($unit, ['SMPIT', 'RAIT_KBIT'], true)) {
-                throw new \RuntimeException('Unit sumber tidak valid.');
+                throw new \\RuntimeException('Unit sumber tidak valid.');
             }
+            $edits = $this->request->getPost('employee_data');
+            if (! is_array($edits)) {
+                throw new \\RuntimeException('Data hasil penyuntingan tidak ditemukan.');
+            }
+            $allowedUnits = ['SMPIT', 'RAIT', 'KBIT', 'RAIT_KBIT', 'YAYASAN'];
+            foreach ($records as &$record) {
+                $pin = (string) $record['fingerprint_pin'];
+                $edit = $edits[$pin] ?? null;
+                if (! is_array($edit)) {
+                    throw new \\RuntimeException('Data PIN ' . $pin . ' belum dilengkapi.');
+                }
+                $selectedUnit = (string) ($edit['unit_code'] ?? '');
+                if (! in_array($selectedUnit, $allowedUnits, true)) {
+                    throw new \\RuntimeException('Unit pegawai PIN ' . $pin . ' tidak valid.');
+                }
+                $name = trim((string) ($edit['full_name'] ?? ''));
+                if ($name === '') {
+                    throw new \\RuntimeException('Nama pegawai PIN ' . $pin . ' tidak boleh kosong.');
+                }
+                $record['unit_code'] = $selectedUnit;
+                $record['full_name'] = $name;
+                $record['is_active'] = isset($edit['is_active']) ? 1 : 0;
+                $record['employment_start'] = ($edit['employment_start'] ?? '') !== '' ? $edit['employment_start'] : null;
+                $record['employment_end'] = ($edit['employment_end'] ?? '') !== '' ? $edit['employment_end'] : null;
+            }
+            unset($record);
             $db = db_connect();
             $db->transBegin();
             $model = new EmployeeModel();
             $inserted = 0;
             $updated = 0;
             foreach ($records as $record) {
-                $record['unit_code'] = $unit;
-                $record['employee_code'] = $unit . ':' . $record['fingerprint_pin'];
+                $employeeUnit = $record['unit_code'];
+                $record['employee_code'] = $employeeUnit . ':' . $record['fingerprint_pin'];
                 $existing = $db->table('employees')
                     ->where('unit_code', $unit)
                     ->where('fingerprint_pin', $record['fingerprint_pin'])
