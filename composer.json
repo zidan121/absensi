@@ -5,7 +5,7 @@
   "license": "proprietary",
   "require": {
     "php": "^8.2",
-    "codeigniter4/framework": "~4.6.0",
+    "codeigniter4/framework": "~4.7.6",
     "phpoffice/phpspreadsheet": "^5.0"
   },
   "require-dev": {
