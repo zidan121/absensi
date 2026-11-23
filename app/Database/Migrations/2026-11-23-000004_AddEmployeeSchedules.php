@@ -21,8 +21,8 @@ class AddEmployeeSchedules extends Migration
             'updated_at' => ['type' => 'DATETIME', 'null' => true],
         ]);
         $this->forge->addKey('id', true);
-        $this->forge->addKey(['employee_id', 'effective_from'], false, false, 'idx_schedule_employee_effective');
         $this->forge->createTable('employee_schedules', true);
+        $this->db->query('CREATE INDEX idx_schedule_employee_effective ON employee_schedules (employee_id, effective_from)');
     }
 
     public function down()
