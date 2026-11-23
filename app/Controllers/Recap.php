@@ -1,11 +1,11 @@
 <?php
 
-namespace App\\Controllers;
+namespace App\Controllers;
 
-use App\\Services\\AttendanceRecapService;
+use App\Services\AttendanceRecapService;
 use DateTimeImmutable;
-use PhpOffice\\PhpSpreadsheet\\Spreadsheet;
-use PhpOffice\\PhpSpreadsheet\\Writer\\Xlsx;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class Recap extends BaseController
 {
