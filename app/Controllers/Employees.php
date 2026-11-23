@@ -19,7 +19,7 @@ class Employees extends BaseController
     {
         $model = new EmployeeModel();
         $selectedUnit = strtoupper(trim((string) $this->request->getGet('unit')));
-        if (! array_key_exists($selectedUnit, self::UNITS)) {
+        if ($selectedUnit !== 'UNASSIGNED' && ! array_key_exists($selectedUnit, self::UNITS)) {
             $selectedUnit = 'ALL';
         }
 
