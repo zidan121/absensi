@@ -21,9 +21,6 @@
     ]
   },
   "scripts": {
-    "post-update-cmd": [
-      "@php spark cache:clear"
-    ],
     "test": "php spark test"
   },
   "config": {
