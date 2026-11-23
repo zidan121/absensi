@@ -110,7 +110,7 @@ class BackupImports extends BaseController
             $deviceCode = $unit === 'SMPIT' ? 'SMP-REVO16B' : 'RAKB-REVO185BNC';
             $sourceDevice = (new DeviceModel())->where('device_code', $deviceCode)->first();
             if (! $sourceDevice) {
-                throw new \\RuntimeException('Mesin sumber ' . $deviceCode . ' belum terdaftar. Periksa data perangkat sebelum impor master.');
+                throw new \RuntimeException('Mesin sumber ' . $deviceCode . ' belum terdaftar. Periksa data perangkat sebelum impor master.');
             }
             $db = db_connect();
             $db->transBegin();
@@ -119,7 +119,7 @@ class BackupImports extends BaseController
             $updated = 0;
             foreach ($records as $record) {
                 $employeeUnit = $record['unit_code'];
-                $record['employee_code'] = $employeeUnit . ':' . $record['fingerprint_pin'];
+                $record['employee_code'] = $deviceCode . ':' . $record['fingerprint_pin'];
                 // PIN identity is scoped to the originating fingerprint device, not globally.
                 $record['fingerprint_device_id'] = (int) $sourceDevice['id'];
                 $existing = $db->table('employees')
