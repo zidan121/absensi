@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Services;
+namespace App\\Services;
 
-use CodeIgniter\Database\BaseConnection;
+use CodeIgniter\\Database\\BaseConnection;
 
 class AttendanceRecapService
 {
@@ -20,6 +20,21 @@ class AttendanceRecapService
     }
 
     /**
+     * Normalize numeric PINs for comparison only. Stored source values are never changed.
+     * Alphanumeric PINs remain case-sensitive and are compared exactly.
+     */
+    private function pinMatchKey(string $pin): string
+    {
+        $pin = trim($pin);
+        if ($pin !== '' && ctype_digit($pin)) {
+            $normalized = ltrim($pin, '0');
+            return 'N:' . ($normalized === '' ? '0' : $normalized);
+        }
+
+        return 'S:' . $pin;
+    }
+
+    /**
      * Build a recap for an inclusive date range.
      */
     public function build(string $startDate, string $endDate, ?string $unit = null): array
@@ -27,34 +42,62 @@ class AttendanceRecapService
         $start = $startDate . ' 00:00:00';
         $endExclusive = date('Y-m-d', strtotime($endDate . ' +1 day')) . ' 00:00:00';
 
-        $builder = $this->db->table('attendance_logs l')
-            ->select('l.device_id, l.pin, l.scanned_at, e.id AS employee_id, e.employee_code, e.full_name, e.unit_code')
-            ->join('employees e', 'e.fingerprint_device_id = l.device_id AND e.fingerprint_pin = l.pin', 'left')
-            ->where('l.scanned_at >=', $start)
-            ->where('l.scanned_at <', $endExclusive)
-            ->orderBy('l.scanned_at', 'ASC');
+        // Fetch scans first; resolve identities in PHP so numeric PIN padding can be normalized safely.
+        $logs = $this->db->table('attendance_logs')
+            ->select('device_id, pin, scanned_at')
+            ->where('scanned_at >=', $start)
+            ->where('scanned_at <', $endExclusive)
+            ->orderBy('scanned_at', 'ASC')
+            ->get()->getResultArray();
 
-        if ($unit !== null && $unit !== '') {
-            $builder->where('e.unit_code', $unit);
+        $deviceIds = array_values(array_unique(array_map(
+            static fn ($log) => (int) $log['device_id'],
+            $logs
+        )));
+
+        $employeeMap = [];
+        $ambiguousKeys = [];
+        if ($deviceIds !== []) {
+            $employees = $this->db->table('employees')
+                ->select('id, fingerprint_device_id, fingerprint_pin, employee_code, full_name, unit_code')
+                ->whereIn('fingerprint_device_id', $deviceIds)
+                ->where('fingerprint_pin IS NOT NULL', null, false)
+                ->get()->getResultArray();
+
+            foreach ($employees as $employee) {
+                $key = (int) $employee['fingerprint_device_id'] . '|' . $this->pinMatchKey((string) $employee['fingerprint_pin']);
+                if (isset($employeeMap[$key])) {
+                    // Never guess if two master rows collapse to the same normalized identity.
+                    $ambiguousKeys[$key] = true;
+                    unset($employeeMap[$key]);
+                    continue;
+                }
+                if (! isset($ambiguousKeys[$key])) {
+                    $employeeMap[$key] = $employee;
+                }
+            }
         }
 
-        $logs = $builder->get()->getResultArray();
         $groups = [];
         $unmatched = [];
         foreach ($logs as $log) {
-            if (empty($log['employee_id'])) {
+            $identityKey = (int) $log['device_id'] . '|' . $this->pinMatchKey((string) $log['pin']);
+            $employee = isset($ambiguousKeys[$identityKey]) ? null : ($employeeMap[$identityKey] ?? null);
+
+            if ($employee === null || ($unit !== null && $unit !== '' && $employee['unit_code'] !== $unit)) {
                 $key = $log['device_id'] . '|' . $log['pin'];
                 $unmatched[$key] = ($unmatched[$key] ?? 0) + 1;
                 continue;
             }
+
             $date = substr($log['scanned_at'], 0, 10);
-            $key = $log['employee_id'] . '|' . $date;
+            $key = $employee['id'] . '|' . $date;
             if (! isset($groups[$key])) {
                 $groups[$key] = [
-                    'employee_id' => (int) $log['employee_id'],
-                    'employee_code' => $log['employee_code'],
-                    'full_name' => $log['full_name'],
-                    'unit_code' => $log['unit_code'],
+                    'employee_id' => (int) $employee['id'],
+                    'employee_code' => $employee['employee_code'],
+                    'full_name' => $employee['full_name'],
+                    'unit_code' => $employee['unit_code'],
                     'date' => $date,
                     'scans' => [],
                 ];
