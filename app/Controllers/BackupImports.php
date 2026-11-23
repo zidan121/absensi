@@ -196,7 +196,7 @@ class BackupImports extends BaseController
 
                 if ($db->transStatus() === false) {
                     $db->transRollback();
-                    throw new \\RuntimeException('Satu batch impor gagal. Batch sebelumnya tetap tersimpan dan aman untuk dilanjutkan.');
+                    throw new \RuntimeException('Satu batch impor gagal. Batch sebelumnya tetap tersimpan dan aman untuk dilanjutkan.');
                 }
 
                 $inserted += $db->affectedRows();
@@ -210,7 +210,7 @@ class BackupImports extends BaseController
                 'success',
                 "Riwayat scan selesai: {$inserted} baru, {$duplicates} duplikat dilewati dari {$total} baris."
             );
-        } catch (\\Throwable $e) {
+        } catch (\Throwable $e) {
             if (isset($db) && $db->transStatus() !== false) {
                 $db->transRollback();
             }
