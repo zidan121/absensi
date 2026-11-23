@@ -146,50 +146,79 @@ class BackupImports extends BaseController
 
     public function logProcess()
     {
+        // Large SQL backups must not be processed as one long row-by-row transaction.
+        @set_time_limit(0);
+
         $token = (string) $this->request->getPost('token');
         $deviceId = (int) $this->request->getPost('device_id');
         $device = (new DeviceModel())->find($deviceId);
-        if (! $device) return redirect()->to('/impor-backup')->with('error', 'Mesin sumber tidak valid.');
+        if (! $device) {
+            return redirect()->to('/impor-backup')->with('error', 'Mesin sumber tidak valid.');
+        }
+
         try {
             $records = $this->staged($token);
             $db = db_connect();
-            $db->transBegin();
             $inserted = 0;
-            $duplicates = 0;
-            foreach ($records as $record) {
-                $exists = $db->table('attendance_logs')
-                    ->where('device_id', $deviceId)
-                    ->where('pin', $record['pin'])
-                    ->where('scanned_at', $record['scanned_at'])
-                    ->countAllResults() > 0;
-                if ($exists) {
-                    $duplicates++;
-                    continue;
+            $total = count($records);
+            $chunkSize = 500;
+            $createdAt = date('Y-m-d H:i:s');
+
+            // INSERT IGNORE uses the unique key (device_id, pin, scanned_at)
+            // to make retries safe if a request stops after some committed batches.
+            foreach (array_chunk($records, $chunkSize) as $chunk) {
+                $valueSql = [];
+                $binds = [];
+
+                foreach ($chunk as $record) {
+                    $valueSql[] = '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+                    array_push(
+                        $binds,
+                        $deviceId,
+                        null,
+                        $record['machine_no'],
+                        $record['pin'],
+                        null,
+                        $record['verify_mode'],
+                        $record['inout_mode'],
+                        $record['scanned_at'],
+                        null,
+                        $createdAt
+                    );
                 }
-                $db->table('attendance_logs')->insert([
-                    'device_id' => $deviceId,
-                    'import_batch_id' => null,
-                    'machine_no' => $record['machine_no'],
-                    'pin' => $record['pin'],
-                    'employee_name_source' => null,
-                    'verify_mode' => $record['verify_mode'],
-                    'inout_mode' => $record['inout_mode'],
-                    'scanned_at' => $record['scanned_at'],
-                    'source_row' => null,
-                    'created_at' => date('Y-m-d H:i:s'),
-                ]);
-                $inserted++;
+
+                $sql = 'INSERT IGNORE INTO attendance_logs '
+                    . '(device_id, import_batch_id, machine_no, pin, employee_name_source, verify_mode, inout_mode, scanned_at, source_row, created_at) '
+                    . 'VALUES ' . implode(',', $valueSql);
+
+                $db->transBegin();
+                $db->query($sql, $binds);
+
+                if ($db->transStatus() === false) {
+                    $db->transRollback();
+                    throw new \\RuntimeException('Satu batch impor gagal. Batch sebelumnya tetap tersimpan dan aman untuk dilanjutkan.');
+                }
+
+                $inserted += $db->affectedRows();
+                $db->transCommit();
             }
-            if ($db->transStatus() === false) {
-                $db->transRollback();
-                throw new \RuntimeException('Transaksi database gagal.');
-            }
-            $db->transCommit();
+
+            $duplicates = $total - $inserted;
             @unlink(WRITEPATH . 'uploads' . DIRECTORY_SEPARATOR . 'backup-imports' . DIRECTORY_SEPARATOR . $token . '.json');
-            return redirect()->to('/impor-backup')->with('success', "Riwayat scan selesai: {$inserted} baru, {$duplicates} duplikat dilewati.");
-        } catch (\Throwable $e) {
-            if (isset($db) && $db->transStatus() !== false) $db->transRollback();
-            return redirect()->to('/impor-backup')->with('error', 'Impor riwayat scan gagal: ' . $e->getMessage());
+
+            return redirect()->to('/impor-backup')->with(
+                'success',
+                "Riwayat scan selesai: {$inserted} baru, {$duplicates} duplikat dilewati dari {$total} baris."
+            );
+        } catch (\\Throwable $e) {
+            if (isset($db) && $db->transStatus() !== false) {
+                $db->transRollback();
+            }
+
+            return redirect()->to('/impor-backup')->with(
+                'error',
+                'Impor riwayat scan gagal: ' . $e->getMessage() . ' Jika proses sempat menyimpan batch, jalankan ulang preview dan impor; baris yang sudah masuk akan dilewati otomatis.'
+            );
         }
     }
 }
