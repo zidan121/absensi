@@ -84,9 +84,12 @@ class AttendanceRecapService
             $identityKey = (int) $log['device_id'] . '|' . $this->pinMatchKey((string) $log['pin']);
             $employee = isset($ambiguousKeys[$identityKey]) ? null : ($employeeMap[$identityKey] ?? null);
 
-            if ($employee === null || ($unit !== null && $unit !== '' && $employee['unit_code'] !== $unit)) {
+            if ($employee === null) {
                 $key = $log['device_id'] . '|' . $log['pin'];
                 $unmatched[$key] = ($unmatched[$key] ?? 0) + 1;
+                continue;
+            }
+            if ($unit !== null && $unit !== '' && $employee['unit_code'] !== $unit) {
                 continue;
             }
 
