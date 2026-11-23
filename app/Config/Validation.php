@@ -15,6 +15,6 @@ class Validation extends BaseConfig
     public string $errorView = 'CodeIgniter\\Validation\\Views\\list';
     public array $templates = [
         'list' => 'CodeIgniter\\Validation\\Views\\list',
-        '充' => 'CodeIgniter\\Validation\\Views\\single',
+        'single' => 'CodeIgniter\\Validation\\Views\\single',
     ];
 }
