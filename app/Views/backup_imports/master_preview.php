@@ -1,7 +1,7 @@
 <?= $this->extend('layout') ?><?= $this->section('content') ?>
 <h2>Pratinjau &amp; Penyuntingan Master Pegawai</h2>
 <p class="text-secondary"><?= esc($filename) ?> · Sumber backup: <?= esc($unit) ?></p>
-<div class="alert alert-info">Periksa dan ubah unit, nama, status, serta tanggal kerja sebelum menyimpan. Untuk backup RAIT/KBIT: PIN <strong>18, 19, 20, 21, 22, 25, dan 31</strong> otomatis ditempatkan di <strong>KBIT</strong>. Semua PIN lainnya otomatis ditempatkan di <strong>RAIT</strong>. Silakan periksa kembali sebelum menyimpan.</div>
+<div class="alert alert-info">Asal mesin fingerprint akan disimpan otomatis: <?= $unit === 'SMPIT' ? 'Revo-16B (SMPIT)' : 'Revo-185BNC (RAIT/KBIT)' ?>. Pencocokan scan memakai kombinasi mesin + PIN, bukan PIN saja. Periksa dan ubah unit, nama, status, serta tanggal kerja sebelum menyimpan. Untuk backup RAIT/KBIT: PIN <strong>18, 19, 20, 21, 22, 25, dan 31</strong> otomatis ditempatkan di <strong>KBIT</strong>. Semua PIN lainnya otomatis ditempatkan di <strong>RAIT</strong>. Silakan periksa kembali sebelum menyimpan.</div>
 <div class="row g-3 mb-4">
 <div class="col-md-4"><div class="card p-3"><div class="text-secondary">Baris ditemukan</div><strong class="fs-3"><?= count($preview['records']) + $preview['invalid'] ?></strong></div></div>
 <div class="col-md-4"><div class="card p-3"><div class="text-secondary">Pegawai valid</div><strong class="fs-3 text-success"><?= count($preview['records']) ?></strong></div></div>
