@@ -18,7 +18,10 @@ class AddFingerprintMasterFields extends Migration
             'employment_start' => ['type' => 'DATE', 'null' => true],
             'employment_end' => ['type' => 'DATE', 'null' => true],
         ]);
-        $this->forge->addKey(['unit_code', 'fingerprint_pin'], false, true, 'uq_employee_unit_pin');
+        $this->forge->addUniqueKey(['unit_code', 'fingerprint_pin'], 'uq_employee_unit_pin');
+        $this->forge->modifyColumn('attendance_logs', [
+            'import_batch_id' => ['type' => 'BIGINT', 'unsigned' => true, 'null' => true],
+        ]);
     }
 
     public function down()
