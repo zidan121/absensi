@@ -2,14 +2,11 @@
 
 namespace App\Services;
 
+use DateTime;
 use RuntimeException;
 
 class RevoTxtDecoder
 {
-    /**
-     * Decode Revo TXT bytes. Each byte is XOR-ed with 0xD7.
-     * This method returns text only; parsing/validation is deliberately separate.
-     */
     public function decode(string $raw): string
     {
         if ($raw === '') {
@@ -17,18 +14,13 @@ class RevoTxtDecoder
         }
 
         $decoded = $raw ^ str_repeat("\xD7", strlen($raw));
-
-        if (! str_contains($decoded, "\t") && ! str_contains($decoded, ';')) {
-            throw new RuntimeException('Struktur hasil dekode tidak dikenali (delimiter tidak ditemukan).');
+        if (! str_contains($decoded, "\t") || ! preg_match('/(?:^|\t)DateTime(?:\t|$)/i', $decoded)) {
+            throw new RuntimeException('Header hasil dekode tidak dikenali.');
         }
 
         return preg_replace('/^\xEF\xBB\xBF/', '', $decoded) ?? $decoded;
     }
 
-    /**
-     * Parse tab-delimited or semicolon-delimited text with a header row.
-     * Expected semantic columns: No, Mchn, EnNo, Name, Mode, IOMd, DateTime.
-     */
     public function parse(string $decoded): array
     {
         $lines = preg_split('/\r\n|\n|\r/', trim($decoded));
@@ -37,7 +29,13 @@ class RevoTxtDecoder
         }
 
         $delimiter = str_contains($lines[0], "\t") ? "\t" : ';';
-        $header = array_map(static fn ($v) => strtolower(trim($v)), str_getcsv(array_shift($lines), $delimiter));
+        $headerRaw = str_getcsv(array_shift($lines), $delimiter);
+        // Export header contains blank spacer columns; data rows omit those spacers.
+        $header = array_values(array_filter(
+            array_map(static fn ($v) => strtolower(trim((string) $v)), $headerRaw),
+            static fn ($v) => $v !== ''
+        ));
+
         $required = ['no', 'mchn', 'enno', 'name', 'mode', 'iomd', 'datetime'];
         $index = [];
         foreach ($required as $column) {
@@ -57,9 +55,16 @@ class RevoTxtDecoder
             $fields = str_getcsv($line, $delimiter);
             $pin = trim((string) ($fields[$index['enno']] ?? ''));
             $dateTime = trim((string) ($fields[$index['datetime']] ?? ''));
-            $time = strtotime($dateTime);
+            $parsedDate = false;
+            foreach (['!Y/m/d H:i:s', '!Y-m-d H:i:s', '!d/m/Y H:i:s'] as $format) {
+                $candidate = DateTime::createFromFormat($format, $dateTime);
+                if ($candidate && $candidate->format('Y') !== '1970') {
+                    $parsedDate = $candidate;
+                    break;
+                }
+            }
 
-            if ($pin === '' || $time === false || count($fields) <= max($index)) {
+            if ($pin === '' || ! $parsedDate || count($fields) <= max($index)) {
                 $invalid[] = ['line' => $lineNumber + 2, 'reason' => 'PIN/tanggal tidak valid atau kolom kurang', 'raw' => $line];
                 continue;
             }
@@ -71,7 +76,7 @@ class RevoTxtDecoder
                 'employee_name_source' => trim((string) $fields[$index['name']]),
                 'verify_mode' => trim((string) $fields[$index['mode']]),
                 'inout_mode' => trim((string) $fields[$index['iomd']]),
-                'scanned_at' => date('Y-m-d H:i:s', $time),
+                'scanned_at' => $parsedDate->format('Y-m-d H:i:s'),
             ];
         }
 
