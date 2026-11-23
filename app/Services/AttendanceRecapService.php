@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Services;
+namespace App\\Services;
 
-use CodeIgniter\Database\BaseConnection;
+use CodeIgniter\\Database\\BaseConnection;
 
 class AttendanceRecapService
 {
@@ -19,16 +19,19 @@ class AttendanceRecapService
         $this->db ??= db_connect();
     }
 
-    public function build(string $month, ?string $unit = null): array
+    /**
+     * Build a recap for an inclusive date range.
+     */
+    public function build(string $startDate, string $endDate, ?string $unit = null): array
     {
-        $start = $month . '-01 00:00:00';
-        $end = date('Y-m-d H:i:s', strtotime($month . '-01 +1 month'));
+        $start = $startDate . ' 00:00:00';
+        $endExclusive = date('Y-m-d', strtotime($endDate . ' +1 day')) . ' 00:00:00';
 
         $builder = $this->db->table('attendance_logs l')
             ->select('l.device_id, l.pin, l.scanned_at, e.id AS employee_id, e.employee_code, e.full_name, e.unit_code')
             ->join('employees e', 'e.fingerprint_device_id = l.device_id AND e.fingerprint_pin = l.pin', 'left')
             ->where('l.scanned_at >=', $start)
-            ->where('l.scanned_at <', $end)
+            ->where('l.scanned_at <', $endExclusive)
             ->orderBy('l.scanned_at', 'ASC');
 
         if ($unit !== null && $unit !== '') {
@@ -85,7 +88,8 @@ class AttendanceRecapService
         usort($rows, static fn ($a, $b) => [$a['unit_code'], $a['full_name'], $a['date']] <=> [$b['unit_code'], $b['full_name'], $b['date']]);
 
         return [
-            'month' => $month,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
             'unit' => $unit,
             'rows' => $rows,
             'unmatched' => $unmatched,
