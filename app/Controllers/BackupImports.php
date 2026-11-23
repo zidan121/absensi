@@ -79,26 +79,26 @@ class BackupImports extends BaseController
         try {
             $records = $this->staged($token);
             if (! in_array($unit, ['SMPIT', 'RAIT_KBIT'], true)) {
-                throw new \\RuntimeException('Unit sumber tidak valid.');
+                throw new \RuntimeException('Unit sumber tidak valid.');
             }
             $edits = $this->request->getPost('employee_data');
             if (! is_array($edits)) {
-                throw new \\RuntimeException('Data hasil penyuntingan tidak ditemukan.');
+                throw new \RuntimeException('Data hasil penyuntingan tidak ditemukan.');
             }
             $allowedUnits = ['SMPIT', 'RAIT', 'KBIT', 'RAIT_KBIT', 'YAYASAN'];
             foreach ($records as &$record) {
                 $pin = (string) $record['fingerprint_pin'];
                 $edit = $edits[$pin] ?? null;
                 if (! is_array($edit)) {
-                    throw new \\RuntimeException('Data PIN ' . $pin . ' belum dilengkapi.');
+                    throw new \RuntimeException('Data PIN ' . $pin . ' belum dilengkapi.');
                 }
                 $selectedUnit = (string) ($edit['unit_code'] ?? '');
                 if (! in_array($selectedUnit, $allowedUnits, true)) {
-                    throw new \\RuntimeException('Unit pegawai PIN ' . $pin . ' tidak valid.');
+                    throw new \RuntimeException('Unit pegawai PIN ' . $pin . ' tidak valid.');
                 }
                 $name = trim((string) ($edit['full_name'] ?? ''));
                 if ($name === '') {
-                    throw new \\RuntimeException('Nama pegawai PIN ' . $pin . ' tidak boleh kosong.');
+                    throw new \RuntimeException('Nama pegawai PIN ' . $pin . ' tidak boleh kosong.');
                 }
                 $record['unit_code'] = $selectedUnit;
                 $record['full_name'] = $name;
