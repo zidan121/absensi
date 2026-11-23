@@ -40,6 +40,7 @@ $routes->group('impor-backup', ['filter' => 'auth'], static function ($routes) {
 $routes->group('impor', ['filter' => 'auth'], static function ($routes) {
     $routes->get('/', 'Imports::index');
     $routes->post('preview', 'Imports::preview');
+    $routes->get('preview', 'Imports::showPreview');
     $routes->post('proses', 'Imports::process');
 });
 $routes->get('health', static fn () => service('response')->setJSON(['app' => 'NEURO ABSENSI', 'status' => 'ok']));
