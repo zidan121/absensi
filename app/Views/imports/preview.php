@@ -12,8 +12,9 @@ $fromDate = (string) ($_GET['from_date'] ?? '');
 $toDate = (string) ($_GET['to_date'] ?? '');
 $isValidDate = static function (string $value): bool {
     if ($value === '') return true;
-    $date = \\DateTimeImmutable::createFromFormat('!Y-m-d', $value);
-    return $date !== false && $date->format('Y-m-d') === $value;
+    if (! preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $value)) return false;
+    [$year, $month, $day] = array_map('intval', explode('-', $value));
+    return checkdate($month, $day, $year);
 };
 if (! $isValidDate($fromDate) || ! $isValidDate($toDate) || ($fromDate !== '' && $toDate !== '' && $fromDate > $toDate)) {
     $fromDate = '';
