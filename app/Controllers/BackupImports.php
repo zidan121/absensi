@@ -116,8 +116,9 @@ class BackupImports extends BaseController
                 $employeeUnit = $record['unit_code'];
                 $record['employee_code'] = $employeeUnit . ':' . $record['fingerprint_pin'];
                 $existing = $db->table('employees')
-                    ->where('unit_code', $unit)
+                    ->whereIn('unit_code', [$unit, $employeeUnit])
                     ->where('fingerprint_pin', $record['fingerprint_pin'])
+                    ->where('source_employee_id', $record['source_employee_id'])
                     ->get()->getRowArray();
                 if ($existing) {
                     $model->update($existing['id'], $record);
