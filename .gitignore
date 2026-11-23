@@ -1,0 +1,13 @@
+/vendor/
+/node_modules/
+/writable/cache/*
+/writable/logs/*
+/writable/session/*
+/writable/uploads/*
+/.env
+/.phpunit.cache/
+/.phpunit.result.cache
+.phpunit.xml
+*.log
+.DS_Store
+Thumbs.db
