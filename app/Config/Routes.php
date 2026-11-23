@@ -23,6 +23,8 @@ $routes->group('pegawai', ['filter' => 'auth'], static function ($routes) {
     $routes->get('/', 'Employees::index');
     $routes->get('baru', 'Employees::create');
     $routes->post('simpan', 'Employees::store');
+    $routes->get('(:num)/edit', 'Employees::edit/$1');
+    $routes->post('(:num)/update', 'Employees::update/$1');
 });
 $routes->group('impor-backup', ['filter' => 'auth'], static function ($routes) {
     $routes->get('/', 'BackupImports::index');
