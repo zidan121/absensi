@@ -109,7 +109,7 @@ class BackupImports extends BaseController
             @unlink(WRITEPATH . 'uploads' . DIRECTORY_SEPARATOR . 'backup-imports' . DIRECTORY_SEPARATOR . $token . '.json');
             return redirect()->to('/impor-backup')->with('success', "Master pegawai {$unit} selesai: {$inserted} baru, {$updated} diperbarui.");
         } catch (\Throwable $e) {
-            if (isset($db) && $db->transStatus() !== false) $db->transRollback();
+            if (isset($db)) $db->transRollback();
             return redirect()->to('/impor-backup')->with('error', 'Impor master gagal: ' . $e->getMessage());
         }
     }
