@@ -5,11 +5,13 @@
 </div>
 <form class="card p-3 mb-3" method="get" action="/rekap">
     <div class="row g-2 align-items-end">
-        <div class="col-sm-4"><label class="form-label">Bulan</label><input class="form-control" type="month" name="month" value="<?= esc($month) ?>" required></div>
-        <div class="col-sm-4"><label class="form-label">Unit</label><select class="form-select" name="unit"><option value="">Semua unit</option><?php foreach (['KBIT','RAIT','SDIT','SMPIT','YAYASAN'] as $code): ?><option value="<?= esc($code) ?>" <?= $unit === $code ? 'selected' : '' ?>><?= esc($code === 'YAYASAN' ? 'Yayasan' : $code) ?></option><?php endforeach ?></select></div>
-        <div class="col-sm-4 d-flex gap-2"><button class="btn btn-primary">Tampilkan</button><a class="btn btn-success" href="/rekap/export?month=<?= esc($month) ?>&amp;unit=<?= esc($unit) ?>">Ekspor Excel</a></div>
+        <div class="col-sm-3"><label class="form-label">Tanggal Mulai</label><input class="form-control" type="date" name="start_date" value="<?= esc($startDate) ?>" required></div>
+        <div class="col-sm-3"><label class="form-label">Tanggal Selesai</label><input class="form-control" type="date" name="end_date" value="<?= esc($endDate) ?>" min="<?= esc($startDate) ?>" required></div>
+        <div class="col-sm-3"><label class="form-label">Unit</label><select class="form-select" name="unit"><option value="">Semua unit</option><?php foreach (['KBIT','RAIT','SDIT','SMPIT','YAYASAN'] as $code): ?><option value="<?= esc($code) ?>" <?= $unit === $code ? 'selected' : '' ?>><?= esc($code === 'YAYASAN' ? 'Yayasan' : $code) ?></option><?php endforeach ?></select></div>
+        <div class="col-sm-3 d-flex gap-2"><button class="btn btn-primary">Tampilkan</button><a class="btn btn-success" href="/rekap/export?start_date=<?= esc($startDate) ?>&amp;end_date=<?= esc($endDate) ?>&amp;unit=<?= esc($unit) ?>">Ekspor Excel</a></div>
     </div>
 </form>
+<div class="alert alert-secondary py-2">Periode rekap: <strong><?= esc(date('d F Y', strtotime($startDate))) ?></strong> sampai <strong><?= esc(date('d F Y', strtotime($endDate))) ?></strong> (termasuk kedua tanggal).</div>
 <div class="row g-3 mb-3">
     <div class="col-md-3"><div class="card p-3"><div class="text-secondary small">Hari kehadiran</div><div class="fs-3 fw-bold"><?= (int) $data['summary']['attendance_days'] ?></div></div></div>
     <div class="col-md-3"><div class="card p-3"><div class="text-secondary small">Hari terlambat</div><div class="fs-3 fw-bold"><?= (int) $data['summary']['late_days'] ?></div></div></div>
