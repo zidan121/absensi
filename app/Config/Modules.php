@@ -2,7 +2,7 @@
 
 namespace Config;
 
-use CodeIgniter\Config\Modules as BaseModules;
+use CodeIgniter\Modules\Modules as BaseModules;
 
 class Modules extends BaseModules
 {
