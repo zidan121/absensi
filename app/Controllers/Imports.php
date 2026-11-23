@@ -134,7 +134,7 @@ class Imports extends BaseController
             ], true);
 
             if (! $batchId) {
-                throw new \\RuntimeException('Gagal membuat catatan batch impor.');
+                throw new \RuntimeException('Gagal membuat catatan batch impor.');
             }
 
             $deviceId = (int) $preview['device_id'];
@@ -176,7 +176,7 @@ class Imports extends BaseController
             }
 
             if ($db->transStatus() === false) {
-                throw new \\RuntimeException('Database menolak sebagian data impor.');
+                throw new \RuntimeException('Database menolak sebagian data impor.');
             }
 
             $db->transCommit();
@@ -189,7 +189,7 @@ class Imports extends BaseController
                 'success',
                 "Impor {$scopeLabel} selesai. {$inserted} scan baru disimpan; duplikat dilewati."
             );
-        } catch (\\Throwable $e) {
+        } catch (\Throwable $e) {
             $db->transRollback();
             log_message('error', 'Fingerprint import failed: ' . $e->getMessage());
             return redirect()->to('/impor')->with(
