@@ -14,7 +14,6 @@ class Logger extends BaseConfig
             'handles' => ['critical', 'alert', 'emergency', 'debug', 'error', 'info', 'notice', 'warning'],
             'fileExtension' => 'log',
             'filePermissions' => 0644,
-            'write sama' => false,
         ],
     ];
 }
