@@ -16,5 +16,5 @@ class App extends BaseConfig
     public string $appTimezone = 'Asia/Jakarta';
     public string $charset = 'UTF-8';
     public bool $forceGlobalSecureRequests = false;
-    public string $CSPEnabled = false;
+    public bool $CSPEnabled = false;
 }
