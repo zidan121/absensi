@@ -24,7 +24,7 @@ $division1Names = [1 => 'Manager', 2 => 'Staff', 3 => 'Admin', 4 => 'Guru', 5 =>
 $division2Names = [1 => 'HRD', 2 => 'Keuangan', 3 => 'Penjualan', 4 => 'IT', 5 => 'Guru', 6 => 'Dapur'];
 $division3Names = [1 => 'Head Office', 2 => 'Surabaya', 3 => 'Jakarta', 4 => 'Denpasar', 5 => 'Jogja', 6 => 'Semarang', 7 => 'Malang', 8 => 'Purwodadi'];
 $kbitPins = ['18', '19', '20', '21', '22', '25', '31'];
-$defaultUnit = $unit === 'SMPIT' ? 'SMPIT' : (in_array($pin, $kbitPins, true) ? 'KBIT' : 'RAIT');
+$defaultUnit = $unit === 'SMPIT' ? 'YAYASAN' : (in_array($pin, $kbitPins, true) ? 'KBIT' : 'RAIT');
 ?>
 <tr><td><strong><?= esc($pin) ?></strong></td>
 <td><input class="form-control form-control-sm" required name="employee_data[<?= esc($pin) ?>][full_name]" value="<?= esc($row['full_name']) ?>"></td>
