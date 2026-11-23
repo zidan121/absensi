@@ -17,8 +17,8 @@ class AddFingerprintDeviceToEmployees extends Migration
                 'after' => 'fingerprint_pin',
             ],
         ]);
-        $this->forge->addKey('employees', ['fingerprint_device_id'], false, false, 'idx_employee_fingerprint_device');
-        $this->forge->addKey('employees', ['fingerprint_device_id', 'fingerprint_pin'], false, false, 'idx_employee_device_pin');
+        $this->forge->addKey(['fingerprint_device_id'], false, false, false, 'idx_employee_fingerprint_device');
+        $this->forge->addKey(['fingerprint_device_id', 'fingerprint_pin'], false, false, false, 'idx_employee_device_pin');
     }
 
     public function down()
