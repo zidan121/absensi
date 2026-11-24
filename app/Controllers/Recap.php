@@ -13,6 +13,8 @@ class Recap extends BaseController
 
     public function index()
     {
+        // Monthly and multi-month reports may contain many fingerprint scans.
+        @set_time_limit(180);
         [$startDate, $endDate] = $this->getDateRange();
         $unit = $this->getUnit();
         $data = (new AttendanceRecapService())->build($startDate, $endDate, $unit ?: null);
@@ -28,6 +30,7 @@ class Recap extends BaseController
 
     public function export()
     {
+        @set_time_limit(300);
         $startDate = (string) $this->request->getGet('start_date');
         $endDate = (string) $this->request->getGet('end_date');
         if (! $this->isValidDate($startDate) || ! $this->isValidDate($endDate) || $endDate < $startDate) {
