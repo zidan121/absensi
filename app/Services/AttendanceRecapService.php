@@ -131,7 +131,13 @@ class AttendanceRecapService
                 ?? (self::DEFAULT_LATE_AFTER[$group['unit_code']] ?? '07:45:59');
             $arrivalTime = substr($first, 11, 8);
             $isHoliday = ($calendarEvent['event_type'] ?? null) === 'holiday';
-            $isLate = ! $isHoliday && $arrivalTime > $lateAfter;
+            $weeklySchedule = $this->weeklyScheduleFor($group['unit_code'], $group['date']);
+            $weekday = (int) (new \\DateTimeImmutable($group['date']))->format('N');
+            $isWeeklyOff = $weeklySchedule !== null
+                && ! in_array($weekday, array_map('intval', explode(',', $weeklySchedule['work_days'])), true);
+            $specialWorkday = in_array($calendarEvent['event_type'] ?? '', ['late_start', 'workday'], true);
+            $isNonWorkingDay = ! $isHoliday && $isWeeklyOff && ! $specialWorkday;
+            $isLate = ! $isHoliday && ! $isNonWorkingDay && $arrivalTime > $lateAfter;
             $lateSeconds = $isLate
                 ? max(0, strtotime($group['date'] . ' ' . $arrivalTime) - strtotime($group['date'] . ' ' . $lateAfter))
                 : 0;
@@ -153,11 +159,13 @@ class AttendanceRecapService
                 'calendar_event' => $calendarEvent,
                 'status' => $isHoliday
                     ? 'Hari Libur (ada scan)'
-                    : ($lateMinutes > 0
-                        ? 'Terlambat (' . $lateMinutes . ' menit)'
-                        : (in_array($calendarEvent['event_type'] ?? '', ['late_start', 'workday'], true)
-                            ? ($calendarEvent['title'] . ' — Tepat Waktu')
-                            : 'Tepat Waktu')),
+                    : ($isNonWorkingDay
+                        ? 'Libur Mingguan (ada scan)'
+                        : ($lateMinutes > 0
+                            ? 'Terlambat (' . $lateMinutes . ' menit)'
+                            : ($specialWorkday
+                                ? ($calendarEvent['title'] . ' — Tepat Waktu')
+                                : 'Tepat Waktu'))),
                 'all_scans' => $scans,
             ];
         }
@@ -194,6 +202,16 @@ class AttendanceRecapService
             ->groupEnd()
             ->where('event_date', $date)
             ->orderBy("CASE target_type WHEN 'employee' THEN 1 WHEN 'unit' THEN 2 ELSE 3 END", '', false)
+            ->get(1)->getRowArray();
+    }
+
+    private function weeklyScheduleFor(string $unitCode, string $date): ?array
+    {
+        return $this->db->table('unit_weekly_schedules')
+            ->where('unit_code', $unitCode)
+            ->where('effective_from <=', $date)
+            ->groupStart()->where('effective_to >=', $date)->orWhere('effective_to', null)->groupEnd()
+            ->orderBy('effective_from', 'DESC')
             ->get(1)->getRowArray();
     }
 
