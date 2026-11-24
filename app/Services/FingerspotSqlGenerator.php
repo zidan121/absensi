@@ -17,11 +17,9 @@ class FingerspotSqlGenerator
         $parser = new FingerspotSqlBackupParser();
         $source = $parser->parse($sourceSql, 'employees')['records'];
         $byPin = [];
-        $maxId = 0;
         foreach ($source as $row) {
             $pin = trim((string) $row['fingerprint_pin']);
             if ($pin !== '') $byPin[$pin][] = $row;
-            $maxId = max($maxId, (int) $row['source_employee_id']);
         }
 
         $employees = $db->table('employees')->where('fingerprint_device_id', (int) $device['id'])->get()->getResultArray();
@@ -77,8 +75,7 @@ class FingerspotSqlGenerator
                 $assignments = [];
                 foreach ($set as $column=>$value) $assignments[] = $column . '=' . $this->value($db, $value);
                 $masterSql[] = 'UPDATE pegawai SET ' . implode(',', $assignments)
-                    . ' WHERE pegawai_id=' . $this->value($db, $old['source_employee_id'])
-                    . ' AND pegawai_pin=' . $this->value($db, $pin) . ';';
+                    . ' WHERE pegawai_pin=' . $this->value($db, $pin) . ';';
                 continue;
             }
 
@@ -101,9 +98,8 @@ class FingerspotSqlGenerator
                 }
             }
 
-            $newId = ++$maxId;
             $new = [
-                'pegawai_id'=>$newId, 'pegawai_pin'=>$pin, 'pegawai_nip'=>$employee['employee_code'] ?? $pin,
+                'pegawai_id'=>null, 'pegawai_pin'=>$pin, 'pegawai_nip'=>$employee['employee_code'] ?? $pin,
                 'pegawai_nama'=>$name, 'pegawai_alias'=>$name, 'pegawai_pwd'=>'0', 'pegawai_rfid'=>'0',
                 'pegawai_privilege'=>'0', 'pegawai_telp'=>null, 'pegawai_status'=>(int) ($employee['is_active'] ?? 1) === 1 ? 1 : 0,
                 'tempat_lahir'=>null, 'tgl_lahir'=>null, 'pembagian1_id'=>$division[0],
@@ -114,8 +110,11 @@ class FingerspotSqlGenerator
             ];
             $cols = implode(',', self::EMPLOYEE_COLUMNS);
             $vals = implode(',', array_map(fn($col) => $this->value($db, $new[$col]), self::EMPLOYEE_COLUMNS));
-            $masterSql[] = 'INSERT INTO pegawai (' . $cols . ') VALUES (' . $vals . ');';
-            $report[] = $this->issue($pin, $name, 'Pegawai baru disiapkan dengan pegawai_id ' . $newId . '; periksa penempatan divisi.');
+            $insertColumns = implode(',', array_slice(self::EMPLOYEE_COLUMNS,  1));
+            $insertValues = implode(',', array_map(fn($col) => $this->value($db, $new[$col]), array_slice(self::EMPLOYEE_COLUMNS, 1)));
+            $masterSql[] = 'INSERT INTO pegawai (' . $insertColumns . ') SELECT ' . $insertValues
+                . ' WHERE NOT EXISTS (SELECT 1 FROM pegawai WHERE pegawai_pin=' . $this->value($db, $pin) . ');';
+            $report[] = $this->issue($pin, $name, 'Pegawai baru disiapkan. ID tidak ditetapkan dari arsip; data hanya ditambahkan bila PIN belum ada pada database tujuan saat SQL dijalankan.');
         }
 
         $logs = $db->table('attendance_logs')->where('device_id', (int) $device['id'])->orderBy('scanned_at', 'ASC')->get()->getResultArray();
