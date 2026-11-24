@@ -56,7 +56,6 @@
         .alert{border:0;border-radius:12px;font-size:12px;line-height:1.7;padding:13px 16px}
         .alert-info{background:#edf6ff;color:#24527e}.alert-warning{background:#fff8e8;color:#795514}.alert-success{background:#ecfdf3;color:#17633b}.alert-danger{background:#fff0f0;color:#9b2929}
         .text-secondary{color:var(--muted)!important}
-        .mobile-brand{display:none}
         @media(max-width:991.98px){:root{--sidebar:220px}.sidebar{width:var(--sidebar)}.topbar{padding:0 22px}.content-wrap{padding:24px 22px}}
         @media(max-width:767.98px){.sidebar{position:relative;width:100%;height:auto;min-height:0;padding:13px 14px}.brand-wrap{padding:0 5px 12px;margin-bottom:12px}.brand-mark{width:35px;height:35px;border-radius:11px}.brand-name{font-size:14px}.brand-caption{font-size:9px}.sidebar nav{display:flex;gap:5px;overflow-x:auto;padding-bottom:4px}.nav-caption{display:none}.sidebar nav a{white-space:nowrap;padding:9px 11px;margin:0;font-size:11px}.sidebar nav a i{font-size:15px}.sidebar-bottom{display:none}.main-area{margin-left:0}.topbar{height:58px;padding:0 16px;position:relative}.content-wrap{padding:21px 14px 32px}.content-wrap h2,.page-heading h1{font-size:21px}.admin-chip{padding:5px 8px}.admin-chip span{display:none}}
         @media(max-width:575.98px){.card{border-radius:14px!important}.content-wrap .row{--bs-gutter-x:.7rem}.btn{padding:8px 11px}.table-responsive{border-radius:10px}}
@@ -65,10 +64,7 @@
 <body>
 <div class="app-shell">
     <aside class="sidebar">
-        <div class="brand-wrap">
-            <div class="brand-mark"><i class="bi bi-fingerprint"></i></div>
-            <div><div class="brand-name">NEURO ABSENSI</div><div class="brand-caption">ATTENDANCE MANAGEMENT</div></div>
-        </div>
+        <div class="brand-wrap"><div class="brand-mark"><i class="bi bi-fingerprint"></i></div><div><div class="brand-name">NEURO ABSENSI</div><div class="brand-caption">ATTENDANCE MANAGEMENT</div></div></div>
         <nav>
             <div class="nav-caption">Menu utama</div>
             <a class="<?= uri_string() === '' ? 'active' : '' ?>" href="/"><i class="bi bi-grid-1x2-fill"></i>Dashboard</a>
@@ -83,14 +79,13 @@
             <div class="nav-caption mt-4">Data fingerprint</div>
             <a class="<?= str_starts_with(uri_string(), 'impor') && !str_starts_with(uri_string(), 'impor-backup') ? 'active' : '' ?>" href="/impor"><i class="bi bi-file-earmark-arrow-up-fill"></i>Impor Log TXT</a>
             <a class="<?= str_starts_with(uri_string(), 'impor-backup') ? 'active' : '' ?>" href="/impor-backup"><i class="bi bi-database-fill-up"></i>Impor Backup SQL</a>
+            <div class="nav-caption mt-4">Pemeliharaan</div>
+            <a class="<?= str_starts_with(uri_string(), 'backup') ? 'active' : '' ?>" href="/backup"><i class="bi bi-database-fill-down"></i>Backup & Pemulihan</a>
         </nav>
         <div class="sidebar-bottom"><a href="/logout"><i class="bi bi-box-arrow-left"></i>Keluar dari aplikasi</a></div>
     </aside>
     <div class="main-area">
-        <header class="topbar">
-            <div><div class="topbar-label">YAYASAN BINA INSANI GROBOGAN</div><div class="topbar-title"><?= esc($title ?? 'Sistem Manajemen Absensi') ?></div></div>
-            <div class="admin-chip"><div class="admin-avatar"><i class="bi bi-person-fill"></i></div><span><?= esc(session()->get('full_name') ?? session()->get('username') ?? 'Administrator') ?></span></div>
-        </header>
+        <header class="topbar"><div><div class="topbar-label">YAYASAN BINA INSANI GROBOGAN</div><div class="topbar-title"><?= esc($title ?? 'Sistem Manajemen Absensi') ?></div></div><div class="admin-chip"><div class="admin-avatar"><i class="bi bi-person-fill"></i></div><span><?= esc(session()->get('full_name') ?? session()->get('username') ?? 'Administrator') ?></span></div></header>
         <main class="content-wrap">
             <?php if ($msg = session()->getFlashdata('success')): ?><div class="alert alert-success mb-3"><i class="bi bi-check-circle-fill me-2"></i><?= esc($msg) ?></div><?php endif ?>
             <?php if ($msg = session()->getFlashdata('error')): ?><div class="alert alert-danger mb-3"><i class="bi bi-exclamation-circle-fill me-2"></i><?= esc($msg) ?></div><?php endif ?>
