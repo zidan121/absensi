@@ -2,6 +2,12 @@
 <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-4">
     <div><h2>Backup & Pemulihan</h2><p class="text-secondary mb-0">Tiga backup terpisah agar arsip Fingerspot dan database NEURO ABSENSI tidak tercampur.</p></div>
 </div>
+<div class="card p-4 mb-3">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div><h4 class="mb-1">Generator SQL Fingerspot</h4><p class="text-secondary mb-0">Buat file SQL dari data NEURO ABSENSI untuk diperbarui ke database Fingerspot, beserta laporan pemetaan pegawai.</p></div>
+        <a class="btn btn-primary" href="/backup/fingerspot"><i class="bi bi-arrow-left-right me-1"></i>Buka Generator Fingerspot</a>
+    </div>
+</div>
 <div class="row g-3">
     <?php foreach (['smp' => 'Backup SMPIT', 'rakb' => 'Backup RA&KB'] as $key => $label): ?>
     <div class="col-lg-6">
@@ -47,5 +53,5 @@
         </div>
     </div>
 </div>
-<div class="alert alert-warning mt-4 mb-0"><strong>Catatan penting:</strong> Backup SMPIT dan RA&KB pada tahap ini adalah salinan arsip SQL sumber yang kamu unggah, bukan hasil sinkronisasi otomatis dari perubahan pegawai atau scan di NEURO ABSENSI. Simpan arsip asli di tempat lain juga. Sinkronisasi dua arah ke struktur Fingerspot perlu tahap lanjutan dan pengujian kompatibilitas restore.</div>
+<div class="alert alert-warning mt-4 mb-0"><strong>Catatan penting:</strong> Arsip SMPIT dan RA&KB tetap disimpan sebagai sumber asli. Untuk membuat SQL berdasarkan data NEURO ABSENSI, gunakan Generator SQL Fingerspot di atas. File hasil generator adalah skrip merge dan harus diuji pada salinan database Fingerspot setelah membuat backup.</div>
 <?= $this->endSection() ?>
