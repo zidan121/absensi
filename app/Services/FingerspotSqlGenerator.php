@@ -135,7 +135,12 @@ class FingerspotSqlGenerator
             ];
             $logSql[] = 'INSERT IGNORE INTO att_log (sn,scan_date,pin,verifymode,inoutmode,reserved,work_code,att_id) VALUES (' . implode(',', $values) . ');';
         }
-        if (count($serials) > 1) $report[] = $this->issue('-', 'Serial mesin', 'Terdapat beberapa serial: ' . implode(', ', array_keys($serials)) . '. Periksa sumber scan.');
+        if (count($serials) > 1) {
+            $logSql = [];
+            $report[] = $this->issue('-', 'Serial mesin', 'Terdapat beberapa serial: ' . implode(', ', array_keys($serials)) . '. Semua scan diblokir dari file SQL sampai sumber mesin dipastikan.');
+        } elseif (count($serials) === 1) {
+            $report[] = $this->issue('-', 'Serial mesin', 'Serial yang akan digunakan: ' . array_key_first($serials) . '. Pastikan sesuai dengan mesin target Fingerspot.');
+        }
         $report[] = $this->issue('-', 'Ringkasan pegawai', count($masterSql) . ' perubahan master disiapkan; ' . $skippedEmployees . ' dilewati.');
         $report[] = $this->issue('-', 'Ringkasan scan', count($logSql) . ' scan disiapkan; ' . $skippedLogs . ' dilewati.');
 
