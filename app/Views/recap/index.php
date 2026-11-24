@@ -30,8 +30,10 @@ foreach ($data['rows'] as $row) {
     <div class="table-responsive"><table class="table table-sm table-bordered table-hover align-middle">
         <thead class="table-light"><tr>
             <th>PIN</th><th>Nama</th><th>Jabatan</th><th>Tanggal</th>
-            <?php for ($i = 1; $i <= $maxScans; $i++): ?><th>Scan <?= $i ?></th><?php endfor ?>
-            <th>Status</th>
+            <?php for ($i = 1; $i <= $maxScans; $i++): ?>
+                <th>Scan <?= $i ?></th>
+                <?php if ($i === 1): ?><th>Status</th><?php endif ?>
+            <?php endfor ?>
         </tr></thead>
         <tbody>
         <?php foreach ($data['rows'] as $r): ?>
@@ -40,11 +42,15 @@ foreach ($data['rows'] as $row) {
                 <td><?= esc($r['full_name']) ?></td>
                 <td><?= esc($r['position'] ?: '-') ?></td>
                 <td><?= esc(date('d-m-Y', strtotime($r['date']))) ?></td>
-                <?php foreach (($r['scans'] ?? []) as $scan): ?><td><?= esc(substr($scan, 0, 5)) ?></td><?php endforeach ?>
-                <?php for ($i = count($r['scans'] ?? []); $i < $maxScans; $i++): ?><td>-</td><?php endfor ?>
-                <td><?= (int) $r['late_minutes'] > 0
-                    ? '<span class="text-danger fw-semibold">Terlambat (' . (int) $r['late_minutes'] . ' menit)</span>'
-                    : '<span class="text-success">Tepat Waktu</span>' ?></td>
+                <?php $scans = $r['scans'] ?? []; ?>
+                <?php for ($i = 0; $i < $maxScans; $i++): ?>
+                    <td><?= isset($scans[$i]) ? esc(substr($scans[$i], 0, 5)) : '-' ?></td>
+                    <?php if ($i === 0): ?>
+                        <td><?= (int) $r['late_minutes'] > 0
+                            ? '<span class="text-danger fw-semibold">Terlambat (' . (int) $r['late_minutes'] . ' menit)</span>'
+                            : '<span class="text-success">Tepat Waktu</span>' ?></td>
+                    <?php endif ?>
+                <?php endfor ?>
             </tr>
         <?php endforeach ?>
         <?php if (!$data['rows']): ?><tr><td colspan="<?= 5 + $maxScans ?>" class="text-center text-secondary py-4">Belum ada scan yang cocok untuk periode dan unit ini.</td></tr><?php endif ?>
