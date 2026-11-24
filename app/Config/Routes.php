@@ -19,6 +19,10 @@ $routes->get('/', 'Dashboard::index');
 $routes->get('login', 'Auth::login');
 $routes->post('login', 'Auth::attempt');
 $routes->get('logout', 'Auth::logout');
+$routes->group('akun', ['filter' => 'auth'], static function ($routes) {
+    $routes->get('/', 'AccountSettings::index');
+    $routes->post('simpan', 'AccountSettings::update');
+});
 $routes->group('rekap', ['filter' => 'auth'], static function ($routes) {
     $routes->get('/', 'Recap::index');
     $routes->get('export', 'Recap::export');
