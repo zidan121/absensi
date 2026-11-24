@@ -69,9 +69,13 @@ class AttendanceSettings extends BaseController
 
             if ($latest && empty($latest['effective_to'])) {
                 $previousDay = (new DateTimeImmutable($effectiveFrom))->modify('-1 day')->format('Y-m-d');
+                $beforeLatest = $latest;
+                $afterLatest = $latest;
+                $afterLatest['effective_to'] = $previousDay;
                 $db->table('unit_attendance_rules')
                     ->where('id', $latest['id'])
                     ->update(['effective_to' => $previousDay, 'updated_at' => date('Y-m-d H:i:s')]);
+                $this->writeAudit($db, (int) $latest['id'], $unit, 'close_period', $beforeLatest, $afterLatest);
             }
 
             $db->table('unit_attendance_rules')->insert([
