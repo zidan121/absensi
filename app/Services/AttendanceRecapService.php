@@ -153,7 +153,11 @@ class AttendanceRecapService
                 'calendar_event' => $calendarEvent,
                 'status' => $isHoliday
                     ? 'Hari Libur (ada scan)'
-                    : ($lateMinutes > 0 ? 'Terlambat (' . $lateMinutes . ' menit)' : 'Tepat Waktu'),
+                    : ($lateMinutes > 0
+                        ? 'Terlambat (' . $lateMinutes . ' menit)'
+                        : (in_array($calendarEvent['event_type'] ?? '', ['late_start', 'workday'], true)
+                            ? ($calendarEvent['title'] . ' — Tepat Waktu')
+                            : 'Tepat Waktu')),
                 'all_scans' => $scans,
             ];
         }
