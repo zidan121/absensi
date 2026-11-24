@@ -26,6 +26,8 @@ $routes->group('rekap', ['filter' => 'auth'], static function ($routes) {
 $routes->group('pengaturan-absensi', ['filter' => 'auth'], static function ($routes) {
     $routes->get('/', 'AttendanceSettings::index');
     $routes->post('simpan-unit', 'AttendanceSettings::saveUnitRule');
+    $routes->post('perbarui/(:num)', 'AttendanceSettings::updateRule/$1');
+    $routes->post('hapus/(:num)', 'AttendanceSettings::deleteRule/$1');
 });
 $routes->group('pegawai', ['filter' => 'auth'], static function ($routes) {
     $routes->get('/', 'Employees::index');
