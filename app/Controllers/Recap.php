@@ -48,8 +48,10 @@ class Recap extends BaseController
         $headers = ['PIN', 'Nama', 'Jabatan', 'Tanggal'];
         for ($i = 1; $i <= $maxScans; $i++) {
             $headers[] = 'Scan ' . $i;
+            if ($i === 1) {
+                $headers[] = 'Status';
+            }
         }
-        $headers[] = 'Status';
         $sheet->fromArray($headers, null, 'A3');
 
         $row = 4;
@@ -60,15 +62,15 @@ class Recap extends BaseController
                 $item['position'] ?? '',
                 date('d-m-Y', strtotime($item['date'])),
             ];
-            foreach (($item['scans'] ?? []) as $scan) {
-                $values[] = substr($scan, 0, 8);
+            $scans = $item['scans'] ?? [];
+            for ($i = 0; $i < $maxScans; $i++) {
+                $values[] = $scans[$i] ?? '-';
+                if ($i === 0) {
+                    $values[] = (int) $item['late_minutes'] > 0
+                        ? 'Terlambat (' . (int) $item['late_minutes'] . ' menit)'
+                        : 'Tepat Waktu';
+                }
             }
-            while (count($values) < 4 + $maxScans) {
-                $values[] = '-';
-            }
-            $values[] = (int) $item['late_minutes'] > 0
-                ? 'Terlambat (' . (int) $item['late_minutes'] . ' menit)'
-                : 'Tepat Waktu';
             $sheet->fromArray($values, null, 'A' . $row++);
         }
         $lastColumn = $sheet->getHighestColumn();
