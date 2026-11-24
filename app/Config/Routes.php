@@ -28,6 +28,8 @@ $routes->group('backup', ['filter' => 'auth'], static function ($routes) {
     $routes->post('simpan-sumber', 'BackupExports::saveSource');
     $routes->get('sumber/(:segment)', 'BackupExports::downloadSource/$1');
     $routes->get('neuro', 'BackupExports::downloadNeuro');
+    $routes->post('pemulihan/preview', 'BackupExports::previewRestore');
+    $routes->post('pemulihan/proses', 'BackupExports::restoreTest');
 });
 $routes->group('rekap', ['filter' => 'auth'], static function ($routes) {
     $routes->get('/', 'Recap::index');
