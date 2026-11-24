@@ -41,8 +41,19 @@ class Employees extends BaseController
         }
 
         $employees = $query->findAll();
-        // Sort by employee code naturally so numeric suffixes follow numeric order (e.g. RAIT:2 before RAIT:11).
+        // Sort by the numeric part of the employee code, ignoring its unit/prefix (e.g. RAIT:2 before SMPIT:5).
         usort($employees, static function (array $a, array $b): int {
+            $numberA = preg_match('/(\\d+)$/', (string) ($a['employee_code'] ?? ''), $matchA)
+                ? (int) $matchA[1]
+                : PHP_INT_MAX;
+            $numberB = preg_match('/(\\d+)$/', (string) ($b['employee_code'] ?? ''), $matchB)
+                ? (int) $matchB[1]
+                : PHP_INT_MAX;
+
+            if ($numberA !== $numberB) {
+                return $numberA <=> $numberB;
+            }
+
             $codeCompare = strnatcasecmp(
                 (string) ($a['employee_code'] ?? ''),
                 (string) ($b['employee_code'] ?? '')
