@@ -110,7 +110,9 @@ class AttendanceRecapService
 
         $rows = [];
         foreach ($groups as $group) {
-            $scans = $group['scans'];
+            // Identical timestamps on the same employee/day count as one scan.
+            // Keep distinct timestamps only, so a duplicated same-time event does not create a false departure.
+            $scans = array_values(array_unique($group['scans'], SORT_STRING));
             sort($scans);
             $first = $scans[0];
             $last = count($scans) > 1 ? $scans[count($scans) - 1] : null;
