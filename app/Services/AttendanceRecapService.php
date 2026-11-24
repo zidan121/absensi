@@ -169,7 +169,20 @@ class AttendanceRecapService
                 'all_scans' => $scans,
             ];
         }
-        usort($rows, static fn ($a, $b) => [$a['unit_code'], $a['full_name'], $a['date']] <=> [$b['unit_code'], $b['full_name'], $b['date']]);
+        // Sort attendance details by fingerprint PIN (natural order), then chronologically per PIN.
+        usort($rows, static function ($a, $b): int {
+            $pinCompare = strnatcasecmp(
+                (string) ($a['fingerprint_pin'] ?? ''),
+                (string) ($b['fingerprint_pin'] ?? '')
+            );
+
+            if ($pinCompare !== 0) {
+                return $pinCompare;
+            }
+
+            return [$a['date'], $a['unit_code'], $a['full_name']]
+                <=> [$b['date'], $b['unit_code'], $b['full_name']];
+        });
 
         return [
             'start_date' => $startDate,
