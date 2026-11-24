@@ -33,16 +33,29 @@ class Employees extends BaseController
             ->groupEnd()
             ->countAllResults();
 
-        $query = (new EmployeeModel())->orderBy('full_name', 'ASC');
+        $query = new EmployeeModel();
         if ($selectedUnit === 'UNASSIGNED') {
             $query->groupStart()->where('unit_code', null)->orWhere('unit_code', '')->groupEnd();
         } elseif ($selectedUnit !== 'ALL') {
             $query->where('unit_code', $selectedUnit);
         }
 
+        $employees = $query->findAll();
+        // Sort by employee code naturally so numeric suffixes follow numeric order (e.g. RAIT:2 before RAIT:11).
+        usort($employees, static function (array $a, array $b): int {
+            $codeCompare = strnatcasecmp(
+                (string) ($a['employee_code'] ?? ''),
+                (string) ($b['employee_code'] ?? '')
+            );
+
+            return $codeCompare !== 0
+                ? $codeCompare
+                : strcasecmp((string) ($a['full_name'] ?? ''), (string) ($b['full_name'] ?? ''));
+        });
+
         return view('employees/index', [
             'title' => 'Data Pegawai',
-            'employees' => $query->findAll(),
+            'employees' => $employees,
             'units' => self::UNITS,
             'selectedUnit' => $selectedUnit,
             'counts' => $counts,
