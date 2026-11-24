@@ -21,7 +21,7 @@ class Auth extends BaseController
         $password = (string) $this->request->getPost('password');
 
         $user = (new UserModel())->where('username', $username)->first();
-        if (! $user || ! password_verify($password, $user['password_hash'])) {
+        if (! $user || empty($user['is_active']) || ! password_verify($password, $user['password_hash'])) {
             return redirect()->back()->withInput()->with('error', 'Username atau password tidak sesuai.');
         }
 
@@ -30,6 +30,7 @@ class Auth extends BaseController
             'logged_in' => true,
             'user_id' => $user['id'],
             'username' => $user['username'],
+            'full_name' => $user['full_name'],
         ]);
 
         return redirect()->to('/');
