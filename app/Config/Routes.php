@@ -23,6 +23,10 @@ $routes->group('rekap', ['filter' => 'auth'], static function ($routes) {
     $routes->get('/', 'Recap::index');
     $routes->get('export', 'Recap::export');
 });
+$routes->group('pengaturan-absensi', ['filter' => 'auth'], static function ($routes) {
+    $routes->get('/', 'AttendanceSettings::index');
+    $routes->post('simpan-unit', 'AttendanceSettings::saveUnitRule');
+});
 $routes->group('pegawai', ['filter' => 'auth'], static function ($routes) {
     $routes->get('/', 'Employees::index');
     $routes->get('baru', 'Employees::create');
