@@ -121,18 +121,23 @@ class AttendanceRecapService
             $lateAfter = $schedule['late_after']
                 ?? $unitRule['late_after']
                 ?? (self::DEFAULT_LATE_AFTER[$group['unit_code']] ?? '07:45:59');
-            $isLate = substr($first, 11, 8) > $lateAfter;
+            $arrivalTime = substr($first, 11, 8);
+            $isLate = $arrivalTime > $lateAfter;
+            $lateSeconds = $isLate
+                ? max(0, strtotime($group['date'] . ' ' . $arrivalTime) - strtotime($group['date'] . ' ' . $lateAfter))
+                : 0;
+            $lateMinutes = $isLate ? max(1, (int) ceil($lateSeconds / 60)) : 0;
             $rows[] = [
                 'employee_id' => $group['employee_id'],
                 'employee_code' => $group['employee_code'],
                 'full_name' => $group['full_name'],
                 'unit_code' => $group['unit_code'],
                 'date' => $group['date'],
-                'arrival' => substr($first, 11, 8),
+                'arrival' => $arrivalTime,
                 'departure' => $last ? substr($last, 11, 8) : '',
                 'scan_count' => count($scans),
                 'late_after' => $lateAfter,
-                'late_minutes' => $isLate ? max(0, (int) floor((strtotime($group['date'] . ' ' . $first) - strtotime($group['date'] . ' ' . $lateAfter)) / 60)) : 0,
+                'late_minutes' => $lateMinutes,
                 'all_scans' => $scans,
             ];
         }
