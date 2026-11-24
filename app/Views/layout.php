@@ -78,6 +78,8 @@
             <a class="<?= str_starts_with(uri_string(), 'pengaturan-absensi') ? 'active' : '' ?>" href="/pengaturan-absensi"><i class="bi bi-sliders"></i>Pengaturan Absensi</a>
             <a class="<?= str_starts_with(uri_string(), 'kalender-kerja') ? 'active' : '' ?>" href="/kalender-kerja"><i class="bi bi-calendar-event-fill"></i>Kalender Kerja</a>
             <a class="<?= str_starts_with(uri_string(), 'jadwal-hari-kerja') ? 'active' : '' ?>" href="/jadwal-hari-kerja"><i class="bi bi-calendar-week-fill"></i>Jadwal Hari Kerja</a>
+            <div class="nav-caption mt-4">Akun</div>
+            <a class="<?= str_starts_with(uri_string(), 'akun') ? 'active' : '' ?>" href="/akun"><i class="bi bi-person-gear"></i>Pengaturan Akun</a>
             <div class="nav-caption mt-4">Data fingerprint</div>
             <a class="<?= str_starts_with(uri_string(), 'impor') && !str_starts_with(uri_string(), 'impor-backup') ? 'active' : '' ?>" href="/impor"><i class="bi bi-file-earmark-arrow-up-fill"></i>Impor Log TXT</a>
             <a class="<?= str_starts_with(uri_string(), 'impor-backup') ? 'active' : '' ?>" href="/impor-backup"><i class="bi bi-database-fill-up"></i>Impor Backup SQL</a>
@@ -87,7 +89,7 @@
     <div class="main-area">
         <header class="topbar">
             <div><div class="topbar-label">YAYASAN BINA INSANI GROBOGAN</div><div class="topbar-title"><?= esc($title ?? 'Sistem Manajemen Absensi') ?></div></div>
-            <div class="admin-chip"><div class="admin-avatar"><i class="bi bi-person-fill"></i></div><span><?= esc(session()->get('username') ?? 'Administrator') ?></span></div>
+            <div class="admin-chip"><div class="admin-avatar"><i class="bi bi-person-fill"></i></div><span><?= esc(session()->get('full_name') ?? session()->get('username') ?? 'Administrator') ?></span></div>
         </header>
         <main class="content-wrap">
             <?php if ($msg = session()->getFlashdata('success')): ?><div class="alert alert-success mb-3"><i class="bi bi-check-circle-fill me-2"></i><?= esc($msg) ?></div><?php endif ?>
