@@ -16,7 +16,7 @@ class FingerspotSqlGenerator
     {
         $parser = new FingerspotSqlBackupParser();
         $source = $parser->parse($sourceSql, 'employees')['records'];
-        if ($source === []) throw new \\RuntimeException('Arsip sumber tidak memiliki data pegawai yang dapat dibaca.');
+        if ($source === []) throw new \RuntimeException('Arsip sumber tidak memiliki data pegawai yang dapat dibaca.');
         $byPin = [];
         foreach ($source as $row) {
             $pin = trim((string) $row['fingerprint_pin']);
