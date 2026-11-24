@@ -59,7 +59,7 @@ class AttendanceRecapService
         $ambiguousKeys = [];
         if ($deviceIds !== []) {
             $employees = $this->db->table('employees')
-                ->select('id, fingerprint_device_id, fingerprint_pin, employee_code, full_name, unit_code')
+                ->select('id, fingerprint_device_id, fingerprint_pin, employee_code, full_name, position, unit_code')
                 ->whereIn('fingerprint_device_id', $deviceIds)
                 ->where('fingerprint_pin IS NOT NULL', null, false)
                 ->get()->getResultArray();
@@ -100,6 +100,7 @@ class AttendanceRecapService
                     'employee_id' => (int) $employee['id'],
                     'employee_code' => $employee['employee_code'],
                     'full_name' => $employee['full_name'],
+                    'position' => $employee['position'] ?? '',
                     'unit_code' => $employee['unit_code'],
                     'date' => $date,
                     'scans' => [],
@@ -131,11 +132,13 @@ class AttendanceRecapService
                 'employee_id' => $group['employee_id'],
                 'employee_code' => $group['employee_code'],
                 'full_name' => $group['full_name'],
+                'position' => $group['position'],
                 'unit_code' => $group['unit_code'],
                 'date' => $group['date'],
                 'arrival' => $arrivalTime,
                 'departure' => $last ? substr($last, 11, 8) : '',
                 'scan_count' => count($scans),
+                'scans' => array_map(static fn ($scan) => substr($scan, 11, 8), $scans),
                 'late_after' => $lateAfter,
                 'late_minutes' => $lateMinutes,
                 'all_scans' => $scans,
