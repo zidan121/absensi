@@ -31,6 +31,12 @@ $routes->group('backup', ['filter' => 'auth'], static function ($routes) {
     $routes->post('pemulihan/preview', 'BackupExports::previewRestore');
     $routes->post('pemulihan/proses', 'BackupExports::restoreTest');
 });
+$routes->group('backup/fingerspot', ['filter' => 'auth'], static function ($routes) {
+    $routes->get('/', 'FingerspotExport::index');
+    $routes->post('generate', 'FingerspotExport::generate');
+    $routes->get('hasil', 'FingerspotExport::result');
+    $routes->get('download', 'FingerspotExport::download');
+});
 $routes->group('rekap', ['filter' => 'auth'], static function ($routes) {
     $routes->get('/', 'Recap::index');
     $routes->get('export', 'Recap::export');
