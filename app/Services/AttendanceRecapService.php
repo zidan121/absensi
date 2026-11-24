@@ -118,13 +118,20 @@ class AttendanceRecapService
             sort($scans);
             $first = $scans[0];
             $last = count($scans) > 1 ? $scans[count($scans) - 1] : null;
+            $calendarEvent = $this->calendarEventFor(
+                $group['employee_id'],
+                $group['unit_code'],
+                $group['date']
+            );
             $schedule = $this->scheduleFor($group['employee_id'], $group['date']);
             $unitRule = $schedule ? null : $this->unitRuleFor($group['unit_code'], $group['date']);
-            $lateAfter = $schedule['late_after']
+            $lateAfter = $calendarEvent['late_after']
+                ?? $schedule['late_after']
                 ?? $unitRule['late_after']
                 ?? (self::DEFAULT_LATE_AFTER[$group['unit_code']] ?? '07:45:59');
             $arrivalTime = substr($first, 11, 8);
-            $isLate = $arrivalTime > $lateAfter;
+            $isHoliday = ($calendarEvent['event_type'] ?? null) === 'holiday';
+            $isLate = ! $isHoliday && $arrivalTime > $lateAfter;
             $lateSeconds = $isLate
                 ? max(0, strtotime($group['date'] . ' ' . $arrivalTime) - strtotime($group['date'] . ' ' . $lateAfter))
                 : 0;
@@ -141,8 +148,12 @@ class AttendanceRecapService
                 'departure' => $last ? substr($last, 11, 8) : '',
                 'scan_count' => count($scans),
                 'scans' => array_map(static fn ($scan) => substr($scan, 11, 8), $scans),
-                'late_after' => $lateAfter,
+                'late_after' => $isHoliday ? '-' : $lateAfter,
                 'late_minutes' => $lateMinutes,
+                'calendar_event' => $calendarEvent,
+                'status' => $isHoliday
+                    ? 'Hari Libur (ada scan)'
+                    : ($lateMinutes > 0 ? 'Terlambat (' . $lateMinutes . ' menit)' : 'Tepat Waktu'),
                 'all_scans' => $scans,
             ];
         }
@@ -161,6 +172,25 @@ class AttendanceRecapService
                 'unmatched_identities' => count($unmatched),
             ],
         ];
+    }
+
+    private function calendarEventFor(int $employeeId, string $unitCode, string $date): ?array
+    {
+        return $this->db->table('work_calendar_events')
+            ->groupStart()
+                ->where('target_type', 'all')
+                ->orGroupStart()
+                    ->where('target_type', 'unit')
+                    ->where('unit_code', $unitCode)
+                ->groupEnd()
+                ->orGroupStart()
+                    ->where('target_type', 'employee')
+                    ->where('employee_id', $employeeId)
+                ->groupEnd()
+            ->groupEnd()
+            ->where('event_date', $date)
+            ->orderBy("CASE target_type WHEN 'employee' THEN 1 WHEN 'unit' THEN 2 ELSE 3 END", '', false)
+            ->get(1)->getRowArray();
     }
 
     private function unitRuleFor(string $unitCode, string $date): ?array
