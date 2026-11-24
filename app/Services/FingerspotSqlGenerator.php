@@ -108,10 +108,9 @@ class FingerspotSqlGenerator
                 'gender'=>1, 'tgl_masuk_pertama'=>$employee['employment_start'] ?: null, 'photo_path'=>'',
                 'tmp_img'=>null, 'nama_bank'=>'', 'nama_rek'=>'', 'no_rek'=>'', 'new_pegawai_id'=>null,
             ];
-            $cols = implode(',', self::EMPLOYEE_COLUMNS);
-            $vals = implode(',', array_map(fn($col) => $this->value($db, $new[$col]), self::EMPLOYEE_COLUMNS));
-            $insertColumns = implode(',', array_slice(self::EMPLOYEE_COLUMNS,  1));
-            $insertValues = implode(',', array_map(fn($col) => $this->value($db, $new[$col]), array_slice(self::EMPLOYEE_COLUMNS, 1)));
+            $insertColumns = implode(',', self::EMPLOYEE_COLUMNS);
+            $insertValues = '(@neuro_next_pegawai_id := @neuro_next_pegawai_id + 1),' 
+                . implode(',', array_map(fn($col) => $this->value($db, $new[$col]), array_slice(self::EMPLOYEE_COLUMNS, 1)));
             $masterSql[] = 'INSERT INTO pegawai (' . $insertColumns . ') SELECT ' . $insertValues
                 . ' WHERE NOT EXISTS (SELECT 1 FROM pegawai WHERE pegawai_pin=' . $this->value($db, $pin) . ');';
             $report[] = $this->issue($pin, $name, 'Pegawai baru disiapkan. ID tidak ditetapkan dari arsip; data hanya ditambahkan bila PIN belum ada pada database tujuan saat SQL dijalankan.');
@@ -144,7 +143,7 @@ class FingerspotSqlGenerator
             . "-- Target: " . $label . "\n-- Generated: " . date('Y-m-d H:i:s') . "\n"
             . "-- Jalankan pada database Fingerspot yang SUDAH ADA. Backup dahulu.\n"
             . "-- Hanya tabel pegawai dan att_log yang diubah. Tidak ada DROP/CREATE.\n"
-            . "SET NAMES utf8mb4;\nSTART TRANSACTION;\n"
+            . "SET NAMES utf8mb4;\nSTART TRANSACTION;\nSET @neuro_next_pegawai_id := (SELECT COALESCE(MAX(pegawai_id), 0) FROM pegawai);\n"
             . implode("\n", $masterSql) . "\n" . implode("\n", $logSql) . "\nCOMMIT;\n";
         return ['sql'=>$sql, 'report'=>$report, 'master'=>count($masterSql), 'skipped_master'=>$skippedEmployees, 'logs'=>count($logSql), 'skipped_logs'=>$skippedLogs];
     }
