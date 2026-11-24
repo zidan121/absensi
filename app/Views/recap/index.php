@@ -46,9 +46,7 @@ foreach ($data['rows'] as $row) {
                 <?php for ($i = 0; $i < $maxScans; $i++): ?>
                     <td><?= isset($scans[$i]) ? esc(substr($scans[$i], 0, 5)) : '-' ?></td>
                     <?php if ($i === 0): ?>
-                        <td><?= (int) $r['late_minutes'] > 0
-                            ? '<span class="text-danger fw-semibold">Terlambat (' . (int) $r['late_minutes'] . ' menit)</span>'
-                            : '<span class="text-success">Tepat Waktu</span>' ?></td>
+                        <td><?= esc($r['status'] ?? ((int) $r['late_minutes'] > 0 ? 'Terlambat (' . (int) $r['late_minutes'] . ' menit)' : 'Tepat Waktu')) ?></td>
                     <?php endif ?>
                 <?php endfor ?>
             </tr>
