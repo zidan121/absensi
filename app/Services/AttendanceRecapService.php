@@ -117,7 +117,10 @@ class AttendanceRecapService
             $first = $scans[0];
             $last = count($scans) > 1 ? $scans[count($scans) - 1] : null;
             $schedule = $this->scheduleFor($group['employee_id'], $group['date']);
-            $lateAfter = $schedule['late_after'] ?? (self::DEFAULT_LATE_AFTER[$group['unit_code']] ?? '07:45:59');
+            $unitRule = $schedule ? null : $this->unitRuleFor($group['unit_code'], $group['date']);
+            $lateAfter = $schedule['late_after']
+                ?? $unitRule['late_after']
+                ?? (self::DEFAULT_LATE_AFTER[$group['unit_code']] ?? '07:45:59');
             $isLate = substr($first, 11, 8) > $lateAfter;
             $rows[] = [
                 'employee_id' => $group['employee_id'],
@@ -148,6 +151,16 @@ class AttendanceRecapService
                 'unmatched_identities' => count($unmatched),
             ],
         ];
+    }
+
+    private function unitRuleFor(string $unitCode, string $date): ?array
+    {
+        return $this->db->table('unit_attendance_rules')
+            ->where('unit_code', $unitCode)
+            ->where('effective_from <=', $date)
+            ->groupStart()->where('effective_to >=', $date)->orWhere('effective_to', null)->groupEnd()
+            ->orderBy('effective_from', 'DESC')
+            ->get(1)->getRowArray();
     }
 
     private function scheduleFor(int $employeeId, string $date): ?array
