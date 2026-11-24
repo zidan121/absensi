@@ -57,7 +57,6 @@ class FingerspotSqlGenerator
                 $skippedEmployees++;
                 continue;
             }
-            $knownPins[$pin] = true;
             $matches = $byPin[$pin] ?? [];
             if (count($matches) > 1) {
                 $report[] = $this->issue($pin, $name, 'PIN ganda di arsip Fingerspot; pegawai dilewati.');
@@ -68,7 +67,7 @@ class FingerspotSqlGenerator
             if ($matches) {
                 $old = $matches[0];
                 $set = [
-                    'pegawai_nip' => $employee['employee_code'] ?? $pin,
+                    'pegawai_nip' => $pin,
                     'pegawai_nama' => $name,
                     'pegawai_alias' => $name,
                     'pegawai_status' => (int) ($employee['is_active'] ?? 1) === 1 ? 1 : 0,
@@ -82,6 +81,7 @@ class FingerspotSqlGenerator
                 foreach ($set as $column=>$value) $assignments[] = $column . '=' . $this->value($db, $value);
                 $masterSql[] = 'UPDATE pegawai SET ' . implode(',', $assignments)
                     . ' WHERE pegawai_pin=' . $this->value($db, $pin) . ';';
+                $knownPins[$pin] = true;
                 continue;
             }
 
@@ -105,7 +105,7 @@ class FingerspotSqlGenerator
             }
 
             $new = [
-                'pegawai_id'=>null, 'pegawai_pin'=>$pin, 'pegawai_nip'=>$employee['employee_code'] ?? $pin,
+                'pegawai_id'=>null, 'pegawai_pin'=>$pin, 'pegawai_nip'=>$pin,
                 'pegawai_nama'=>$name, 'pegawai_alias'=>$name, 'pegawai_pwd'=>'0', 'pegawai_rfid'=>'0',
                 'pegawai_privilege'=>'0', 'pegawai_telp'=>null, 'pegawai_status'=>(int) ($employee['is_active'] ?? 1) === 1 ? 1 : 0,
                 'tempat_lahir'=>null, 'tgl_lahir'=>null, 'pembagian1_id'=>$division[0],
@@ -119,7 +119,8 @@ class FingerspotSqlGenerator
                 . implode(',', array_map(fn($col) => $this->value($db, $new[$col]), array_slice(self::EMPLOYEE_COLUMNS, 1)));
             $masterSql[] = 'INSERT INTO pegawai (' . $insertColumns . ') SELECT ' . $insertValues
                 . ' WHERE NOT EXISTS (SELECT 1 FROM pegawai WHERE pegawai_pin=' . $this->value($db, $pin) . ');';
-            $report[] = $this->issue($pin, $name, 'Pegawai baru disiapkan. ID tidak ditetapkan dari arsip; data hanya ditambahkan bila PIN belum ada pada database tujuan saat SQL dijalankan.');
+            $knownPins[$pin] = true;
+            $report[] = $this->issue($pin, $name, 'Pegawai baru disiapkan. ID ditentukan aman saat SQL dijalankan; data hanya ditambahkan bila PIN belum ada pada database tujuan.');
         }
 
         $logs = $db->table('attendance_logs')->where('device_id', (int) $device['id'])->orderBy('scanned_at', 'ASC')->get()->getResultArray();
