@@ -132,7 +132,7 @@ class AttendanceRecapService
             $arrivalTime = substr($first, 11, 8);
             $isHoliday = ($calendarEvent['event_type'] ?? null) === 'holiday';
             $weeklySchedule = $this->weeklyScheduleFor($group['unit_code'], $group['date']);
-            $weekday = (int) (new \\DateTimeImmutable($group['date']))->format('N');
+            $weekday = (int) (new \DateTimeImmutable($group['date']))->format('N');
             $isWeeklyOff = $weeklySchedule !== null
                 && ! in_array($weekday, array_map('intval', explode(',', $weeklySchedule['work_days'])), true);
             $specialWorkday = in_array($calendarEvent['event_type'] ?? '', ['late_start', 'workday'], true);
