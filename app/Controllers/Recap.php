@@ -41,17 +41,40 @@ class Recap extends BaseController
         $sheet = $book->getActiveSheet();
         $sheet->setTitle('Rekap Absensi');
         $sheet->setCellValue('A1', 'Periode: ' . $startDate . ' s.d. ' . $endDate);
-        $sheet->fromArray(['Tanggal', 'Kode Pegawai', 'Nama Pegawai', 'Unit', 'Jam Masuk', 'Jam Pulang', 'Jumlah Scan', 'Ambang Terlambat', 'Terlambat (menit)'], null, 'A3');
+        $maxScans = 1;
+        foreach ($data['rows'] as $item) {
+            $maxScans = max($maxScans, count($item['scans'] ?? []));
+        }
+        $headers = ['PIN', 'Nama', 'Jabatan', 'Tanggal'];
+        for ($i = 1; $i <= $maxScans; $i++) {
+            $headers[] = 'Scan ' . $i;
+        }
+        $headers[] = 'Status';
+        $sheet->fromArray($headers, null, 'A3');
+
         $row = 4;
         foreach ($data['rows'] as $item) {
-            $sheet->fromArray([
-                $item['date'], $item['employee_code'], $item['full_name'], $item['unit_code'],
-                $item['arrival'], $item['departure'], $item['scan_count'], $item['late_after'], $item['late_minutes'],
-            ], null, 'A' . $row++);
+            $values = [
+                $item['fingerprint_pin'] ?? '',
+                $item['full_name'],
+                $item['position'] ?? '',
+                date('d-m-Y', strtotime($item['date'])),
+            ];
+            foreach (($item['scans'] ?? []) as $scan) {
+                $values[] = substr($scan, 0, 8);
+            }
+            while (count($values) < 4 + $maxScans) {
+                $values[] = '-';
+            }
+            $values[] = (int) $item['late_minutes'] > 0
+                ? 'Terlambat (' . (int) $item['late_minutes'] . ' menit)'
+                : 'Tepat Waktu';
+            $sheet->fromArray($values, null, 'A' . $row++);
         }
-        foreach (range('A', 'I') as $column) $sheet->getColumnDimension($column)->setAutoSize(true);
+        $lastColumn = $sheet->getHighestColumn();
+        foreach (range('A', $lastColumn) as $column) $sheet->getColumnDimension($column)->setAutoSize(true);
         $sheet->freezePane('A4');
-        $sheet->getStyle('A3:I3')->getFont()->setBold(true);
+        $sheet->getStyle('A3:' . $lastColumn . '3')->getFont()->setBold(true);
         $filename = 'rekap-absensi-' . $startDate . '-sampai-' . $endDate . ($unit ? '-' . strtolower($unit) : '-semua-unit') . '.xlsx';
         $response = service('response');
         $response->setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
