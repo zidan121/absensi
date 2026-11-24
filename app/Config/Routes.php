@@ -29,6 +29,11 @@ $routes->group('pengaturan-absensi', ['filter' => 'auth'], static function ($rou
     $routes->post('perbarui/(:num)', 'AttendanceSettings::updateRule/$1');
     $routes->post('hapus/(:num)', 'AttendanceSettings::deleteRule/$1');
 });
+$routes->group('kalender-kerja', ['filter' => 'auth'], static function ($routes) {
+    $routes->get('/', 'WorkCalendar::index');
+    $routes->post('simpan', 'WorkCalendar::store');
+    $routes->post('hapus/(:num)', 'WorkCalendar::delete/$1');
+});
 $routes->group('pegawai', ['filter' => 'auth'], static function ($routes) {
     $routes->get('/', 'Employees::index');
     $routes->get('baru', 'Employees::create');
