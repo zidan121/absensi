@@ -162,7 +162,7 @@ class AttendanceRecapService
                     : ($isNonWorkingDay
                         ? 'Libur Mingguan (ada scan)'
                         : ($lateMinutes > 0
-                            ? 'Terlambat (' . $lateMinutes . ' menit)'
+                            ? 'Terlambat'
                             : ($specialWorkday
                                 ? ($calendarEvent['title'] . ' — Tepat Waktu')
                                 : 'Tepat Waktu'))),
