@@ -85,7 +85,7 @@ class BackupExports extends BaseController
     {
         $dir = WRITEPATH . 'backups' . DIRECTORY_SEPARATOR . 'restore-staging';
         if (! is_dir($dir) && ! mkdir($dir, 0770, true) && ! is_dir($dir)) {
-            throw new \\RuntimeException('Folder staging pemulihan tidak dapat dibuat.');
+            throw new \RuntimeException('Folder staging pemulihan tidak dapat dibuat.');
         }
         return $dir;
     }
@@ -103,13 +103,13 @@ class BackupExports extends BaseController
         try {
             $content = file_get_contents($file->getTempName());
             if ($content === false || ! str_starts_with(ltrim($content), '-- NEURO ABSENSI database backup')) {
-                throw new \\RuntimeException('File bukan backup NEURO ABSENSI yang dikenali aplikasi.');
+                throw new \RuntimeException('File bukan backup NEURO ABSENSI yang dikenali aplikasi.');
             }
             if (! preg_match('/^-- Database: neuro_absensi\\s*$/m', $content)) {
-                throw new \\RuntimeException('Nama database sumber tidak cocok. Hanya backup database neuro_absensi yang diterima.');
+                throw new \RuntimeException('Nama database sumber tidak cocok. Hanya backup database neuro_absensi yang diterima.');
             }
             if (preg_match('/\\b(DROP|CREATE|ALTER)\\s+DATABASE\\b|\\bUSE\\s+[^;]+;/i', $content)) {
-                throw new \\RuntimeException('File berisi perintah penggantian database yang tidak diizinkan.');
+                throw new \RuntimeException('File berisi perintah penggantian database yang tidak diizinkan.');
             }
 
             $statements = $this->splitSqlStatements($content);
@@ -118,17 +118,17 @@ class BackupExports extends BaseController
                 if (preg_match('/^CREATE\\s+TABLE\\s+/i', ltrim($statement))) {
                     $tableCount++;
                 } elseif (! preg_match('/^(SET\\s+|DROP\\s+TABLE\\s+|INSERT\\s+INTO\\s+)/i', ltrim($statement))) {
-                    throw new \\RuntimeException('File berisi perintah SQL yang tidak didukung oleh fitur pemulihan aman.');
+                    throw new \RuntimeException('File berisi perintah SQL yang tidak didukung oleh fitur pemulihan aman.');
                 }
             }
             if ($tableCount < 1) {
-                throw new \\RuntimeException('Tidak ditemukan struktur tabel pada file backup.');
+                throw new \RuntimeException('Tidak ditemukan struktur tabel pada file backup.');
             }
 
             $token = bin2hex(random_bytes(24));
             $path = $this->restoreStagingDirectory() . DIRECTORY_SEPARATOR . $token . '.sql';
             if (! copy($file->getTempName(), $path)) {
-                throw new \\RuntimeException('File backup gagal disiapkan untuk pemeriksaan.');
+                throw new \RuntimeException('File backup gagal disiapkan untuk pemeriksaan.');
             }
             session()->set('neuro_restore_token', $token);
 
@@ -140,7 +140,7 @@ class BackupExports extends BaseController
                 'tableCount' => $tableCount,
                 'statementCount' => count($statements),
             ]);
-        } catch (\\Throwable $e) {
+        } catch (\Throwable $e) {
             log_message('warning', 'Restore preview rejected: {message}', ['message' => $e->getMessage()]);
             return redirect()->to('/backup')->with('error', $e->getMessage());
         }
@@ -165,7 +165,7 @@ class BackupExports extends BaseController
             $content = file_get_contents($path);
             if ($content === false || ! str_starts_with(ltrim($content), '-- NEURO ABSENSI database backup')
                 || ! preg_match('/^-- Database: neuro_absensi\\s*$/m', $content)) {
-                throw new \\RuntimeException('Validasi file backup gagal saat pemulihan.');
+                throw new \RuntimeException('Validasi file backup gagal saat pemulihan.');
             }
             $statements = $this->splitSqlStatements($content);
             $config = config('Database')->default;
@@ -174,7 +174,7 @@ class BackupExports extends BaseController
 
             $adminDb = db_connect();
             $adminDb->query('CREATE DATABASE IF NOT EXISTS neuro_absensi_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
-            $testDb = \\Config\\Database::connect($config, false);
+            $testDb = \Config\Database::connect($config, false);
             $testDb->query('SET FOREIGN_KEY_CHECKS=0');
 
             $tableCount = 0;
@@ -186,7 +186,7 @@ class BackupExports extends BaseController
                 if (preg_match('/^CREATE\\s+TABLE\\s+/i', $sql)) {
                     $tableCount++;
                 } elseif (! preg_match('/^(SET\\s+|DROP\\s+TABLE\\s+|INSERT\\s+INTO\\s+)/i', $sql)) {
-                    throw new \\RuntimeException('Ditemukan perintah SQL di luar format backup NEURO yang diizinkan.');
+                    throw new \RuntimeException('Ditemukan perintah SQL di luar format backup NEURO yang diizinkan.');
                 }
                 $testDb->query($sql);
             }
@@ -194,13 +194,13 @@ class BackupExports extends BaseController
 
             $tables = $testDb->query("SHOW FULL TABLES WHERE Table_type = 'BASE TABLE'")->getResultArray();
             if (count($tables) !== $tableCount) {
-                throw new \\RuntimeException('Jumlah tabel hasil pemulihan tidak sesuai dengan file backup.');
+                throw new \RuntimeException('Jumlah tabel hasil pemulihan tidak sesuai dengan file backup.');
             }
 
             session()->remove('neuro_restore_token');
             @unlink($path);
             return redirect()->to('/backup')->with('success', 'Pemulihan uji berhasil. Database neuro_absensi_test berisi ' . count($tables) . ' tabel. Database utama neuro_absensi tidak diubah.');
-        } catch (\\Throwable $e) {
+        } catch (\Throwable $e) {
             log_message('error', 'Test database restore failed: {message}', ['message' => $e->getMessage()]);
             return redirect()->to('/backup')->with('error', 'Pemulihan uji gagal: ' . $e->getMessage());
         }
@@ -220,7 +220,7 @@ class BackupExports extends BaseController
             $next = $sql[$i + 1] ?? '';
 
             if ($lineComment) {
-                if ($char === "\\n") {
+                if ($char === "\n") {
                     $lineComment = false;
                     $buffer .= $char;
                 }
@@ -230,7 +230,7 @@ class BackupExports extends BaseController
                 $buffer .= $char;
                 if ($escaped) {
                     $escaped = false;
-                } elseif ($char === '\\\\') {
+                } elseif ($char === '\\') {
                     $escaped = true;
                 } elseif ($char === $quote) {
                     if ($next === $quote) {
