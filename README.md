@@ -54,3 +54,15 @@ Menu **Impor Backup SQL** menyediakan dua proses terpisah:
 2. Riwayat scan: membaca tabel `att_log` dari backup SQL, lalu mengaitkan scan dengan perangkat yang dipilih. Scan duplikat dilewati.
 
 File SQL tidak pernah dieksekusi ke database aplikasi. Selalu periksa sumber perangkat sebelum mengonfirmasi impor riwayat scan. Master RAIT/KBIT pada tahap ini disimpan sebagai kelompok gabungan; pembagian internal tetap dipertahankan sebagai ID sumber dan belum otomatis dipetakan ke RAIT atau KBIT.
+
+## Backup & Pemulihan
+
+Menu **Backup & Pemulihan** menyediakan tiga unduhan terpisah:
+
+1. **Backup SMPIT** — arsip SQL asli Fingerspot SMPIT yang diunggah dan disimpan oleh aplikasi.
+2. **Backup RA&KB** — arsip SQL asli Fingerspot RAIT/KBIT yang diunggah dan disimpan oleh aplikasi.
+3. **Backup NEURO ABSENSI** — dump database aktif, termasuk struktur tabel, indeks, relasi, dan data.
+
+Arsip SMPIT dan RA&KB harus disimpan pertama kali melalui menu Backup & Pemulihan. Aplikasi tidak mengubah isi arsip tersebut. Karena itu, kedua file tersebut merupakan salinan arsip sumber, bukan hasil sinkronisasi otomatis dari perubahan data pegawai atau log yang terjadi di NEURO ABSENSI. Sinkronisasi ke struktur Fingerspot dan uji restore pada perangkat lunak asal merupakan pekerjaan terpisah yang belum diaktifkan.
+
+File arsip disimpan di `writable/backups/fingerspot/`; dump NEURO ABSENSI dibuat di `writable/backups/`. Folder `writable` tidak boleh dapat diakses langsung dari web publik. Salin hasil backup ke media lain secara berkala. Jangan menguji pemulihan pada database produksi; gunakan database uji dan pastikan target database benar sebelum impor SQL.
