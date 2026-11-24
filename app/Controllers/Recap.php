@@ -66,9 +66,9 @@ class Recap extends BaseController
             for ($i = 0; $i < $maxScans; $i++) {
                 $values[] = $scans[$i] ?? '-';
                 if ($i === 0) {
-                    $values[] = (int) $item['late_minutes'] > 0
+                    $values[] = $item['status'] ?? ((int) $item['late_minutes'] > 0
                         ? 'Terlambat (' . (int) $item['late_minutes'] . ' menit)'
-                        : 'Tepat Waktu';
+                        : 'Tepat Waktu');
                 }
             }
             $sheet->fromArray($values, null, 'A' . $row++);
