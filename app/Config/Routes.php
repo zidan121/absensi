@@ -23,6 +23,12 @@ $routes->group('akun', ['filter' => 'auth'], static function ($routes) {
     $routes->get('/', 'AccountSettings::index');
     $routes->post('simpan', 'AccountSettings::update');
 });
+$routes->group('backup', ['filter' => 'auth'], static function ($routes) {
+    $routes->get('/', 'BackupExports::index');
+    $routes->post('simpan-sumber', 'BackupExports::saveSource');
+    $routes->get('sumber/(:segment)', 'BackupExports::downloadSource/$1');
+    $routes->get('neuro', 'BackupExports::downloadNeuro');
+});
 $routes->group('rekap', ['filter' => 'auth'], static function ($routes) {
     $routes->get('/', 'Recap::index');
     $routes->get('export', 'Recap::export');
