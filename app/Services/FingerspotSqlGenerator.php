@@ -16,6 +16,7 @@ class FingerspotSqlGenerator
     {
         $parser = new FingerspotSqlBackupParser();
         $source = $parser->parse($sourceSql, 'employees')['records'];
+        if ($source === []) throw new \\RuntimeException('Arsip sumber tidak memiliki data pegawai yang dapat dibaca.');
         $byPin = [];
         foreach ($source as $row) {
             $pin = trim((string) $row['fingerprint_pin']);
@@ -34,6 +35,11 @@ class FingerspotSqlGenerator
             if ($unit !== '' && !in_array('', $map, true)) $unitMaps[$unit][implode('|', $map)] = $map;
         }
 
+        $pinCounts = [];
+        foreach ($employees as $employee) {
+            $candidatePin = trim((string) ($employee['fingerprint_pin'] ?? ''));
+            if ($candidatePin !== '') $pinCounts[$candidatePin] = ($pinCounts[$candidatePin] ?? 0) + 1;
+        }
         $report = [];
         $masterSql = [];
         $knownPins = [];
@@ -46,8 +52,8 @@ class FingerspotSqlGenerator
                 $skippedEmployees++;
                 continue;
             }
-            if (isset($knownPins[$pin])) {
-                $report[] = $this->issue($pin, $name, 'PIN ganda pada perangkat yang sama; perlu diperiksa.');
+            if (($pinCounts[$pin] ?? 0) > 1 || isset($knownPins[$pin])) {
+                $report[] = $this->issue($pin, $name, 'PIN ganda pada perangkat yang sama; semua baris dengan PIN ini harus diperiksa.');
                 $skippedEmployees++;
                 continue;
             }
