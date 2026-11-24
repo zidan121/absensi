@@ -34,6 +34,11 @@ $routes->group('kalender-kerja', ['filter' => 'auth'], static function ($routes)
     $routes->post('simpan', 'WorkCalendar::store');
     $routes->post('hapus/(:num)', 'WorkCalendar::delete/$1');
 });
+$routes->group('jadwal-hari-kerja', ['filter' => 'auth'], static function ($routes) {
+    $routes->get('/', 'WeeklySchedules::index');
+    $routes->post('simpan', 'WeeklySchedules::store');
+    $routes->post('hapus/(:num)', 'WeeklySchedules::delete/$1');
+});
 $routes->group('pegawai', ['filter' => 'auth'], static function ($routes) {
     $routes->get('/', 'Employees::index');
     $routes->get('baru', 'Employees::create');
