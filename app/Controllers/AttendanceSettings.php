@@ -1,6 +1,6 @@
 <?php
 
-namespace App\\Controllers;
+namespace App\Controllers;
 
 use DateTimeImmutable;
 
@@ -45,7 +45,7 @@ class AttendanceSettings extends BaseController
             return redirect()->back()->with('error', 'Tanggal mulai berlaku tidak valid.');
         }
 
-        if (! preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$/', $lateAfter)) {
+        if (! preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d$/', $lateAfter)) {
             return redirect()->back()->with('error', 'Format batas keterlambatan harus HH:MM:SS.');
         }
 
@@ -59,7 +59,7 @@ class AttendanceSettings extends BaseController
                 ->get(1)->getRowArray();
 
             if ($latest && $effectiveFrom <= $latest['effective_from']) {
-                throw new \\RuntimeException(
+                throw new \RuntimeException(
                     'Tanggal berlaku harus setelah aturan terakhir (' . $latest['effective_from'] . '). Untuk menjaga riwayat lama, aturan mundur tidak dapat ditambahkan dari halaman ini.'
                 );
             }
@@ -81,12 +81,12 @@ class AttendanceSettings extends BaseController
             ]);
 
             if ($db->transStatus() === false) {
-                throw new \\RuntimeException('Database menolak penyimpanan aturan.');
+                throw new \RuntimeException('Database menolak penyimpanan aturan.');
             }
 
             $db->transCommit();
             return redirect()->to('/pengaturan-absensi')->with('success', 'Aturan keterlambatan ' . $unit . ' berhasil disimpan dan riwayat sebelumnya tetap dipertahankan.');
-        } catch (\\Throwable $e) {
+        } catch (\Throwable $e) {
             $db->transRollback();
             return redirect()->back()->with('error', $e->getMessage());
         }
