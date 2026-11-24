@@ -31,3 +31,13 @@ Tekan **Unduh Backup NEURO ABSENSI**. Aplikasi membaca semua tabel database akti
 
 - Arsip Fingerspot: `writable/backups/fingerspot/smp.sql` dan `writable/backups/fingerspot/rakb.sql`.
 - Dump NEURO: `writable/backups/`.
+## Pemulihan uji dari dalam aplikasi
+
+1. Buka **Backup & Pemulihan**.
+2. Pada bagian **Pemulihan Database NEURO**, pilih file `Backup-NEURO-ABSENSI-....sql`.
+3. Klik **Periksa file backup**. Aplikasi hanya menerima dump NEURO yang dikenali dan memeriksa perintah SQL yang diizinkan.
+4. Periksa ringkasan, lalu ketik `RESTORE` untuk konfirmasi.
+5. Aplikasi membuat atau memperbarui database terpisah `neuro_absensi_test`, kemudian mengimpor tabel dan data ke sana.
+6. Pesan berhasil akan menegaskan bahwa database utama `neuro_absensi` tidak diubah.
+
+Fitur restore dalam aplikasi sengaja hanya memulihkan ke database uji. Ia tidak menyediakan tombol untuk menimpa database aktif. Akun MySQL yang digunakan aplikasi harus memiliki hak membuat database dan membuat/mengubah tabel pada database uji. Jika hak tersebut tidak tersedia, proses akan gagal tanpa mengubah database utama.
