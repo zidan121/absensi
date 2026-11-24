@@ -99,6 +99,7 @@ class AttendanceRecapService
                 $groups[$key] = [
                     'employee_id' => (int) $employee['id'],
                     'employee_code' => $employee['employee_code'],
+                    'fingerprint_pin' => $employee['fingerprint_pin'],
                     'full_name' => $employee['full_name'],
                     'position' => $employee['position'] ?? '',
                     'unit_code' => $employee['unit_code'],
@@ -131,6 +132,7 @@ class AttendanceRecapService
             $rows[] = [
                 'employee_id' => $group['employee_id'],
                 'employee_code' => $group['employee_code'],
+                'fingerprint_pin' => $group['fingerprint_pin'],
                 'full_name' => $group['full_name'],
                 'position' => $group['position'],
                 'unit_code' => $group['unit_code'],
