@@ -44,6 +44,9 @@ class AttendanceSettings extends BaseController
         if ($date === false || $date->format('Y-m-d') !== $effectiveFrom) {
             return redirect()->back()->with('error', 'Tanggal mulai berlaku tidak valid.');
         }
+        if ($effectiveFrom <= date('Y-m-d')) {
+            return redirect()->back()->with('error', 'Aturan baru hanya boleh mulai berlaku besok atau setelahnya agar rekap historis tidak berubah.');
+        }
 
         if (! preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d$/', $lateAfter)) {
             return redirect()->back()->with('error', 'Format batas keterlambatan harus HH:MM:SS.');
