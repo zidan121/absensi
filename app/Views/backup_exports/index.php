@@ -33,6 +33,19 @@
             <div><a class="btn btn-success" href="/backup/neuro"><i class="bi bi-download me-1"></i>Unduh Backup NEURO ABSENSI (.sql)</a></div>
         </div>
     </div>
+
+    <div class="col-12">
+        <div class="card p-4">
+            <div class="d-flex align-items-center gap-2 mb-2"><i class="bi bi-arrow-counterclockwise fs-4 text-warning"></i><h4 class="mb-0">Pemulihan Database NEURO</h4></div>
+            <p class="text-secondary">Unggah file backup NEURO untuk diperiksa, lalu pulihkan ke database percobaan. Database utama tidak disentuh.</p>
+            <form method="post" action="/backup/pemulihan/preview" enctype="multipart/form-data" class="row g-3 align-items-end">
+                <?= csrf_field() ?>
+                <div class="col-lg-8"><label class="form-label">File backup NEURO (.sql)</label><input class="form-control" type="file" name="restore_file" accept=".sql" required></div>
+                <div class="col-lg-4"><button class="btn btn-warning w-100"><i class="bi bi-search me-1"></i>Periksa file backup</button></div>
+            </form>
+            <div class="alert alert-warning mt-3 mb-0">Tujuan pemulihan uji selalu <strong>neuro_absensi_test</strong>. Fitur ini tidak menyediakan pemulihan langsung ke database aktif.</div>
+        </div>
+    </div>
 </div>
 <div class="alert alert-warning mt-4 mb-0"><strong>Catatan penting:</strong> Backup SMPIT dan RA&KB pada tahap ini adalah salinan arsip SQL sumber yang kamu unggah, bukan hasil sinkronisasi otomatis dari perubahan pegawai atau scan di NEURO ABSENSI. Simpan arsip asli di tempat lain juga. Sinkronisasi dua arah ke struktur Fingerspot perlu tahap lanjutan dan pengujian kompatibilitas restore.</div>
 <?= $this->endSection() ?>
