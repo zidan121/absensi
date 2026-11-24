@@ -103,7 +103,7 @@ class BackupExports extends BaseController
             fwrite($handle, "-- Restore: pilih database tujuan, lalu impor file SQL ini.\n\n");
             fwrite($handle, "SET NAMES utf8mb4;\nSET FOREIGN_KEY_CHECKS=0;\nSET SQL_MODE='NO_AUTO_VALUE_ON_ZERO';\n\n");
 
-            $tables = $db->query('SHOW FULL TABLES WHERE Table_type = ?', ['BASE TABLE'])->getResultArray();
+            $tables = $db->query("SHOW FULL TABLES WHERE Table_type = 'BASE TABLE'")->getResultArray();
             foreach ($tables as $tableRow) {
                 $table = (string) array_values($tableRow)[0];
                 $quotedTable = $db->escapeIdentifiers($table);
@@ -120,7 +120,7 @@ class BackupExports extends BaseController
                 $quotedFields = implode(', ', array_map([$db, 'escapeIdentifiers'], $fieldNames));
                 $query = $db->query('SELECT * FROM ' . $quotedTable);
                 $chunk = [];
-                foreach ($query->getResultArray() as $row) {
+                while ($row = $query->getUnbufferedRow('array')) {
                     $values = [];
                     foreach ($fieldNames as $index => $fieldName) {
                         $value = $row[$fieldName] ?? null;
