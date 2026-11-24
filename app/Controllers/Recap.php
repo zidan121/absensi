@@ -67,7 +67,7 @@ class Recap extends BaseController
                 $values[] = $scans[$i] ?? '-';
                 if ($i === 0) {
                     $values[] = $item['status'] ?? ((int) $item['late_minutes'] > 0
-                        ? 'Terlambat (' . (int) $item['late_minutes'] . ' menit)'
+                        ? 'Terlambat'
                         : 'Tepat Waktu');
                 }
             }
