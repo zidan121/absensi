@@ -114,6 +114,16 @@ class FingerspotSqlGenerator
                 'gender'=>1, 'tgl_masuk_pertama'=>$employee['employment_start'] ?: null, 'photo_path'=>'',
                 'tmp_img'=>null, 'nama_bank'=>'', 'nama_rek'=>'', 'no_rek'=>'', 'new_pegawai_id'=>null,
             ];
+            $newSet = [
+                'pegawai_nip'=>$pin, 'pegawai_nama'=>$name, 'pegawai_alias'=>$name,
+                'pegawai_status'=>(int) ($employee['is_active'] ?? 1) === 1 ? 1 : 0,
+                'pembagian1_id'=>$division[0], 'pembagian2_id'=>$division[1], 'pembagian3_id'=>$division[2],
+                'tgl_mulai_kerja'=>$employee['employment_start'] ?: null, 'tgl_resign'=>$employee['employment_end'] ?: null,
+            ];
+            $newAssignments = [];
+            foreach ($newSet as $column=>$value) $newAssignments[] = $column . '=' . $this->value($db, $value);
+            $masterSql[] = 'UPDATE pegawai SET ' . implode(',', $newAssignments)
+                . ' WHERE pegawai_pin=' . $this->value($db, $pin) . ';';
             $insertColumns = implode(',', self::EMPLOYEE_COLUMNS);
             $insertValues = '(@neuro_next_pegawai_id := @neuro_next_pegawai_id + 1),' 
                 . implode(',', array_map(fn($col) => $this->value($db, $new[$col]), array_slice(self::EMPLOYEE_COLUMNS, 1)));
