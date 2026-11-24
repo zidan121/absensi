@@ -102,6 +102,10 @@ class BackupImports extends BaseController
                 }
                 $record['unit_code'] = $selectedUnit;
                 $record['full_name'] = $name;
+                if (in_array($selectedUnit, ['KBIT', 'RAIT', 'SDIT', 'SMPIT', 'RAIT_KBIT'], true)) {
+                    $record['position'] = 'Guru';
+                }
+                // Yayasan staff (including Dapur) keep their existing position; new records remain unset.
                 $record['is_active'] = isset($edit['is_active']) ? 1 : 0;
                 $record['employment_start'] = ($edit['employment_start'] ?? '') !== '' ? $edit['employment_start'] : null;
                 $record['employment_end'] = ($edit['employment_end'] ?? '') !== '' ? $edit['employment_end'] : null;
