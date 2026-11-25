@@ -64,6 +64,8 @@ $routes->group('pegawai', ['filter' => 'auth'], static function ($routes) {
     $routes->post('simpan', 'Employees::store');
     $routes->get('(:num)/edit', 'Employees::edit/$1');
     $routes->post('(:num)/update', 'Employees::update/$1');
+    $routes->get('(:num)/perangkat', 'EmployeeFingerprintMappings::index/$1');
+    $routes->post('(:num)/perangkat/simpan', 'EmployeeFingerprintMappings::save/$1');
 });
 $routes->group('impor-backup', ['filter' => 'auth'], static function ($routes) {
     $routes->get('/', 'BackupImports::index');
