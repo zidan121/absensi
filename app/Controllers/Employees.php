@@ -138,7 +138,7 @@ class Employees extends BaseController
             ], true);
 
             if (! $employeeId || $db->transStatus() === false) {
-                throw new \\RuntimeException('Data pegawai gagal disimpan. Periksa apakah kode pegawai sudah digunakan.');
+                throw new \RuntimeException('Data pegawai gagal disimpan. Periksa apakah kode pegawai sudah digunakan.');
             }
             $db->transCommit();
 
@@ -151,7 +151,7 @@ class Employees extends BaseController
 
             return redirect()->to('/pegawai/' . $employeeId . '/edit')
                 ->with('success', $message);
-        } catch (\\Throwable $e) {
+        } catch (\Throwable $e) {
             $db->transRollback();
             log_message('error', 'Create employee failed: {message}', ['message' => $e->getMessage()]);
             return redirect()->back()->withInput()->with('error', 'Pegawai gagal ditambahkan: ' . $e->getMessage());
