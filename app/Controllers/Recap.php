@@ -17,7 +17,19 @@ class Recap extends BaseController
         @set_time_limit(180);
         [$startDate, $endDate] = $this->getDateRange();
         $unit = $this->getUnit();
-        $data = (new AttendanceRecapService())->build($startDate, $endDate, $unit ?: null);
+        $hasSearched = $this->request->getGet('show') === '1';
+        $data = $hasSearched
+            ? (new AttendanceRecapService())->build($startDate, $endDate, $unit ?: null)
+            : [
+                'rows' => [],
+                'unmatched' => [],
+                'summary' => [
+                    'attendance_days' => 0,
+                    'late_days' => 0,
+                    'one_scan_days' => 0,
+                    'unmatched_identities' => 0,
+                ],
+            ];
 
         return view('recap/index', [
             'title' => 'Rekap Absensi',
@@ -25,6 +37,7 @@ class Recap extends BaseController
             'endDate' => $endDate,
             'unit' => $unit,
             'data' => $data,
+            'hasSearched' => $hasSearched,
         ]);
     }
 
