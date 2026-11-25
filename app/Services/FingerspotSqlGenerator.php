@@ -78,7 +78,7 @@ class FingerspotSqlGenerator
         $approved = array_fill_keys(array_map('strval', $approvedPins), true);
         $validPins = array_intersect_key($validPins, $approved);
         if ($validPins === []) {
-            throw new \\RuntimeException('Tidak ada PIN unik yang disetujui dari halaman Review PIN. Lakukan review terlebih dahulu.');
+            throw new \RuntimeException('Tidak ada PIN unik yang disetujui dari halaman Review PIN. Lakukan review terlebih dahulu.');
         }
 
         $logs = $db->table('attendance_logs')
