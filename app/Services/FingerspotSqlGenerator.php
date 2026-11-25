@@ -21,7 +21,7 @@ class FingerspotSqlGenerator
         'att_id',
     ];
 
-    public function generate($db, array $device, string $sourceSql, string $label): array
+    public function generate($db, array $device, string $sourceSql, string $label, array $approvedPins = []): array
     {
         $parser = new FingerspotSqlBackupParser();
         $source = $parser->parse($sourceSql, 'logs');
