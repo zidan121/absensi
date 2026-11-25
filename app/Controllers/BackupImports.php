@@ -196,7 +196,7 @@ class BackupImports extends BaseController
                             'target_pegawai_id' => $currentMapping['target_pegawai_id'],
                             'action' => 'replaced',
                             'effective_from' => $currentMapping['effective_from'],
-                            'effective_until' => (new \\DateTimeImmutable($mappingEffectiveFrom))->modify('-1 day')->format('Y-m-d'),
+                            'effective_until' => (new \DateTimeImmutable($mappingEffectiveFrom))->modify('-1 day')->format('Y-m-d'),
                             'notes' => 'Pemetaan diperbarui melalui impor master Fingerspot.',
                             'created_at' => date('Y-m-d H:i:s'),
                         ]);
