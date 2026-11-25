@@ -54,6 +54,13 @@ class EmployeeFingerprintMappings extends BaseController
         try {
             $existing = $db->table('employee_fingerprint_mappings')
                 ->where('employee_id', $employeeId)->where('device_id', $deviceId)->get()->getRowArray();
+            // Blank optional target ID means "leave unchanged" when a mapping already exists.
+            if ($targetIdRaw === '' && $existing) {
+                $targetId = $existing['target_pegawai_id'] !== null ? (int) $existing['target_pegawai_id'] : null;
+            }
+            $newEffectiveFrom = $effectiveFrom !== ''
+                ? $effectiveFrom
+                : (string) ($existing['effective_from'] ?? date('Y-m-d'));
             $conflict = $db->table('employee_fingerprint_mappings')
                 ->where('device_id', $deviceId)->where('fingerprint_pin', $pin)
                 ->where('employee_id !=', $employeeId)->get()->getRowArray();
@@ -64,12 +71,16 @@ class EmployeeFingerprintMappings extends BaseController
                 || (string) ($existing['target_pegawai_id'] ?? '') !== (string) ($targetId ?? '')
             );
             if ($identityChanged) {
+                if (!empty($existing['effective_from']) && $newEffectiveFrom <= $existing['effective_from']) {
+                    throw new \\RuntimeException('Tanggal berlaku pemetaan baru harus setelah tanggal mulai pemetaan lama.');
+                }
+                $oldEffectiveUntil = (new \\DateTimeImmutable($newEffectiveFrom))->modify('-1 day')->format('Y-m-d');
                 $db->table('employee_fingerprint_mapping_history')->insert([
                     'employee_id' => $employeeId, 'device_id' => $deviceId,
                     'fingerprint_pin' => $existing['fingerprint_pin'],
                     'target_pegawai_id' => $existing['target_pegawai_id'],
                     'action' => 'replaced', 'effective_from' => $existing['effective_from'],
-                    'effective_until' => date('Y-m-d'), 'notes' => 'Identitas pemetaan diganti. ' . $notes,
+                    'effective_until' => $oldEffectiveUntil, 'notes' => 'Identitas pemetaan diganti. ' . $notes,
                     'created_at' => date('Y-m-d H:i:s'),
                 ]);
             }
@@ -77,7 +88,7 @@ class EmployeeFingerprintMappings extends BaseController
             $payload = [
                 'fingerprint_pin' => $pin,
                 'target_pegawai_id' => $targetId,
-                'effective_from' => $effectiveFrom !== '' ? $effectiveFrom : null,
+                'effective_from' => $newEffectiveFrom,
                 'updated_at' => date('Y-m-d H:i:s'),
             ];
             if ($existing) {
@@ -91,7 +102,7 @@ class EmployeeFingerprintMappings extends BaseController
             $db->table('employee_fingerprint_mapping_history')->insert([
                 'employee_id' => $employeeId, 'device_id' => $deviceId,
                 'fingerprint_pin' => $pin, 'target_pegawai_id' => $targetId,
-                'action' => $action, 'effective_from' => $effectiveFrom !== '' ? $effectiveFrom : null,
+                'action' => $action, 'effective_from' => $newEffectiveFrom,
                 'notes' => $notes !== '' ? $notes : null, 'created_at' => date('Y-m-d H:i:s'),
             ]);
             if ($db->transStatus() === false) throw new \RuntimeException('Gagal menyimpan pemetaan.');
