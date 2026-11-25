@@ -1,6 +1,6 @@
 <?php
 
-namespace App\\Controllers;
+namespace App\Controllers;
 
 use DateTimeImmutable;
 
@@ -111,6 +111,6 @@ class EmployeeSchedules extends BaseController
 
     private function validTime(string $value): bool
     {
-        return preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$/', $value) === 1;
+        return preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/', $value) === 1;
     }
 }
