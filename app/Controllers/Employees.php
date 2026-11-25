@@ -19,12 +19,17 @@ class Employees extends BaseController
      * Allocate the next numeric fingerprint PIN globally, so one employee
      * identity is not assigned different PINs on different device records.
      */
-    private function nextFingerprintPin($db): string
+    private function nextFingerprintPin($db, ?int $deviceId = null): string
     {
-        $rows = $db->table('employees')
+        $query = $db->table('employees')
             ->select('fingerprint_pin')
-            ->where('fingerprint_pin IS NOT NULL', null, false)
-            ->get()->getResultArray();
+            ->where('fingerprint_pin IS NOT NULL', null, false);
+        if ($deviceId !== null) {
+            $query->where('fingerprint_device_id', $deviceId);
+        } else {
+            $query->where('fingerprint_device_id', null);
+        }
+        $rows = $query->get()->getResultArray();
 
         $max = 0;
         foreach ($rows as $row) {
@@ -121,10 +126,10 @@ class Employees extends BaseController
 
         $db->transBegin();
         try {
-            $pin = $this->nextFingerprintPin($db);
             $device = $deviceCode
                 ? $db->table('devices')->where('device_code', $deviceCode)->where('is_active', 1)->get()->getRowArray()
                 : null;
+            $pin = $this->nextFingerprintPin($db, $device ? (int) $device['id'] : null);
 
             $model = new EmployeeModel();
             $employeeId = $model->insert([
@@ -206,17 +211,11 @@ class Employees extends BaseController
             return redirect()->back()->withInput()->with('error', 'Tanggal berhenti tidak boleh sebelum tanggal mulai kerja.');
         }
 
-        // PIN utama dapat ditetapkan/diperbarui oleh admin. PIN harus numerik
-        // dan unik secara global agar satu pegawai memiliki satu identitas pusat.
+        // PIN fingerprint unik dalam lingkup perangkat, bukan global.
+        // Mesin SMPIT dan RA&KB memiliki ruang PIN masing-masing.
         $fingerprintPin = trim((string) $this->request->getPost('fingerprint_pin'));
         if ($fingerprintPin === '' || ! ctype_digit($fingerprintPin) || strlen($fingerprintPin) > 32) {
             return redirect()->back()->withInput()->with('error', 'PIN fingerprint wajib diisi angka (maksimal 32 digit).');
-        }
-
-        $pinOwner = $model->where('fingerprint_pin', $fingerprintPin)
-            ->where('id !=', (int) $id)->first();
-        if ($pinOwner) {
-            return redirect()->back()->withInput()->with('error', 'PIN tersebut sudah digunakan pegawai lain. Gunakan PIN yang berbeda.');
         }
 
         $deviceCode = match ($unitCode) {
@@ -224,9 +223,22 @@ class Employees extends BaseController
             'RAIT', 'KBIT' => 'RAKB-REVO185BNC',
             default => null,
         };
+        $db = db_connect();
         $device = $deviceCode
-            ? db_connect()->table('devices')->where('device_code', $deviceCode)->where('is_active', 1)->get()->getRowArray()
+            ? $db->table('devices')->where('device_code', $deviceCode)->where('is_active', 1)->get()->getRowArray()
             : null;
+        $deviceId = $device ? (int) $device['id'] : null;
+
+        $pinQuery = $model->where('fingerprint_pin', $fingerprintPin)
+            ->where('id !=', (int) $id);
+        if ($deviceId !== null) {
+            $pinQuery->where('fingerprint_device_id', $deviceId);
+        } else {
+            $pinQuery->where('fingerprint_device_id', null);
+        }
+        if ($pinQuery->first()) {
+            return redirect()->back()->withInput()->with('error', 'PIN tersebut sudah digunakan pegawai lain pada perangkat fingerprint yang sama.');
+        }
 
         $model->update((int) $id, [
             'employee_code' => $employeeCode,
