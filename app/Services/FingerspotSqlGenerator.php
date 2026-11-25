@@ -1,6 +1,6 @@
 <?php
 
-namespace App\\Services;
+namespace App\Services;
 
 /**
  * Incremental attendance-log export. This class never writes to Fingerspot pegawai.
@@ -13,13 +13,13 @@ class FingerspotSqlGenerator
     public function generate($db, array $device, string $sourceSql, string $label, array $approvedPins = []): array
     {
         $source = (new FingerspotSqlBackupParser())->parse($sourceSql, 'logs');
-        if ($source['records'] === []) throw new \\RuntimeException('Backup Fingerspot sumber tidak memiliki riwayat scan.');
+        if ($source['records'] === []) throw new \RuntimeException('Backup Fingerspot sumber tidak memiliki riwayat scan.');
         $serials = [];
         foreach ($source['records'] as $row) {
             $serial = trim((string) ($row['machine_no'] ?? ''));
             if ($serial !== '') $serials[$serial] = true;
         }
-        if (count($serials) !== 1) throw new \\RuntimeException('Serial mesin pada backup tidak dapat dipastikan.');
+        if (count($serials) !== 1) throw new \RuntimeException('Serial mesin pada backup tidak dapat dipastikan.');
         $serial = (string) array_key_first($serials);
 
         $mappingRows = $db->table('employee_fingerprint_mappings')
@@ -37,7 +37,7 @@ class FingerspotSqlGenerator
         }
         $approved = array_fill_keys(array_map('strval', $approvedPins), true);
         $validPins = array_intersect_key($validPins, $approved);
-        if ($validPins === []) throw new \\RuntimeException('Tidak ada PIN pemetaan perangkat yang disetujui. Ulangi Review PIN.');
+        if ($validPins === []) throw new \RuntimeException('Tidak ada PIN pemetaan perangkat yang disetujui. Ulangi Review PIN.');
 
         $logs = $db->table('attendance_logs')->where('device_id', (int) $device['id'])
             ->where('machine_no', $serial)->orderBy('scanned_at', 'ASC')->get()->getResultArray();
@@ -50,7 +50,7 @@ class FingerspotSqlGenerator
                 if ($pin !== '' && isset($ambiguousPins[$pin])) $skippedAmbiguous++;
                 $skippedLogs++; continue;
             }
-            $parsedDate = \\DateTime::createFromFormat('!Y-m-d H:i:s', $date);
+            $parsedDate = \DateTime::createFromFormat('!Y-m-d H:i:s', $date);
             if (!$parsedDate || $parsedDate->format('Y-m-d H:i:s') !== $date) { $skippedLogs++; continue; }
             $key = $machineNo . '|' . $date . '|' . $pin;
             if (isset($seen[$key])) { $skippedLogs++; continue; }
@@ -61,21 +61,21 @@ class FingerspotSqlGenerator
                 '0', '0', $this->value($db, '0'),
             ]) . ')';
         }
-        if ($tuples === []) throw new \\RuntimeException('Tidak ada scan valid untuk diekspor. Tidak ada file dibuat.');
+        if ($tuples === []) throw new \RuntimeException('Tidak ada scan valid untuk diekspor. Tidak ada file dibuat.');
 
         $statements = [];
         foreach (array_chunk($tuples, 250) as $chunk) {
-            $statements[] = 'INSERT IGNORE INTO att_log (' . implode(',', self::LOG_COLUMNS) . ') VALUES' . "\\n" . implode(",\\n", $chunk) . ';';
+            $statements[] = 'INSERT IGNORE INTO att_log (' . implode(',', self::LOG_COLUMNS) . ') VALUES' . "\n" . implode(",\n", $chunk) . ';';
         }
         $safeLabel = preg_replace('/[^A-Za-z0-9 _&.-]/', '', $label);
-        $sql = "-- NEURO ABSENSI -> Fingerspot Personnel (LOG ONLY)\\n"
-            . "-- Target: " . $safeLabel . "\\n"
-            . "-- Generated: " . date('Y-m-d H:i:s') . "\\n"
-            . "-- Verified machine serial: " . $serial . "\\n"
-            . "-- ONLY att_log is modified. pegawai and all master/configuration tables are untouched.\\n"
-            . "-- Duplicate scans are ignored by the target unique key (sn, scan_date, pin).\\n\\n"
-            . "SET NAMES utf8mb4;\\nSTART TRANSACTION;\\n"
-            . implode("\\n\\n", $statements) . "\\nCOMMIT;\\n";
+        $sql = "-- NEURO ABSENSI -> Fingerspot Personnel (LOG ONLY)\n"
+            . "-- Target: " . $safeLabel . "\n"
+            . "-- Generated: " . date('Y-m-d H:i:s') . "\n"
+            . "-- Verified machine serial: " . $serial . "\n"
+            . "-- ONLY att_log is modified. pegawai and all master/configuration tables are untouched.\n"
+            . "-- Duplicate scans are ignored by the target unique key (sn, scan_date, pin).\n\n"
+            . "SET NAMES utf8mb4;\nSTART TRANSACTION;\n"
+            . implode("\n\n", $statements) . "\nCOMMIT;\n";
 
         $report = [
             ['pin' => '-', 'name' => 'Jenis ekspor', 'reason' => 'Log absensi saja; tabel pegawai dan konfigurasi Fingerspot tidak diubah.'],
