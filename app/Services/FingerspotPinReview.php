@@ -59,7 +59,13 @@ class FingerspotPinReview
                 $status = 'duplicate'; $label = 'PIN/identitas ganda';
             } elseif (count($matches) === 1) {
                 $backupName = trim((string) $matches[0]['full_name']);
-                if ($this->normalize((string) $mapping['full_name']) === $this->normalize($backupName)) {
+                $backupPin = trim((string) $matches[0]['fingerprint_pin']);
+                if ($targetId !== '' && $backupPin !== $pin) {
+                    $status = 'name_mismatch';
+                    $label = 'PIN pemetaan berbeda dari PIN pegawai target — perlu pemeriksaan manual';
+                    // Do not approve this mapping automatically: the target master row
+                    // would not recognize attendance logs carrying the mapped PIN.
+                } elseif ($this->normalize((string) $mapping['full_name']) === $this->normalize($backupName)) {
                     $status = 'matched'; $label = 'Identitas cocok'; $approved[] = $pin;
                 } else {
                     $status = 'name_mismatch'; $label = 'Nama berbeda — perlu persetujuan manual'; $approved[] = $pin;
