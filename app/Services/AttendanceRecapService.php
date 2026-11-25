@@ -153,7 +153,7 @@ class AttendanceRecapService
             $weeklySchedule = $this->weeklyScheduleFor($group['unit_code'], $group['date']);
             // Individual work days override the unit default for this employee and period.
             $workDays = $schedule['work_days'] ?? $weeklySchedule['work_days'] ?? null;
-            $weekday = (int) (new \\DateTimeImmutable($group['date']))->format('N');
+            $weekday = (int) (new \DateTimeImmutable($group['date']))->format('N');
             $isWeeklyOff = $workDays !== null
                 && ! in_array($weekday, array_map('intval', explode(',', $workDays)), true);
             $specialWorkday = in_array($calendarEvent['event_type'] ?? '', ['late_start', 'workday'], true);
