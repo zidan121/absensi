@@ -55,27 +55,34 @@ class AttendanceRecapService
             $logs
         )));
 
-        $employeeMap = [];
-        $ambiguousKeys = [];
+        $identityCandidates = [];
         if ($deviceIds !== []) {
-            // The mapping table is the authoritative source. Legacy columns on employees
-            // remain only for backwards compatibility and may be stale after reassignment.
-            $employees = $this->db->table('employee_fingerprint_mappings m')
-                ->select('e.id, m.device_id AS fingerprint_device_id, m.fingerprint_pin, e.employee_code, e.full_name, e.position, e.unit_code')
+            // Resolve identity against current mappings and their effective-dated history.
+            // This keeps scans from before a PIN/device reassignment attached to the old employee.
+            $current = $this->db->table('employee_fingerprint_mappings m')
+                ->select('e.id, m.device_id, m.fingerprint_pin, e.employee_code, e.full_name, e.position, e.unit_code, m.effective_from, NULL AS effective_until')
                 ->join('employees e', 'e.id = m.employee_id')
                 ->whereIn('m.device_id', $deviceIds)
                 ->get()->getResultArray();
 
-            foreach ($employees as $employee) {
-                $key = (int) $employee['fingerprint_device_id'] . '|' . $this->pinMatchKey((string) $employee['fingerprint_pin']);
-                if (isset($employeeMap[$key])) {
-                    $ambiguousKeys[$key] = true;
-                    unset($employeeMap[$key]);
+            $history = $this->db->table('employee_fingerprint_mapping_history h')
+                ->select('e.id, h.device_id, h.fingerprint_pin, e.employee_code, e.full_name, e.position, e.unit_code, h.effective_from, h.effective_until')
+                ->join('employees e', 'e.id = h.employee_id')
+                ->whereIn('h.device_id', $deviceIds)
+                ->get()->getResultArray();
+
+            $seenMappings = [];
+            foreach (array_merge($history, $current) as $mapping) {
+                $key = (int) $mapping['device_id'] . '|' . $this->pinMatchKey((string) $mapping['fingerprint_pin']);
+                $signature = implode('|', [
+                    $mapping['id'], $mapping['device_id'], $mapping['fingerprint_pin'],
+                    $mapping['effective_from'] ?? '', $mapping['effective_until'] ?? '',
+                ]);
+                if (isset($seenMappings[$signature])) {
                     continue;
                 }
-                if (! isset($ambiguousKeys[$key])) {
-                    $employeeMap[$key] = $employee;
-                }
+                $seenMappings[$signature] = true;
+                $identityCandidates[$key][] = $mapping;
             }
         }
 
@@ -83,7 +90,18 @@ class AttendanceRecapService
         $unmatched = [];
         foreach ($logs as $log) {
             $identityKey = (int) $log['device_id'] . '|' . $this->pinMatchKey((string) $log['pin']);
-            $employee = isset($ambiguousKeys[$identityKey]) ? null : ($employeeMap[$identityKey] ?? null);
+            $scanDate = substr((string) $log['scanned_at'], 0, 10);
+            $candidates = array_values(array_filter(
+                $identityCandidates[$identityKey] ?? [],
+                static fn ($mapping) =>
+                    (empty($mapping['effective_from']) || $mapping['effective_from'] <= $scanDate)
+                    && (empty($mapping['effective_until']) || $mapping['effective_until'] >= $scanDate)
+            ));
+            $candidateEmployees = [];
+            foreach ($candidates as $candidate) {
+                $candidateEmployees[(int) $candidate['id']] = $candidate;
+            }
+            $employee = count($candidateEmployees) === 1 ? reset($candidateEmployees) : null;
 
             if ($employee === null) {
                 $key = $log['device_id'] . '|' . $log['pin'];
