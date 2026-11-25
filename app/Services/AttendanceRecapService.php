@@ -58,16 +58,18 @@ class AttendanceRecapService
         $employeeMap = [];
         $ambiguousKeys = [];
         if ($deviceIds !== []) {
-            $employees = $this->db->table('employees')
-                ->select('id, fingerprint_device_id, fingerprint_pin, employee_code, full_name, position, unit_code')
-                ->whereIn('fingerprint_device_id', $deviceIds)
-                ->where('fingerprint_pin IS NOT NULL', null, false)
+            // The mapping table is the authoritative source. Legacy columns on employees
+            // remain only for backwards compatibility and may be stale after reassignment.
+            $employees = $this->db->table('employee_fingerprint_mappings m')
+                ->select('e.id, m.device_id AS fingerprint_device_id, m.fingerprint_pin, e.employee_code, e.full_name, e.position, e.unit_code')
+                ->join('employees e', 'e.id = m.employee_id')
+                ->whereIn('m.device_id', $deviceIds)
+                ->where('e.is_active', 1)
                 ->get()->getResultArray();
 
             foreach ($employees as $employee) {
                 $key = (int) $employee['fingerprint_device_id'] . '|' . $this->pinMatchKey((string) $employee['fingerprint_pin']);
                 if (isset($employeeMap[$key])) {
-                    // Never guess if two master rows collapse to the same normalized identity.
                     $ambiguousKeys[$key] = true;
                     unset($employeeMap[$key]);
                     continue;
