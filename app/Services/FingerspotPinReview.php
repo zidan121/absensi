@@ -60,6 +60,21 @@ class FingerspotPinReview
                 'scan_count'=>(int)($scans[$pin] ?? 0), 'status'=>$status, 'status_label'=>$label,
             ];
         }
+        $knownNeuroPins = [];
+        foreach ($employees as $employee) {
+            $known = trim((string) ($employee['fingerprint_pin'] ?? ''));
+            if ($known !== '') $knownNeuroPins[$known] = true;
+        }
+        foreach ($scans as $scanPin => $scanCount) {
+            if ($scanPin !== '' && !isset($knownNeuroPins[$scanPin])) {
+                $rows[] = [
+                    'id'=>0, 'pin'=>$scanPin, 'neuro_name'=>'Pegawai belum dipetakan',
+                    'backup_name'=>isset($sourceByPin[$scanPin]) && count($sourceByPin[$scanPin]) === 1 ? (string)$sourceByPin[$scanPin][0]['full_name'] : '',
+                    'unit'=>'-', 'scan_count'=>$scanCount, 'status'=>'not_found',
+                    'status_label'=>'PIN scan belum terhubung ke pegawai NEURO',
+                ];
+            }
+        }
         return ['rows'=>$rows,'eligible_pins'=>array_values(array_unique($approved)),'serial'=>(string)array_key_first($serials),'source_employee_count'=>count($sourceEmployees)];
     }
 
