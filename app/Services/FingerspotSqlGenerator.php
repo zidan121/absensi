@@ -21,7 +21,7 @@ class FingerspotSqlGenerator
         'att_id',
     ];
 
-    public function generate($db, array $device, string $sourceSql, string $label): array
+    public function generate($db, array $device, string $sourceSql, string $label, array $approvedPins = []): array
     {
         $parser = new FingerspotSqlBackupParser();
         $source = $parser->parse($sourceSql, 'logs');
@@ -75,8 +75,10 @@ class FingerspotSqlGenerator
             }
         }
 
+        $approved = array_fill_keys(array_map('strval', $approvedPins), true);
+        $validPins = array_intersect_key($validPins, $approved);
         if ($validPins === []) {
-            throw new \RuntimeException('Belum ada PIN pegawai SMPIT yang unik dan terhubung ke perangkat fingerprint SMPIT.');
+            throw new \\RuntimeException('Tidak ada PIN unik yang disetujui dari halaman Review PIN. Lakukan review terlebih dahulu.');
         }
 
         $logs = $db->table('attendance_logs')
