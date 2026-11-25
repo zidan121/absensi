@@ -14,9 +14,9 @@
                 <input class="form-control" name="employee_code" maxlength="40" required value="<?= esc(old('employee_code', $employee['employee_code'])) ?>">
             </div>
             <div class="col-md-6">
-                <label class="form-label">PIN fingerprint</label>
-                <input class="form-control" name="fingerprint_pin" inputmode="numeric" pattern="[0-9]{1,32}" maxlength="32" required value="<?= esc(old('fingerprint_pin', $employee['fingerprint_pin'] ?? '')) ?>" placeholder="Masukkan PIN fingerprint">
-                <div class="form-text">Isi dengan PIN yang sama seperti pada Fingerspot/mesin. PIN harus berupa angka dan tidak boleh dipakai pegawai lain.</div>
+                <label class="form-label">PIN fingerprint utama (informasi)</label>
+                <input class="form-control" value="<?= esc($employee['fingerprint_pin'] ?? '-') ?>" readonly>
+                <div class="form-text">PIN perangkat tidak diubah dari formulir ini. Gunakan pengaturan pemetaan perangkat agar perubahan PIN dan mesin tercatat dalam riwayat.</div>
             </div>
             <div class="col-md-6">
                 <label class="form-label">Nama lengkap</label>
