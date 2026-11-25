@@ -59,13 +59,17 @@ class EmployeeFingerprintMappings extends BaseController
                 ->where('employee_id !=', $employeeId)->get()->getRowArray();
             if ($conflict) throw new \RuntimeException('PIN ini sudah dipakai pegawai lain pada perangkat yang sama.');
 
-            if ($existing && (string) $existing['fingerprint_pin'] !== $pin) {
+            $identityChanged = $existing && (
+                (string) $existing['fingerprint_pin'] !== $pin
+                || (string) ($existing['target_pegawai_id'] ?? '') !== (string) ($targetId ?? '')
+            );
+            if ($identityChanged) {
                 $db->table('employee_fingerprint_mapping_history')->insert([
                     'employee_id' => $employeeId, 'device_id' => $deviceId,
                     'fingerprint_pin' => $existing['fingerprint_pin'],
                     'target_pegawai_id' => $existing['target_pegawai_id'],
                     'action' => 'replaced', 'effective_from' => $existing['effective_from'],
-                    'effective_until' => date('Y-m-d'), 'notes' => 'PIN diganti. ' . $notes,
+                    'effective_until' => date('Y-m-d'), 'notes' => 'Identitas pemetaan diganti. ' . $notes,
                     'created_at' => date('Y-m-d H:i:s'),
                 ]);
             }
