@@ -64,7 +64,6 @@ class AttendanceRecapService
                 ->select('e.id, m.device_id AS fingerprint_device_id, m.fingerprint_pin, e.employee_code, e.full_name, e.position, e.unit_code')
                 ->join('employees e', 'e.id = m.employee_id')
                 ->whereIn('m.device_id', $deviceIds)
-                ->where('e.is_active', 1)
                 ->get()->getResultArray();
 
             foreach ($employees as $employee) {
