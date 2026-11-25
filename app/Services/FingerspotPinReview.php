@@ -75,6 +75,23 @@ class FingerspotPinReview
                 ];
             }
         }
+        // Sort PINs ascending numerically (1, 2, 10, 11), not by employee name.
+        usort($rows, static function (array $a, array $b): int {
+            $pinA = trim((string) $a['pin']);
+            $pinB = trim((string) $b['pin']);
+            $digitsA = ctype_digit($pinA);
+            $digitsB = ctype_digit($pinB);
+            if ($digitsA && $digitsB) {
+                $normA = ltrim($pinA, '0');
+                $normB = ltrim($pinB, '0');
+                $normA = $normA === '' ? '0' : $normA;
+                $normB = $normB === '' ? '0' : $normB;
+                return strlen($normA) <=> strlen($normB) ?: strcmp($normA, $normB);
+            }
+            if ($digitsA !== $digitsB) return $digitsA ? -1 : 1;
+            return strnatcasecmp($pinA, $pinB);
+        });
+
         return ['rows'=>$rows,'eligible_pins'=>array_values(array_unique($approved)),'serial'=>(string)array_key_first($serials),'source_employee_count'=>count($sourceEmployees)];
     }
 
