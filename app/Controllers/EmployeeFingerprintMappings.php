@@ -72,9 +72,9 @@ class EmployeeFingerprintMappings extends BaseController
             );
             if ($identityChanged) {
                 if (!empty($existing['effective_from']) && $newEffectiveFrom <= $existing['effective_from']) {
-                    throw new \\RuntimeException('Tanggal berlaku pemetaan baru harus setelah tanggal mulai pemetaan lama.');
+                    throw new \RuntimeException('Tanggal berlaku pemetaan baru harus setelah tanggal mulai pemetaan lama.');
                 }
-                $oldEffectiveUntil = (new \\DateTimeImmutable($newEffectiveFrom))->modify('-1 day')->format('Y-m-d');
+                $oldEffectiveUntil = (new \DateTimeImmutable($newEffectiveFrom))->modify('-1 day')->format('Y-m-d');
                 $db->table('employee_fingerprint_mapping_history')->insert([
                     'employee_id' => $employeeId, 'device_id' => $deviceId,
                     'fingerprint_pin' => $existing['fingerprint_pin'],
