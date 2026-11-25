@@ -104,8 +104,19 @@ class AttendanceRecapService
             $employee = count($candidateEmployees) === 1 ? reset($candidateEmployees) : null;
 
             if ($employee === null) {
-                $key = $log['device_id'] . '|' . $log['pin'];
-                $unmatched[$key] = ($unmatched[$key] ?? 0) + 1;
+                $key = (int) $log['device_id'] . '|' . (string) $log['pin'];
+                if (! isset($unmatched[$key])) {
+                    $unmatched[$key] = [
+                        'device_id' => (int) $log['device_id'],
+                        'pin' => (string) $log['pin'],
+                        'scan_count' => 0,
+                        'first_scan' => (string) $log['scanned_at'],
+                        'last_scan' => (string) $log['scanned_at'],
+                    ];
+                }
+                $unmatched[$key]['scan_count']++;
+                $unmatched[$key]['first_scan'] = min($unmatched[$key]['first_scan'], (string) $log['scanned_at']);
+                $unmatched[$key]['last_scan'] = max($unmatched[$key]['last_scan'], (string) $log['scanned_at']);
                 continue;
             }
             if ($unit !== null && $unit !== '' && $employee['unit_code'] !== $unit) {
@@ -127,6 +138,26 @@ class AttendanceRecapService
                 ];
             }
             $groups[$key]['scans'][] = $log['scanned_at'];
+        }
+
+        // Attach device labels so unmatched identities can be diagnosed from the recap page.
+        if ($unmatched !== []) {
+            $unmatchedDeviceIds = array_values(array_unique(array_column($unmatched, 'device_id')));
+            $devices = $this->db->table('devices')
+                ->select('id, device_code, device_name')
+                ->whereIn('id', $unmatchedDeviceIds)
+                ->get()->getResultArray();
+            $deviceLabels = [];
+            foreach ($devices as $device) {
+                $deviceLabels[(int) $device['id']] = $device;
+            }
+            foreach ($unmatched as &$identity) {
+                $device = $deviceLabels[$identity['device_id']] ?? null;
+                $identity['device_code'] = $device['device_code'] ?? ('Device #' . $identity['device_id']);
+                $identity['device_name'] = $device['device_name'] ?? 'Perangkat tidak ditemukan';
+            }
+            unset($identity);
+            $unmatched = array_values($unmatched);
         }
 
         $rows = [];
