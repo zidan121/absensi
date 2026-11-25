@@ -18,6 +18,7 @@ class FingerspotExport extends BaseController
 
     public function generate()
     {
+        @set_time_limit(0);
         $key = (string) $this->request->getPost('source');
         if (!isset(self::SOURCES[$key])) return redirect()->back()->with('error','Sumber Fingerspot tidak valid.');
         $source = self::SOURCES[$key];
