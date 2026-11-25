@@ -1,6 +1,6 @@
 <?php
 
-namespace App\\Services;
+namespace App\Services;
 
 class FingerspotPinReview
 {
@@ -9,13 +9,13 @@ class FingerspotPinReview
         $parser = new FingerspotSqlBackupParser();
         $sourceEmployees = $parser->parse($sourceSql, 'employees')['records'];
         $sourceLogs = $parser->parse($sourceSql, 'logs')['records'];
-        if (!$sourceEmployees) throw new \\RuntimeException('Backup Fingerspot tidak memuat data tabel pegawai.');
+        if (!$sourceEmployees) throw new \RuntimeException('Backup Fingerspot tidak memuat data tabel pegawai.');
         $serials = [];
         foreach ($sourceLogs as $row) {
             $serial = trim((string) ($row['machine_no'] ?? ''));
             if ($serial !== '') $serials[$serial] = true;
         }
-        if (count($serials) !== 1) throw new \\RuntimeException('Serial mesin pada backup tidak dapat dipastikan.');
+        if (count($serials) !== 1) throw new \RuntimeException('Serial mesin pada backup tidak dapat dipastikan.');
         $serial = (string) array_key_first($serials);
 
         $sourceByPin = []; $sourceById = [];
@@ -105,6 +105,6 @@ class FingerspotPinReview
     private function normalize(string $name): string
     {
         $name = mb_strtolower(trim($name), 'UTF-8');
-        return preg_replace('/[^\\p{L}\\p{N}]+/u', '', $name) ?? $name;
+        return preg_replace('/[^\p{L}\p{N}]+/u', '', $name) ?? $name;
     }
 }
