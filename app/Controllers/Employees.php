@@ -21,24 +21,30 @@ class Employees extends BaseController
      */
     private function nextFingerprintPin($db, ?int $deviceId = null): string
     {
-        $query = $db->table('employees')
-            ->select('fingerprint_pin')
-            ->where('fingerprint_pin IS NOT NULL', null, false);
+        $pins = [];
+        $mappingQuery = $db->table('employee_fingerprint_mappings')->select('fingerprint_pin');
         if ($deviceId !== null) {
-            $query->where('fingerprint_device_id', $deviceId);
-        } else {
-            $query->where('fingerprint_device_id', null);
+            $mappingQuery->where('device_id', $deviceId);
         }
-        $rows = $query->get()->getResultArray();
+        foreach ($mappingQuery->get()->getResultArray() as $row) {
+            $pins[] = trim((string) ($row['fingerprint_pin'] ?? ''));
+        }
+
+        // Include legacy values during the transition from the old columns.
+        $legacyQuery = $db->table('employees')->select('fingerprint_pin');
+        if ($deviceId !== null) {
+            $legacyQuery->where('fingerprint_device_id', $deviceId);
+        }
+        foreach ($legacyQuery->get()->getResultArray() as $row) {
+            $pins[] = trim((string) ($row['fingerprint_pin'] ?? ''));
+        }
 
         $max = 0;
-        foreach ($rows as $row) {
-            $pin = trim((string) ($row['fingerprint_pin'] ?? ''));
+        foreach ($pins as $pin) {
             if ($pin !== '' && ctype_digit($pin)) {
                 $max = max($max, (int) $pin);
             }
         }
-
         return (string) ($max + 1);
     }
 
