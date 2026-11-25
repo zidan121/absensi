@@ -56,6 +56,34 @@ foreach ($data['rows'] as $row) {
     </table></div>
 </div>
 <?php if ($data['unmatched']): ?>
-<div class="alert alert-warning mt-3"><strong>Perlu pemeriksaan:</strong> Ada <?= count($data['unmatched']) ?> kombinasi mesin + PIN yang belum cocok dengan master pegawai.</div>
+<div class="card p-3 mt-3">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+            <h5 class="mb-1 text-danger">Detail identitas belum cocok</h5>
+            <p class="text-secondary small mb-0">PIN berikut memiliki scan pada periode terpilih, tetapi belum dapat dipasangkan secara pasti dengan satu pegawai NEURO.</p>
+        </div>
+        <span class="badge text-bg-danger"><?= count($data['unmatched']) ?> identitas</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm table-bordered table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr><th>Perangkat</th><th>Kode perangkat</th><th>PIN</th><th>Jumlah scan</th><th>Scan pertama</th><th>Scan terakhir</th></tr>
+            </thead>
+            <tbody>
+                <?php foreach ($data['unmatched'] as $identity): ?>
+                    <tr>
+                        <td><?= esc($identity['device_name']) ?></td>
+                        <td><?= esc($identity['device_code']) ?></td>
+                        <td><strong><?= esc($identity['pin']) ?></strong></td>
+                        <td><?= (int) $identity['scan_count'] ?></td>
+                        <td><?= esc(date('d-m-Y H:i:s', strtotime($identity['first_scan']))) ?></td>
+                        <td><?= esc(date('d-m-Y H:i:s', strtotime($identity['last_scan']))) ?></td>
+                    </tr>
+                <?php endforeach ?>
+            </tbody>
+        </table>
+    </div>
+    <div class="alert alert-warning small mt-3 mb-0">Periksa pemetaan perangkat dan PIN pada menu pegawai. Jangan langsung membuat pegawai baru sebelum memastikan PIN tersebut memang belum terdaftar.</div>
+</div>
 <?php endif ?>
 <?= $this->endSection() ?>
