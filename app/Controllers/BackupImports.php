@@ -136,7 +136,7 @@ class BackupImports extends BaseController
                 // Backward-compatible match for master rows imported before device identity existed.
                 if (! $existing) {
                     $existing = $db->table('employees')
-                        ->whereNull('fingerprint_device_id')
+                        ->where('fingerprint_device_id', null)
                         ->whereIn('unit_code', [$unit, $employeeUnit])
                         ->where('fingerprint_pin', $record['fingerprint_pin'])
                         ->where('source_employee_id', $record['source_employee_id'])
