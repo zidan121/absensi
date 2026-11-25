@@ -33,6 +33,7 @@ $routes->group('backup', ['filter' => 'auth'], static function ($routes) {
 });
 $routes->group('backup/fingerspot', ['filter' => 'auth'], static function ($routes) {
     $routes->get('/', 'FingerspotExport::index');
+    $routes->post('review', 'FingerspotExport::review');
     $routes->post('generate', 'FingerspotExport::generate');
     $routes->get('hasil', 'FingerspotExport::result');
     $routes->get('download', 'FingerspotExport::download');
