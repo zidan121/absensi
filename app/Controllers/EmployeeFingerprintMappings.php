@@ -1,8 +1,8 @@
 <?php
 
-namespace App\\Controllers;
+namespace App\Controllers;
 
-use App\\Models\\EmployeeFingerprintMappingModel;
+use App\Models\EmployeeFingerprintMappingModel;
 
 class EmployeeFingerprintMappings extends BaseController
 {
@@ -43,7 +43,7 @@ class EmployeeFingerprintMappings extends BaseController
         if ($deviceId < 1 || $pin === '' || !ctype_digit($pin) || strlen($pin) > 32) {
             return redirect()->back()->withInput()->with('error', 'Pilih perangkat dan isi PIN angka maksimal 32 digit.');
         }
-        if ($effectiveFrom !== '' && (!preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $effectiveFrom) || date('Y-m-d', strtotime($effectiveFrom)) !== $effectiveFrom)) {
+        if ($effectiveFrom !== '' && (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $effectiveFrom) || date('Y-m-d', strtotime($effectiveFrom)) !== $effectiveFrom)) {
             return redirect()->back()->withInput()->with('error', 'Tanggal mulai pemetaan tidak valid.');
         }
         $device = $db->table('devices')->where('id', $deviceId)->get()->getRowArray();
@@ -57,7 +57,7 @@ class EmployeeFingerprintMappings extends BaseController
             $conflict = $db->table('employee_fingerprint_mappings')
                 ->where('device_id', $deviceId)->where('fingerprint_pin', $pin)
                 ->where('employee_id !=', $employeeId)->get()->getRowArray();
-            if ($conflict) throw new \\RuntimeException('PIN ini sudah dipakai pegawai lain pada perangkat yang sama.');
+            if ($conflict) throw new \RuntimeException('PIN ini sudah dipakai pegawai lain pada perangkat yang sama.');
 
             if ($existing && (string) $existing['fingerprint_pin'] !== $pin) {
                 $db->table('employee_fingerprint_mapping_history')->insert([
@@ -90,10 +90,10 @@ class EmployeeFingerprintMappings extends BaseController
                 'action' => $action, 'effective_from' => $effectiveFrom !== '' ? $effectiveFrom : null,
                 'notes' => $notes !== '' ? $notes : null, 'created_at' => date('Y-m-d H:i:s'),
             ]);
-            if ($db->transStatus() === false) throw new \\RuntimeException('Gagal menyimpan pemetaan.');
+            if ($db->transStatus() === false) throw new \RuntimeException('Gagal menyimpan pemetaan.');
             $db->transCommit();
             return redirect()->to('/pegawai/' . $employeeId . '/perangkat')->with('success', 'Pemetaan fingerprint berhasil disimpan.');
-        } catch (\\Throwable $e) {
+        } catch (\Throwable $e) {
             $db->transRollback();
             return redirect()->back()->withInput()->with('error', $e->getMessage());
         }
