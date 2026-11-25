@@ -50,7 +50,11 @@
                 <input type="date" class="form-control" name="employment_end" value="<?= esc(old('employment_end', $employee['employment_end'] ?? '')) ?>">
             </div>
         </div>
-        <div class="mt-3"><a class="btn btn-outline-primary" href="/pegawai/<?= (int) $employee['id'] ?>/perangkat">Atur pemetaan perangkat fingerprint</a><div class="form-text mt-1">Atur PIN berbeda untuk setiap mesin, tanpa mengubah identitas utama pegawai.</div></div>
+        <div class="mt-3 d-flex flex-wrap gap-2">
+            <a class="btn btn-outline-primary" href="/pegawai/<?= (int) $employee['id'] ?>/perangkat">Atur pemetaan perangkat fingerprint</a>
+            <a class="btn btn-outline-primary" href="/pegawai/<?= (int) $employee['id'] ?>/jadwal">Atur jadwal individu</a>
+        </div>
+        <div class="form-text mt-1">Pemetaan fingerprint dan jadwal kerja dikelola terpisah agar riwayatnya tidak berubah saat identitas pegawai diperbarui.</div>
         <hr class="my-4">
         <button class="btn btn-primary" type="submit">Simpan perubahan</button>
         <a class="btn btn-light" href="/pegawai<?= $returnUnit !== 'ALL' ? '?unit=' . urlencode($returnUnit) : '' ?>">Batal</a>
