@@ -66,6 +66,9 @@ $routes->group('pegawai', ['filter' => 'auth'], static function ($routes) {
     $routes->post('(:num)/update', 'Employees::update/$1');
     $routes->get('(:num)/perangkat', 'EmployeeFingerprintMappings::index/$1');
     $routes->post('(:num)/perangkat/simpan', 'EmployeeFingerprintMappings::save/$1');
+    $routes->get('(:num)/jadwal', 'EmployeeSchedules::index/$1');
+    $routes->post('(:num)/jadwal/simpan', 'EmployeeSchedules::save/$1');
+    $routes->post('(:num)/jadwal/hapus/(:num)', 'EmployeeSchedules::delete/$1/$2');
 });
 $routes->group('impor-backup', ['filter' => 'auth'], static function ($routes) {
     $routes->get('/', 'BackupImports::index');
