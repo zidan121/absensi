@@ -151,9 +151,11 @@ class AttendanceRecapService
             $arrivalTime = substr($first, 11, 8);
             $isHoliday = ($calendarEvent['event_type'] ?? null) === 'holiday';
             $weeklySchedule = $this->weeklyScheduleFor($group['unit_code'], $group['date']);
-            $weekday = (int) (new \DateTimeImmutable($group['date']))->format('N');
-            $isWeeklyOff = $weeklySchedule !== null
-                && ! in_array($weekday, array_map('intval', explode(',', $weeklySchedule['work_days'])), true);
+            // Individual work days override the unit default for this employee and period.
+            $workDays = $schedule['work_days'] ?? $weeklySchedule['work_days'] ?? null;
+            $weekday = (int) (new \\DateTimeImmutable($group['date']))->format('N');
+            $isWeeklyOff = $workDays !== null
+                && ! in_array($weekday, array_map('intval', explode(',', $workDays)), true);
             $specialWorkday = in_array($calendarEvent['event_type'] ?? '', ['late_start', 'workday'], true);
             $isNonWorkingDay = ! $isHoliday && $isWeeklyOff && ! $specialWorkday;
             $isLate = ! $isHoliday && ! $isNonWorkingDay && $arrivalTime > $lateAfter;
