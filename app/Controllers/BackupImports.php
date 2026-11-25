@@ -149,7 +149,7 @@ class BackupImports extends BaseController
                 } else {
                     $employeeId = (int) $model->insert($record, true);
                     if ($employeeId < 1) {
-                        throw new \\RuntimeException('Gagal membuat master pegawai PIN ' . $record['fingerprint_pin'] . '.');
+                        throw new \RuntimeException('Gagal membuat master pegawai PIN ' . $record['fingerprint_pin'] . '.');
                     }
                     $inserted++;
                 }
@@ -163,7 +163,7 @@ class BackupImports extends BaseController
                     ->where('employee_id !=', $employeeId)
                     ->get()->getRowArray();
                 if ($mappingConflict) {
-                    throw new \\RuntimeException('PIN ' . $pin . ' pada perangkat ' . $deviceCode . ' sudah dipetakan ke pegawai NEURO lain. Selesaikan konflik pemetaan sebelum impor master diulang.');
+                    throw new \RuntimeException('PIN ' . $pin . ' pada perangkat ' . $deviceCode . ' sudah dipetakan ke pegawai NEURO lain. Selesaikan konflik pemetaan sebelum impor master diulang.');
                 }
 
                 $currentMapping = $db->table('employee_fingerprint_mappings')
