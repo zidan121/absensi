@@ -32,11 +32,12 @@
     </div>
     <div class="table-responsive">
         <table class="table align-middle">
-            <thead><tr><th>Kode</th><th>Nama</th><th>Unit</th><th>Jabatan</th><th>Status</th><th>Aksi</th></tr></thead>
+            <thead><tr><th>Kode</th><th>PIN Fingerprint</th><th>Nama</th><th>Unit</th><th>Jabatan</th><th>Status</th><th>Aksi</th></tr></thead>
             <tbody>
             <?php foreach ($employees as $employee): ?>
                 <tr>
                     <td><?= esc($employee['employee_code']) ?></td>
+                    <td><span class="badge text-bg-light"><?= esc($employee['fingerprint_pin'] ?? '-') ?></span></td>
                     <td><?= esc($employee['full_name']) ?></td>
                     <td><span class="badge text-bg-secondary"><?= esc($units[$employee['unit_code'] ?? ''] ?? 'Belum ditentukan') ?></span></td>
                     <td><?= esc($employee['position'] ?? '-') ?></td>
@@ -45,7 +46,7 @@
                 </tr>
             <?php endforeach ?>
             <?php if (empty($employees)): ?>
-                <tr><td colspan="6" class="text-center text-secondary py-4">Belum ada pegawai pada pilihan ini.</td></tr>
+                <tr><td colspan="7" class="text-center text-secondary py-4">Belum ada pegawai pada pilihan ini.</td></tr>
             <?php endif ?>
             </tbody>
         </table>

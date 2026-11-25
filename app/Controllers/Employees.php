@@ -15,6 +15,28 @@ class Employees extends BaseController
         'RAIT_KBIT' => 'RAIT + KBIT (belum dipisah)',
     ];
 
+    /**
+     * Allocate the next numeric fingerprint PIN globally, so one employee
+     * identity is not assigned different PINs on different device records.
+     */
+    private function nextFingerprintPin($db): string
+    {
+        $rows = $db->table('employees')
+            ->select('fingerprint_pin')
+            ->where('fingerprint_pin IS NOT NULL', null, false)
+            ->get()->getResultArray();
+
+        $max = 0;
+        foreach ($rows as $row) {
+            $pin = trim((string) ($row['fingerprint_pin'] ?? ''));
+            if ($pin !== '' && ctype_digit($pin)) {
+                $max = max($max, (int) $pin);
+            }
+        }
+
+        return (string) ($max + 1);
+    }
+
     public function index()
     {
         $model = new EmployeeModel();
@@ -89,16 +111,51 @@ class Employees extends BaseController
             return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
         }
 
-        (new EmployeeModel())->insert([
-            'employee_code' => trim($this->request->getPost('employee_code')),
-            'unit_code' => $this->request->getPost('unit_code'),
-            'full_name' => trim($this->request->getPost('full_name')),
-            'position' => trim((string) $this->request->getPost('position')),
-            'is_active' => 1,
-        ]);
+        $db = db_connect();
+        $unitCode = (string) $this->request->getPost('unit_code');
+        $deviceCode = match ($unitCode) {
+            'SMPIT' => 'SMP-REVO16B',
+            'RAIT', 'KBIT' => 'RAKB-REVO185BNC',
+            default => null,
+        };
 
-        return redirect()->to('/pegawai?unit=' . urlencode((string) $this->request->getPost('unit_code')))
-            ->with('success', 'Pegawai berhasil ditambahkan.');
+        $db->transBegin();
+        try {
+            $pin = $this->nextFingerprintPin($db);
+            $device = $deviceCode
+                ? $db->table('devices')->where('device_code', $deviceCode)->where('is_active', 1)->get()->getRowArray()
+                : null;
+
+            $model = new EmployeeModel();
+            $employeeId = $model->insert([
+                'employee_code' => trim($this->request->getPost('employee_code')),
+                'fingerprint_pin' => $pin,
+                'fingerprint_device_id' => $device ? (int) $device['id'] : null,
+                'unit_code' => $unitCode,
+                'full_name' => trim($this->request->getPost('full_name')),
+                'position' => trim((string) $this->request->getPost('position')),
+                'is_active' => 1,
+            ], true);
+
+            if (! $employeeId || $db->transStatus() === false) {
+                throw new \\RuntimeException('Data pegawai gagal disimpan. Periksa apakah kode pegawai sudah digunakan.');
+            }
+            $db->transCommit();
+
+            $message = 'Pegawai berhasil ditambahkan. PIN fingerprint utama: ' . $pin . '.';
+            if ($deviceCode && ! $device) {
+                $message .= ' Perangkat ' . $deviceCode . ' belum terdaftar/aktif, sehingga perlu dipetakan sebelum sinkronisasi.';
+            } elseif (! $deviceCode) {
+                $message .= ' Unit ini belum memiliki pemetaan perangkat fingerprint; PIN tetap tersimpan dan perangkat dapat ditentukan kemudian.';
+            }
+
+            return redirect()->to('/pegawai/' . $employeeId . '/edit')
+                ->with('success', $message);
+        } catch (\\Throwable $e) {
+            $db->transRollback();
+            log_message('error', 'Create employee failed: {message}', ['message' => $e->getMessage()]);
+            return redirect()->back()->withInput()->with('error', 'Pegawai gagal ditambahkan: ' . $e->getMessage());
+        }
     }
 
     public function edit($id)
