@@ -206,8 +206,32 @@ class Employees extends BaseController
             return redirect()->back()->withInput()->with('error', 'Tanggal berhenti tidak boleh sebelum tanggal mulai kerja.');
         }
 
+        // PIN utama dapat ditetapkan/diperbarui oleh admin. PIN harus numerik
+        // dan unik secara global agar satu pegawai memiliki satu identitas pusat.
+        $fingerprintPin = trim((string) $this->request->getPost('fingerprint_pin'));
+        if ($fingerprintPin === '' || ! ctype_digit($fingerprintPin) || strlen($fingerprintPin) > 32) {
+            return redirect()->back()->withInput()->with('error', 'PIN fingerprint wajib diisi angka (maksimal 32 digit).');
+        }
+
+        $pinOwner = $model->where('fingerprint_pin', $fingerprintPin)
+            ->where('id !=', (int) $id)->first();
+        if ($pinOwner) {
+            return redirect()->back()->withInput()->with('error', 'PIN tersebut sudah digunakan pegawai lain. Gunakan PIN yang berbeda.');
+        }
+
+        $deviceCode = match ($unitCode) {
+            'SMPIT' => 'SMP-REVO16B',
+            'RAIT', 'KBIT' => 'RAKB-REVO185BNC',
+            default => null,
+        };
+        $device = $deviceCode
+            ? db_connect()->table('devices')->where('device_code', $deviceCode)->where('is_active', 1)->get()->getRowArray()
+            : null;
+
         $model->update((int) $id, [
             'employee_code' => $employeeCode,
+            'fingerprint_pin' => $fingerprintPin,
+            'fingerprint_device_id' => $device ? (int) $device['id'] : null,
             'full_name' => $fullName,
             'unit_code' => $unitCode,
             'position' => trim((string) $this->request->getPost('position')),
