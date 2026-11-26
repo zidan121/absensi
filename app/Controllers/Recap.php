@@ -16,10 +16,10 @@ class Recap extends BaseController
         // Monthly and multi-month reports may contain many fingerprint scans.
         @set_time_limit(180);
         [$startDate, $endDate] = $this->getDateRange();
-        $unit = $this->getUnit();
+        $units = $this->getUnits();
         $hasSearched = $this->request->getGet('show') === '1';
         $data = $hasSearched
-            ? (new AttendanceRecapService())->build($startDate, $endDate, $unit ?: null)
+            ? (new AttendanceRecapService())->build($startDate, $endDate, $units ?: null)
             : [
                 'rows' => [],
                 'unmatched' => [],
@@ -35,7 +35,7 @@ class Recap extends BaseController
             'title' => 'Rekap Absensi',
             'startDate' => $startDate,
             'endDate' => $endDate,
-            'unit' => $unit,
+            'units' => $units,
             'data' => $data,
             'hasSearched' => $hasSearched,
         ]);
@@ -50,8 +50,8 @@ class Recap extends BaseController
             return redirect()->to('/rekap')->with('error', 'Rentang tanggal rekap tidak valid.');
         }
 
-        $unit = $this->getUnit();
-        $data = (new AttendanceRecapService())->build($startDate, $endDate, $unit ?: null);
+        $units = $this->getUnits();
+        $data = (new AttendanceRecapService())->build($startDate, $endDate, $units ?: null);
 
         $book = new Spreadsheet();
         $sheet = $book->getActiveSheet();
@@ -117,7 +117,7 @@ class Recap extends BaseController
         $sheet->getColumnDimension('I')->setWidth(3);
         $sheet->getColumnDimension('J')->setWidth(14.54);
         $sheet->freezePane('A3');
-        $filename = 'rekap-absensi-' . $startDate . '-sampai-' . $endDate . ($unit ? '-' . strtolower($unit) : '-semua-unit') . '.xlsx';
+        $filename = 'rekap-absensi-' . $startDate . '-sampai-' . $endDate . ($units ? '-' . strtolower(implode('-', $units)) : '-semua-unit') . '.xlsx';
         $response = service('response');
         $response->setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         $response->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"');
@@ -151,8 +151,8 @@ class Recap extends BaseController
         $employeeQuery = $db->table('employees')
             ->select('id, employee_code, full_name, position, unit_code')
             ->orderBy('full_name', 'ASC');
-        if ($unit !== '') {
-            $employeeQuery->where('unit_code', $unit);
+        if ($units !== []) {
+            $employeeQuery->whereIn('unit_code', $units);
         }
         $employees = $employeeQuery->get()->getResultArray();
 
@@ -195,7 +195,7 @@ class Recap extends BaseController
         $summary->setTitle('REKAB');
         $summary->mergeCells('A1:G1');
         $summary->mergeCells('A2:G2');
-        $summary->setCellValue('A1', 'REKAB ABSEN ' . ($unit ?: 'SEMUA UNIT'));
+        $summary->setCellValue('A1', 'REKAB ABSEN ' . ($units ? implode(' + ', $units) : 'SEMUA UNIT'));
         $summary->setCellValue('A2', date('d-m-Y', strtotime($startDate)) . ' s.d. ' . date('d-m-Y', strtotime($endDate)));
         $summary->fromArray(['NO', 'NAMA', 'NAMA di Fringer', 'JABATAN', 'KEDATANGAN', 'TERLAMBAT', 'TEPAT WAKTU'], null, 'A3');
 
@@ -318,10 +318,18 @@ class Recap extends BaseController
         return [$startDate, $endDate];
     }
 
-    private function getUnit(): string
+    private function getUnits(): array
     {
-        $unit = strtoupper(trim((string) $this->request->getGet('unit')));
-        return in_array($unit, self::ALLOWED_UNITS, true) ? $unit : '';
+        $input = $this->request->getGet('unit');
+        $values = is_array($input) ? $input : [$input];
+        $units = [];
+        foreach ($values as $value) {
+            $unit = strtoupper(trim((string) $value));
+            if (in_array($unit, self::ALLOWED_UNITS, true) && ! in_array($unit, $units, true)) {
+                $units[] = $unit;
+            }
+        }
+        return $units;
     }
 
     private function isValidDate(string $date): bool
