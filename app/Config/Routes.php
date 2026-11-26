@@ -47,6 +47,10 @@ $routes->group('pengaturan-urutan-jabatan', ['filter' => 'auth'], static functio
     $routes->get('/', 'RecapPositionOrders::index');
     $routes->post('simpan', 'RecapPositionOrders::save');
 });
+$routes->group('pengaturan-urutan-pegawai', ['filter' => 'auth'], static function ($routes) {
+    $routes->get('/', 'EmployeeRecapOrders::index');
+    $routes->post('simpan', 'EmployeeRecapOrders::save');
+});
 $routes->group('pengaturan-absensi', ['filter' => 'auth'], static function ($routes) {
     $routes->get('/', 'AttendanceSettings::index');
     $routes->post('simpan-unit', 'AttendanceSettings::saveUnitRule');
