@@ -6,7 +6,7 @@ use DateTimeImmutable;
 
 class WeeklySchedules extends BaseController
 {
-    private const UNITS = ['KBIT', 'RAIT', 'SDIT', 'SMPIT', 'YAYASAN'];
+    private const UNITS = ['KBIT', 'RAIT', 'SDIT', 'SMPIT', 'YAYASAN', 'LAZIS'];
     private const DAYS = [1, 2, 3, 4, 5, 6, 7];
 
     public function index()
