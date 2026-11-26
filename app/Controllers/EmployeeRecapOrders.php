@@ -44,6 +44,30 @@ class EmployeeRecapOrders extends BaseController
             $positionRank[mb_strtolower(trim($row['position_name']))] = $index;
         }
 
+        $defaultCombined = [
+            'ari wuryaningsih' => ['Ari Wuryaningsih, SE', 1],
+            'yuli karina' => ['Yuli Karina, S.Pd', 2],
+            'winarti' => ['Winarti, S.Pd', 3],
+            'sri munarsih' => ['Sri Munarsih, S.Sos', 4],
+            'nobela' => ['Nobela Windatul Umah, S.Pd', 5],
+            'nikmatul janah' => ['Nikmatul Jannah', 6],
+            'nikmatul jannah' => ['Nikmatul Jannah', 6],
+            'yuli tri w se' => ['Yuli Tri W SE', 7],
+        ];
+        if ($unit === 'KBIT_LAZIS' && $saved === []) {
+            foreach ($employees as &$employee) {
+                $normalizedName = mb_strtolower(trim((string) $employee['full_name']));
+                foreach ($defaultCombined as $needle => [$displayName, $rank]) {
+                    if (str_contains($normalizedName, $needle)) {
+                        $employee['_default_rank'] = $rank;
+                        $employee['_default_display_name'] = $displayName;
+                        break;
+                    }
+                }
+            }
+            unset($employee);
+        }
+
         usort($employees, static function ($a, $b) use ($saved, $positionRank) {
             $idA = (int) $a['id'];
             $idB = (int) $b['id'];
@@ -52,23 +76,22 @@ class EmployeeRecapOrders extends BaseController
             if ($hasA && $hasB && (int) $saved[$idA]['sort_order'] !== (int) $saved[$idB]['sort_order']) {
                 return (int) $saved[$idA]['sort_order'] <=> (int) $saved[$idB]['sort_order'];
             }
-            if ($hasA !== $hasB) {
-                return $hasA ? -1 : 1;
-            }
+            if ($hasA !== $hasB) return $hasA ? -1 : 1;
+            $defaultA = $a['_default_rank'] ?? PHP_INT_MAX;
+            $defaultB = $b['_default_rank'] ?? PHP_INT_MAX;
+            if ($defaultA !== $defaultB) return $defaultA <=> $defaultB;
             $rankA = $positionRank[mb_strtolower(trim((string) ($a['position'] ?? '')))] ?? PHP_INT_MAX;
             $rankB = $positionRank[mb_strtolower(trim((string) ($b['position'] ?? '')))] ?? PHP_INT_MAX;
-            if ($rankA !== $rankB) {
-                return $rankA <=> $rankB;
-            }
+            if ($rankA !== $rankB) return $rankA <=> $rankB;
             $positionCompare = strcasecmp((string) ($a['position'] ?? ''), (string) ($b['position'] ?? ''));
-            return $positionCompare !== 0
-                ? $positionCompare
-                : strcasecmp((string) $a['full_name'], (string) $b['full_name']);
+            return $positionCompare !== 0 ? $positionCompare : strcasecmp((string) $a['full_name'], (string) $b['full_name']);
         });
 
         foreach ($employees as &$employee) {
             $savedRow = $saved[(int) $employee['id']] ?? [];
-            $employee['recap_display_name'] = $savedRow['display_name'] ?? $employee['full_name'];
+            $employee['recap_display_name'] = $savedRow['display_name']
+                ?? ($employee['_default_display_name'] ?? $employee['full_name']);
+            unset($employee['_default_rank'], $employee['_default_display_name']);
         }
         unset($employee);
 
