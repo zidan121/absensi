@@ -176,19 +176,34 @@ class Recap extends BaseController
             $employeeOrder[$order['unit_code']][(int) $order['employee_id']] = (int) $order['sort_order'];
             $employeeDisplayNames[$order['unit_code']][(int) $order['employee_id']] = $order['display_name'];
         }
+        $isKbitLazisCombined = in_array('KBIT', $units, true) && in_array('LAZIS', $units, true);
+        $combinedOrder = $employeeOrder['KBIT_LAZIS'] ?? [];
+        $combinedDisplayNames = [];
+        foreach ($manualOrders as $order) {
+            if ($order['unit_code'] === 'KBIT_LAZIS') {
+                $combinedDisplayNames[(int) $order['employee_id']] = $order['display_name'];
+            }
+        }
         $unitRank = [];
         foreach ($units as $index => $unitCode) {
             $unitRank[$unitCode] = $index;
         }
-        usort($employees, static function ($a, $b) use ($positionRank, $employeeOrder, $unitRank) {
+        usort($employees, static function ($a, $b) use ($positionRank, $employeeOrder, $unitRank, $isKbitLazisCombined, $combinedOrder) {
+            $idA = (int) $a['id'];
+            $idB = (int) $b['id'];
+            if ($isKbitLazisCombined && $combinedOrder !== []) {
+                $manualA = $combinedOrder[$idA] ?? null;
+                $manualB = $combinedOrder[$idB] ?? null;
+                if ($manualA !== null || $manualB !== null) {
+                    if ($manualA === null) return 1;
+                    if ($manualB === null) return -1;
+                    if ($manualA !== $manualB) return $manualA <=> $manualB;
+                }
+            }
             $unitA = (string) $a['unit_code'];
             $unitB = (string) $b['unit_code'];
             $unitCompare = ($unitRank[$unitA] ?? PHP_INT_MAX) <=> ($unitRank[$unitB] ?? PHP_INT_MAX);
-            if ($unitCompare !== 0) {
-                return $unitCompare;
-            }
-            $idA = (int) $a['id'];
-            $idB = (int) $b['id'];
+            if ($unitCompare !== 0) return $unitCompare;
             $manualA = $employeeOrder[$unitA][$idA] ?? null;
             $manualB = $employeeOrder[$unitB][$idB] ?? null;
             if ($manualA !== null || $manualB !== null) {
@@ -233,7 +248,7 @@ class Recap extends BaseController
             $employeeId = (int) $employee['id'];
             $summary->fromArray([
                 $number++,
-                ($employeeDisplayNames[$employee['unit_code']][(int) $employee['id']] ?? $employee['full_name']),
+                ($combinedDisplayNames[(int) $employee['id']] ?? $employeeDisplayNames[$employee['unit_code']][(int) $employee['id']] ?? $employee['full_name']),
                 // Nama master NEURO tetap ditampilkan sebagai referensi di kolom NAMA di Fringer.
                 $employee['full_name'],
                 $employee['position'] ?? '',
