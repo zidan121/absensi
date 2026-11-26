@@ -85,7 +85,7 @@ class BackupImports extends BaseController
             if (! is_array($edits)) {
                 throw new \RuntimeException('Data hasil penyuntingan tidak ditemukan.');
             }
-            $allowedUnits = ['SMPIT', 'RAIT', 'KBIT', 'RAIT_KBIT', 'YAYASAN'];
+            $allowedUnits = ['SMPIT', 'RAIT', 'KBIT', 'RAIT_KBIT', 'YAYASAN', 'LAZIS'];
             foreach ($records as &$record) {
                 $pin = (string) $record['fingerprint_pin'];
                 $edit = $edits[$pin] ?? null;
