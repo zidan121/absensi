@@ -6,7 +6,7 @@ use DateTimeImmutable;
 
 class WorkCalendar extends BaseController
 {
-    private const UNITS = ['KBIT', 'RAIT', 'SDIT', 'SMPIT', 'YAYASAN'];
+    private const UNITS = ['KBIT', 'RAIT', 'SDIT', 'SMPIT', 'YAYASAN', 'LAZIS'];
 
     public function index()
     {

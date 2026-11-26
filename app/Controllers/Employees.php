@@ -12,6 +12,7 @@ class Employees extends BaseController
         'SDIT' => 'SDIT',
         'SMPIT' => 'SMPIT',
         'YAYASAN' => 'Yayasan',
+        'LAZIS' => 'Lazis',
         'RAIT_KBIT' => 'RAIT + KBIT (belum dipisah)',
     ];
 
@@ -21,24 +22,30 @@ class Employees extends BaseController
      */
     private function nextFingerprintPin($db, ?int $deviceId = null): string
     {
-        $query = $db->table('employees')
-            ->select('fingerprint_pin')
-            ->where('fingerprint_pin IS NOT NULL', null, false);
+        $pins = [];
+        $mappingQuery = $db->table('employee_fingerprint_mappings')->select('fingerprint_pin');
         if ($deviceId !== null) {
-            $query->where('fingerprint_device_id', $deviceId);
-        } else {
-            $query->where('fingerprint_device_id', null);
+            $mappingQuery->where('device_id', $deviceId);
         }
-        $rows = $query->get()->getResultArray();
+        foreach ($mappingQuery->get()->getResultArray() as $row) {
+            $pins[] = trim((string) ($row['fingerprint_pin'] ?? ''));
+        }
+
+        // Include legacy values during the transition from the old columns.
+        $legacyQuery = $db->table('employees')->select('fingerprint_pin');
+        if ($deviceId !== null) {
+            $legacyQuery->where('fingerprint_device_id', $deviceId);
+        }
+        foreach ($legacyQuery->get()->getResultArray() as $row) {
+            $pins[] = trim((string) ($row['fingerprint_pin'] ?? ''));
+        }
 
         $max = 0;
-        foreach ($rows as $row) {
-            $pin = trim((string) ($row['fingerprint_pin'] ?? ''));
+        foreach ($pins as $pin) {
             if ($pin !== '' && ctype_digit($pin)) {
                 $max = max($max, (int) $pin);
             }
         }
-
         return (string) ($max + 1);
     }
 
@@ -70,10 +77,10 @@ class Employees extends BaseController
         $employees = $query->findAll();
         // Sort by the numeric part of the employee code, ignoring its unit/prefix (e.g. RAIT:2 before SMPIT:5).
         usort($employees, static function (array $a, array $b): int {
-            $numberA = preg_match('/(\\d+)$/', (string) ($a['employee_code'] ?? ''), $matchA)
+            $numberA = preg_match('/(\d+)$/', (string) ($a['employee_code'] ?? ''), $matchA)
                 ? (int) $matchA[1]
                 : PHP_INT_MAX;
-            $numberB = preg_match('/(\\d+)$/', (string) ($b['employee_code'] ?? ''), $matchB)
+            $numberB = preg_match('/(\d+)$/', (string) ($b['employee_code'] ?? ''), $matchB)
                 ? (int) $matchB[1]
                 : PHP_INT_MAX;
 
@@ -110,7 +117,7 @@ class Employees extends BaseController
         $rules = [
             'employee_code' => 'required|max_length[40]',
             'full_name' => 'required|max_length[150]',
-            'unit_code' => 'required|in_list[KBIT,RAIT,SDIT,SMPIT,YAYASAN]',
+            'unit_code' => 'required|in_list[KBIT,RAIT,SDIT,SMPIT,YAYASAN,LAZIS]',
         ];
         if (! $this->validate($rules)) {
             return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
@@ -144,6 +151,26 @@ class Employees extends BaseController
 
             if (! $employeeId || $db->transStatus() === false) {
                 throw new \RuntimeException('Data pegawai gagal disimpan. Periksa apakah kode pegawai sudah digunakan.');
+            }
+
+            if ($device) {
+                $db->table('employee_fingerprint_mappings')->insert([
+                    'employee_id' => (int) $employeeId,
+                    'device_id' => (int) $device['id'],
+                    'fingerprint_pin' => $pin,
+                    'effective_from' => date('Y-m-d'),
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ]);
+                $db->table('employee_fingerprint_mapping_history')->insert([
+                    'employee_id' => (int) $employeeId,
+                    'device_id' => (int) $device['id'],
+                    'fingerprint_pin' => $pin,
+                    'action' => 'assigned',
+                    'effective_from' => date('Y-m-d'),
+                    'notes' => 'Pemetaan awal otomatis saat pegawai dibuat.',
+                    'created_at' => date('Y-m-d H:i:s'),
+                ]);
             }
             $db->transCommit();
 
@@ -203,7 +230,7 @@ class Employees extends BaseController
         $start = trim((string) $this->request->getPost('employment_start'));
         $end = trim((string) $this->request->getPost('employment_end'));
         foreach (['Tanggal mulai kerja' => $start, 'Tanggal berhenti' => $end] as $label => $date) {
-            if ($date !== '' && (! preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $date) || ! strtotime($date) || date('Y-m-d', strtotime($date)) !== $date)) {
+            if ($date !== '' && (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || ! strtotime($date) || date('Y-m-d', strtotime($date)) !== $date)) {
                 return redirect()->back()->withInput()->with('error', $label . ' tidak valid.');
             }
         }
@@ -211,39 +238,10 @@ class Employees extends BaseController
             return redirect()->back()->withInput()->with('error', 'Tanggal berhenti tidak boleh sebelum tanggal mulai kerja.');
         }
 
-        // PIN fingerprint unik dalam lingkup perangkat, bukan global.
-        // Mesin SMPIT dan RA&KB memiliki ruang PIN masing-masing.
-        $fingerprintPin = trim((string) $this->request->getPost('fingerprint_pin'));
-        if ($fingerprintPin === '' || ! ctype_digit($fingerprintPin) || strlen($fingerprintPin) > 32) {
-            return redirect()->back()->withInput()->with('error', 'PIN fingerprint wajib diisi angka (maksimal 32 digit).');
-        }
-
-        $deviceCode = match ($unitCode) {
-            'SMPIT' => 'SMP-REVO16B',
-            'RAIT', 'KBIT' => 'RAKB-REVO185BNC',
-            default => null,
-        };
-        $db = db_connect();
-        $device = $deviceCode
-            ? $db->table('devices')->where('device_code', $deviceCode)->where('is_active', 1)->get()->getRowArray()
-            : null;
-        $deviceId = $device ? (int) $device['id'] : null;
-
-        $pinQuery = $model->where('fingerprint_pin', $fingerprintPin)
-            ->where('id !=', (int) $id);
-        if ($deviceId !== null) {
-            $pinQuery->where('fingerprint_device_id', $deviceId);
-        } else {
-            $pinQuery->where('fingerprint_device_id', null);
-        }
-        if ($pinQuery->first()) {
-            return redirect()->back()->withInput()->with('error', 'PIN tersebut sudah digunakan pegawai lain pada perangkat fingerprint yang sama.');
-        }
-
+        // Identitas perangkat/PIN dikelola terpisah agar perubahan unit tidak
+        // diam-diam memindahkan pegawai atau mengganti PIN di mesin fingerprint.
         $model->update((int) $id, [
             'employee_code' => $employeeCode,
-            'fingerprint_pin' => $fingerprintPin,
-            'fingerprint_device_id' => $device ? (int) $device['id'] : null,
             'full_name' => $fullName,
             'unit_code' => $unitCode,
             'position' => trim((string) $this->request->getPost('position')),

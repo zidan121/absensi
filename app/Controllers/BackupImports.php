@@ -85,7 +85,7 @@ class BackupImports extends BaseController
             if (! is_array($edits)) {
                 throw new \RuntimeException('Data hasil penyuntingan tidak ditemukan.');
             }
-            $allowedUnits = ['SMPIT', 'RAIT', 'KBIT', 'RAIT_KBIT', 'YAYASAN'];
+            $allowedUnits = ['SMPIT', 'RAIT', 'KBIT', 'RAIT_KBIT', 'YAYASAN', 'LAZIS'];
             foreach ($records as &$record) {
                 $pin = (string) $record['fingerprint_pin'];
                 $edit = $edits[$pin] ?? null;
@@ -126,16 +126,17 @@ class BackupImports extends BaseController
                 $record['employee_code'] = $deviceCode . ':' . $record['fingerprint_pin'];
                 // PIN identity is scoped to the originating fingerprint device, not globally.
                 $record['fingerprint_device_id'] = (int) $sourceDevice['id'];
+                // pegawai_id is the stable primary identity inside this Fingerspot device.
+                // Match by it first so a changed PIN updates the same NEURO employee.
                 $existing = $db->table('employees')
                     ->where('fingerprint_device_id', (int) $sourceDevice['id'])
-                    ->where('fingerprint_pin', $record['fingerprint_pin'])
                     ->where('source_employee_id', $record['source_employee_id'])
                     ->get()->getRowArray();
 
                 // Backward-compatible match for master rows imported before device identity existed.
                 if (! $existing) {
                     $existing = $db->table('employees')
-                        ->whereNull('fingerprint_device_id')
+                        ->where('fingerprint_device_id', null)
                         ->whereIn('unit_code', [$unit, $employeeUnit])
                         ->where('fingerprint_pin', $record['fingerprint_pin'])
                         ->where('source_employee_id', $record['source_employee_id'])
@@ -143,12 +144,83 @@ class BackupImports extends BaseController
                         ->get()->getRowArray();
                 }
                 if ($existing) {
-                    $model->update($existing['id'], $record);
+                    $employeeId = (int) $existing['id'];
+                    $model->update($employeeId, $record);
                     $updated++;
                 } else {
-                    $model->insert($record);
+                    $employeeId = (int) $model->insert($record, true);
+                    if ($employeeId < 1) {
+                        throw new \RuntimeException('Gagal membuat master pegawai PIN ' . $record['fingerprint_pin'] . '.');
+                    }
                     $inserted++;
                 }
+
+                // Every imported master identity must also have an authoritative device mapping.
+                // Use the Fingerspot pegawai_id as a stable target identity for later reviews.
+                $pin = trim((string) $record['fingerprint_pin']);
+                $mappingConflict = $db->table('employee_fingerprint_mappings')
+                    ->where('device_id', (int) $sourceDevice['id'])
+                    ->where('fingerprint_pin', $pin)
+                    ->where('employee_id !=', $employeeId)
+                    ->get()->getRowArray();
+                if ($mappingConflict) {
+                    throw new \RuntimeException('PIN ' . $pin . ' pada perangkat ' . $deviceCode . ' sudah dipetakan ke pegawai NEURO lain. Selesaikan konflik pemetaan sebelum impor master diulang.');
+                }
+
+                $currentMapping = $db->table('employee_fingerprint_mappings')
+                    ->where('employee_id', $employeeId)
+                    ->where('device_id', (int) $sourceDevice['id'])
+                    ->get()->getRowArray();
+                if ($currentMapping) {
+                    $changed = (string) $currentMapping['fingerprint_pin'] !== $pin
+                        || (string) ($currentMapping['target_pegawai_id'] ?? '') !== (string) $record['source_employee_id'];
+                    $mappingEffectiveFrom = $changed
+                        ? date('Y-m-d')
+                        : (string) ($currentMapping['effective_from'] ?? $record['employment_start'] ?? date('Y-m-d'));
+                } else {
+                    $changed = false;
+                    $mappingEffectiveFrom = $record['employment_start'] ?? date('Y-m-d');
+                }
+                $mappingPayload = [
+                    'fingerprint_pin' => $pin,
+                    'target_pegawai_id' => (int) $record['source_employee_id'],
+                    'effective_from' => $mappingEffectiveFrom,
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ];
+                if ($currentMapping) {
+                    if ($changed) {
+                        $db->table('employee_fingerprint_mapping_history')->insert([
+                            'employee_id' => $employeeId,
+                            'device_id' => (int) $sourceDevice['id'],
+                            'fingerprint_pin' => $currentMapping['fingerprint_pin'],
+                            'target_pegawai_id' => $currentMapping['target_pegawai_id'],
+                            'action' => 'replaced',
+                            'effective_from' => $currentMapping['effective_from'],
+                            'effective_until' => (new \DateTimeImmutable($mappingEffectiveFrom))->modify('-1 day')->format('Y-m-d'),
+                            'notes' => 'Pemetaan diperbarui melalui impor master Fingerspot.',
+                            'created_at' => date('Y-m-d H:i:s'),
+                        ]);
+                    }
+                    $db->table('employee_fingerprint_mappings')
+                        ->where('id', $currentMapping['id'])->update($mappingPayload);
+                } else {
+                    $mappingPayload += [
+                        'employee_id' => $employeeId,
+                        'device_id' => (int) $sourceDevice['id'],
+                        'created_at' => date('Y-m-d H:i:s'),
+                    ];
+                    $db->table('employee_fingerprint_mappings')->insert($mappingPayload);
+                }
+                $db->table('employee_fingerprint_mapping_history')->insert([
+                    'employee_id' => $employeeId,
+                    'device_id' => (int) $sourceDevice['id'],
+                    'fingerprint_pin' => $pin,
+                    'target_pegawai_id' => (int) $record['source_employee_id'],
+                    'action' => $currentMapping ? 'import_updated' : 'import_assigned',
+                    'effective_from' => $mappingEffectiveFrom,
+                    'notes' => 'Pemetaan dibuat/diperbarui dari master pegawai backup Fingerspot.',
+                    'created_at' => date('Y-m-d H:i:s'),
+                ]);
             }
             if ($db->transStatus() === false) {
                 $db->transRollback();

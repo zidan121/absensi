@@ -41,6 +41,11 @@ $routes->group('backup/fingerspot', ['filter' => 'auth'], static function ($rout
 $routes->group('rekap', ['filter' => 'auth'], static function ($routes) {
     $routes->get('/', 'Recap::index');
     $routes->get('export', 'Recap::export');
+    $routes->get('export-rekap-pegawai', 'Recap::exportEmployeeSummary');
+});
+$routes->group('pengaturan-urutan-jabatan', ['filter' => 'auth'], static function ($routes) {
+    $routes->get('/', 'RecapPositionOrders::index');
+    $routes->post('simpan', 'RecapPositionOrders::save');
 });
 $routes->group('pengaturan-absensi', ['filter' => 'auth'], static function ($routes) {
     $routes->get('/', 'AttendanceSettings::index');
@@ -64,6 +69,11 @@ $routes->group('pegawai', ['filter' => 'auth'], static function ($routes) {
     $routes->post('simpan', 'Employees::store');
     $routes->get('(:num)/edit', 'Employees::edit/$1');
     $routes->post('(:num)/update', 'Employees::update/$1');
+    $routes->get('(:num)/perangkat', 'EmployeeFingerprintMappings::index/$1');
+    $routes->post('(:num)/perangkat/simpan', 'EmployeeFingerprintMappings::save/$1');
+    $routes->get('(:num)/jadwal', 'EmployeeSchedules::index/$1');
+    $routes->post('(:num)/jadwal/simpan', 'EmployeeSchedules::save/$1');
+    $routes->post('(:num)/jadwal/hapus/(:num)', 'EmployeeSchedules::delete/$1/$2');
 });
 $routes->group('impor-backup', ['filter' => 'auth'], static function ($routes) {
     $routes->get('/', 'BackupImports::index');

@@ -13,6 +13,21 @@
 <input type="hidden" name="unit_code" value="<?= esc($unit) ?>">
 <div class="card p-3 mb-3">
 <div class="d-flex justify-content-between align-items-center mb-3"><h5 class="mb-0">Edit data pegawai (<?= count($preview['records']) ?>)</h5><small class="text-secondary">PIN fingerprint tidak dapat diubah</small></div>
+<div class="row g-2 align-items-end mb-3">
+<div class="col-md-4">
+<label for="bulk-unit" class="form-label">Ubah unit seluruh pegawai</label>
+<select id="bulk-unit" class="form-select">
+<option value="">Pilih unit untuk diterapkan ke semua...</option>
+<option value="SMPIT">SMPIT</option>
+<option value="RAIT">RAIT</option>
+<option value="KBIT">KBIT</option>
+<option value="RAIT_KBIT">RAIT + KBIT (gabungan)</option>
+<option value="YAYASAN">Yayasan</option>
+</select>
+</div>
+<div class="col-md-auto"><button type="button" id="apply-bulk-unit" class="btn btn-outline-primary">Terapkan ke semua pegawai</button></div>
+<div class="col-12"><small class="text-secondary">Perubahan massal hanya mengubah pilihan unit pada formulir ini. Kamu masih bisa mengubah unit pegawai tertentu satu per satu setelahnya.</small></div>
+</div>
 <div class="table-responsive"><table class="table table-sm table-hover align-middle">
 <thead><tr><th>PIN</th><th>Nama pegawai</th><th>Unit penempatan</th><th>Status aktif</th><th>Mulai kerja</th><th>Tanggal berhenti</th><th>Divisi sumber</th></tr></thead><tbody>
 <?php foreach ($preview['records'] as $row):
@@ -40,4 +55,38 @@ $defaultUnit = $unit === 'SMPIT' ? 'YAYASAN' : (in_array($pin, $kbitPins, true) 
 <button class="btn btn-success" type="submit">Simpan master pegawai sesuai hasil edit</button>
 <a class="btn btn-outline-secondary" href="/impor-backup">Batal</a>
 </form>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const bulkSelect = document.getElementById('bulk-unit');
+    const applyButton = document.getElementById('apply-bulk-unit');
+    if (!bulkSelect || !applyButton) return;
+
+    applyButton.addEventListener('click', function () {
+        const unit = bulkSelect.value;
+        if (!unit) {
+            alert('Pilih unit yang akan diterapkan ke semua pegawai terlebih dahulu.');
+            return;
+        }
+
+        const unitSelects = document.querySelectorAll('select[name$="[unit_code]"]');
+        if (!unitSelects.length) return;
+
+        const labels = {
+            SMPIT: 'SMPIT',
+            RAIT: 'RAIT',
+            KBIT: 'KBIT',
+            RAIT_KBIT: 'RAIT + KBIT',
+            YAYASAN: 'Yayasan'
+        };
+        if (!confirm('Terapkan unit ' + labels[unit] + ' ke seluruh ' + unitSelects.length + ' pegawai? Kamu masih dapat mengubah unit tertentu setelahnya.')) {
+            return;
+        }
+
+        unitSelects.forEach(function (select) {
+            select.value = unit;
+        });
+        alert('Unit ' + labels[unit] + ' berhasil diterapkan ke ' + unitSelects.length + ' pegawai pada formulir pratinjau. Periksa kembali sebelum menyimpan.');
+    });
+});
+</script>
 <?= $this->endSection() ?>

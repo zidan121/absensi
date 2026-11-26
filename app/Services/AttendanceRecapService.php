@@ -37,8 +37,9 @@ class AttendanceRecapService
     /**
      * Build a recap for an inclusive date range.
      */
-    public function build(string $startDate, string $endDate, ?string $unit = null): array
+    public function build(string $startDate, string $endDate, string|array|null $unit = null): array
     {
+        $units = $unit === null || $unit === '' ? [] : (is_array($unit) ? $unit : [$unit]);
         $start = $startDate . ' 00:00:00';
         $endExclusive = date('Y-m-d', strtotime($endDate . ' +1 day')) . ' 00:00:00';
 
@@ -55,26 +56,34 @@ class AttendanceRecapService
             $logs
         )));
 
-        $employeeMap = [];
-        $ambiguousKeys = [];
+        $identityCandidates = [];
         if ($deviceIds !== []) {
-            $employees = $this->db->table('employees')
-                ->select('id, fingerprint_device_id, fingerprint_pin, employee_code, full_name, position, unit_code')
-                ->whereIn('fingerprint_device_id', $deviceIds)
-                ->where('fingerprint_pin IS NOT NULL', null, false)
+            // Resolve identity against current mappings and their effective-dated history.
+            // This keeps scans from before a PIN/device reassignment attached to the old employee.
+            $current = $this->db->table('employee_fingerprint_mappings m')
+                ->select('e.id, m.device_id, m.fingerprint_pin, e.employee_code, e.full_name, e.position, e.unit_code, m.effective_from, NULL AS effective_until')
+                ->join('employees e', 'e.id = m.employee_id')
+                ->whereIn('m.device_id', $deviceIds)
                 ->get()->getResultArray();
 
-            foreach ($employees as $employee) {
-                $key = (int) $employee['fingerprint_device_id'] . '|' . $this->pinMatchKey((string) $employee['fingerprint_pin']);
-                if (isset($employeeMap[$key])) {
-                    // Never guess if two master rows collapse to the same normalized identity.
-                    $ambiguousKeys[$key] = true;
-                    unset($employeeMap[$key]);
+            $history = $this->db->table('employee_fingerprint_mapping_history h')
+                ->select('e.id, h.device_id, h.fingerprint_pin, e.employee_code, e.full_name, e.position, e.unit_code, h.effective_from, h.effective_until')
+                ->join('employees e', 'e.id = h.employee_id')
+                ->whereIn('h.device_id', $deviceIds)
+                ->get()->getResultArray();
+
+            $seenMappings = [];
+            foreach (array_merge($history, $current) as $mapping) {
+                $key = (int) $mapping['device_id'] . '|' . $this->pinMatchKey((string) $mapping['fingerprint_pin']);
+                $signature = implode('|', [
+                    $mapping['id'], $mapping['device_id'], $mapping['fingerprint_pin'],
+                    $mapping['effective_from'] ?? '', $mapping['effective_until'] ?? '',
+                ]);
+                if (isset($seenMappings[$signature])) {
                     continue;
                 }
-                if (! isset($ambiguousKeys[$key])) {
-                    $employeeMap[$key] = $employee;
-                }
+                $seenMappings[$signature] = true;
+                $identityCandidates[$key][] = $mapping;
             }
         }
 
@@ -82,14 +91,36 @@ class AttendanceRecapService
         $unmatched = [];
         foreach ($logs as $log) {
             $identityKey = (int) $log['device_id'] . '|' . $this->pinMatchKey((string) $log['pin']);
-            $employee = isset($ambiguousKeys[$identityKey]) ? null : ($employeeMap[$identityKey] ?? null);
+            $scanDate = substr((string) $log['scanned_at'], 0, 10);
+            $candidates = array_values(array_filter(
+                $identityCandidates[$identityKey] ?? [],
+                static fn ($mapping) =>
+                    (empty($mapping['effective_from']) || $mapping['effective_from'] <= $scanDate)
+                    && (empty($mapping['effective_until']) || $mapping['effective_until'] >= $scanDate)
+            ));
+            $candidateEmployees = [];
+            foreach ($candidates as $candidate) {
+                $candidateEmployees[(int) $candidate['id']] = $candidate;
+            }
+            $employee = count($candidateEmployees) === 1 ? reset($candidateEmployees) : null;
 
             if ($employee === null) {
-                $key = $log['device_id'] . '|' . $log['pin'];
-                $unmatched[$key] = ($unmatched[$key] ?? 0) + 1;
+                $key = (int) $log['device_id'] . '|' . (string) $log['pin'];
+                if (! isset($unmatched[$key])) {
+                    $unmatched[$key] = [
+                        'device_id' => (int) $log['device_id'],
+                        'pin' => (string) $log['pin'],
+                        'scan_count' => 0,
+                        'first_scan' => (string) $log['scanned_at'],
+                        'last_scan' => (string) $log['scanned_at'],
+                    ];
+                }
+                $unmatched[$key]['scan_count']++;
+                $unmatched[$key]['first_scan'] = min($unmatched[$key]['first_scan'], (string) $log['scanned_at']);
+                $unmatched[$key]['last_scan'] = max($unmatched[$key]['last_scan'], (string) $log['scanned_at']);
                 continue;
             }
-            if ($unit !== null && $unit !== '' && $employee['unit_code'] !== $unit) {
+            if ($units !== [] && ! in_array($employee['unit_code'], $units, true)) {
                 continue;
             }
 
@@ -108,6 +139,26 @@ class AttendanceRecapService
                 ];
             }
             $groups[$key]['scans'][] = $log['scanned_at'];
+        }
+
+        // Attach device labels so unmatched identities can be diagnosed from the recap page.
+        if ($unmatched !== []) {
+            $unmatchedDeviceIds = array_values(array_unique(array_column($unmatched, 'device_id')));
+            $devices = $this->db->table('devices')
+                ->select('id, device_code, device_name')
+                ->whereIn('id', $unmatchedDeviceIds)
+                ->get()->getResultArray();
+            $deviceLabels = [];
+            foreach ($devices as $device) {
+                $deviceLabels[(int) $device['id']] = $device;
+            }
+            foreach ($unmatched as &$identity) {
+                $device = $deviceLabels[$identity['device_id']] ?? null;
+                $identity['device_code'] = $device['device_code'] ?? ('Device #' . $identity['device_id']);
+                $identity['device_name'] = $device['device_name'] ?? 'Perangkat tidak ditemukan';
+            }
+            unset($identity);
+            $unmatched = array_values($unmatched);
         }
 
         $rows = [];
@@ -132,9 +183,11 @@ class AttendanceRecapService
             $arrivalTime = substr($first, 11, 8);
             $isHoliday = ($calendarEvent['event_type'] ?? null) === 'holiday';
             $weeklySchedule = $this->weeklyScheduleFor($group['unit_code'], $group['date']);
+            // Individual work days override the unit default for this employee and period.
+            $workDays = $schedule['work_days'] ?? $weeklySchedule['work_days'] ?? null;
             $weekday = (int) (new \DateTimeImmutable($group['date']))->format('N');
-            $isWeeklyOff = $weeklySchedule !== null
-                && ! in_array($weekday, array_map('intval', explode(',', $weeklySchedule['work_days'])), true);
+            $isWeeklyOff = $workDays !== null
+                && ! in_array($weekday, array_map('intval', explode(',', $workDays)), true);
             $specialWorkday = in_array($calendarEvent['event_type'] ?? '', ['late_start', 'workday'], true);
             $isNonWorkingDay = ! $isHoliday && $isWeeklyOff && ! $specialWorkday;
             $isLate = ! $isHoliday && ! $isNonWorkingDay && $arrivalTime > $lateAfter;
@@ -187,7 +240,7 @@ class AttendanceRecapService
         return [
             'start_date' => $startDate,
             'end_date' => $endDate,
-            'unit' => $unit,
+            'unit' => $units,
             'rows' => $rows,
             'unmatched' => $unmatched,
             'summary' => [
