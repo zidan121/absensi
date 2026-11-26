@@ -67,6 +67,7 @@ $routes->group('pegawai', ['filter' => 'auth'], static function ($routes) {
     $routes->get('/', 'Employees::index');
     $routes->get('baru', 'Employees::create');
     $routes->post('simpan', 'Employees::store');
+    $routes->post('(:num)/status', 'Employees::toggleStatus/$1');
     $routes->get('(:num)/edit', 'Employees::edit/$1');
     $routes->post('(:num)/update', 'Employees::update/$1');
     $routes->get('(:num)/perangkat', 'EmployeeFingerprintMappings::index/$1');
