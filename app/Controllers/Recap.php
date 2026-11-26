@@ -129,6 +129,135 @@ class Recap extends BaseController
         return $response->setBody($output);
     }
 
+
+    /**
+     * Export the additional two-sheet employee recap format.
+     * The original detailed export remains available through export().
+     */
+    public function exportEmployeeSummary()
+    {
+        @set_time_limit(300);
+        $startDate = (string) $this->request->getGet('start_date');
+        $endDate = (string) $this->request->getGet('end_date');
+        if (! $this->isValidDate($startDate) || ! $this->isValidDate($endDate) || $endDate < $startDate) {
+            return redirect()->to('/rekap')->with('error', 'Rentang tanggal rekap tidak valid.');
+        }
+
+        $unit = $this->getUnit();
+        $data = (new AttendanceRecapService())->build($startDate, $endDate, $unit ?: null);
+        $db = db_connect();
+
+        $employeeQuery = $db->table('employees')
+            ->select('id, employee_code, full_name, position, unit_code')
+            ->orderBy('full_name', 'ASC');
+        if ($unit !== '') {
+            $employeeQuery->where('unit_code', $unit);
+        }
+        $employees = $employeeQuery->get()->getResultArray();
+
+        $mappingQuery = $db->table('employee_fingerprint_mappings')
+            ->select('employee_id, fingerprint_pin')
+            ->orderBy('id', 'ASC');
+        $mappings = $mappingQuery->get()->getResultArray();
+        $pinsByEmployee = [];
+        foreach ($mappings as $mapping) {
+            $pinsByEmployee[(int) $mapping['employee_id']][] = (string) $mapping['fingerprint_pin'];
+        }
+
+        $stats = [];
+        foreach ($data['rows'] as $item) {
+            $id = (int) $item['employee_id'];
+            if (! isset($stats[$id])) {
+                $stats[$id] = ['attendance' => 0, 'late' => 0];
+            }
+            $stats[$id]['attendance']++;
+            if ((int) ($item['late_minutes'] ?? 0) > 0) {
+                $stats[$id]['late']++;
+            }
+        }
+
+        $book = new Spreadsheet();
+        $summary = $book->getActiveSheet();
+        $summary->setTitle('REKAB');
+        $summary->mergeCells('A1:G1');
+        $summary->mergeCells('A2:G2');
+        $summary->setCellValue('A1', 'REKAP ABSEN ' . ($unit ?: 'SEMUA UNIT'));
+        $summary->setCellValue('A2', date('d-m-Y', strtotime($startDate)) . ' s.d. ' . date('d-m-Y', strtotime($endDate)));
+        $summary->fromArray(['NO', 'NAMA', 'NAMA di Fringer', 'JABATAN', 'KEDATANGAN', 'TERLAMBAT', 'TEPAT WAKTU'], null, 'A3');
+
+        $row = 4;
+        $number = 1;
+        foreach ($employees as $employee) {
+            $id = (int) $employee['id'];
+            $attendance = $stats[$id]['attendance'] ?? 0;
+            $late = $stats[$id]['late'] ?? 0;
+            $summary->fromArray([
+                $number++,
+                $employee['full_name'],
+                $employee['full_name'],
+                $employee['position'] ?? '',
+                $attendance,
+                $late,
+                max(0, $attendance - $late),
+            ], null, 'A' . $row++);
+        }
+        $summaryLastRow = max(3, $row - 1);
+        $summary->getStyle('A1:G' . $summaryLastRow)->getFont()->setName('Arial')->setSize(8);
+        $summary->getStyle('A1:G3')->getFont()->setBold(true);
+        $summary->getStyle('A1:G2')->getAlignment()->setHorizontal(\\PhpOffice\\PhpSpreadsheet\\Style\\Alignment::HORIZONTAL_CENTER);
+        $summary->getStyle('A3:G' . $summaryLastRow)->getBorders()->getAllBorders()->setBorderStyle(\\PhpOffice\\PhpSpreadsheet\\Style\\Border::BORDER_THIN);
+        foreach (['A' => 6, 'B' => 27, 'C' => 25, 'D' => 18, 'E' => 13, 'F' => 13, 'G' => 15] as $column => $width) {
+            $summary->getColumnDimension($column)->setWidth($width);
+        }
+        $summary->freezePane('A4');
+
+        $detail = $book->createSheet();
+        $detail->setTitle('DATA');
+        $detail->setCellValue('A1', 'Pegawai');
+        $detail->setCellValue('D1', 'Data scanlog');
+        $detail->setCellValue('J1', 'MAX JAM MASUK');
+        $detail->fromArray(['PIN', 'Nama', 'Jabatan', 'Tanggal', 'Scan 1', 'Status', 'Scan 2', 'Scan 3'], null, 'A2');
+        $detail->setCellValue('J2', 'Mengikuti aturan jadwal NEURO');
+        $detailRow = 3;
+        foreach ($data['rows'] as $item) {
+            $scans = $item['scans'] ?? [];
+            $detail->fromArray([
+                $item['fingerprint_pin'] ?? '',
+                $item['full_name'],
+                $item['position'] ?? '',
+                date('d-m-Y', strtotime($item['date'])),
+                $scans[0] ?? '',
+                $item['status'] ?? ((int) ($item['late_minutes'] ?? 0) > 0 ? 'Terlambat' : 'Tepat Waktu'),
+                $scans[1] ?? '',
+                $scans[2] ?? '',
+            ], null, 'A' . $detailRow++);
+        }
+        $detailLastRow = max(2, $detailRow - 1);
+        $detail->getDefaultRowDimension()->setRowHeight(12);
+        $detail->getStyle('A1:H' . $detailLastRow)->getFont()->setName('Arial')->setSize(8);
+        $detail->getStyle('A1:H2')->getFont()->setBold(true);
+        $detail->getStyle('A1:H' . $detailLastRow)->getBorders()->getAllBorders()->setBorderStyle(\\PhpOffice\\PhpSpreadsheet\\Style\\Border::BORDER_THIN);
+        $detail->getStyle('A1:H2')->getAlignment()->setHorizontal(\\PhpOffice\\PhpSpreadsheet\\Style\\Alignment::HORIZONTAL_CENTER)->setVertical(\\PhpOffice\\PhpSpreadsheet\\Style\\Alignment::VERTICAL_CENTER)->setWrapText(true);
+        $detail->getStyle('J1')->getFont()->setName('Calibri')->setSize(11);
+        $detail->getStyle('J1')->getFill()->setFillType(\\PhpOffice\\PhpSpreadsheet\\Style\\Fill::FILL_SOLID)->getStartColor()->setARGB('FFFFFF00');
+        foreach (['A' => 9.18, 'B' => 19.18, 'C' => 15, 'D' => 11.91, 'E' => 9.18, 'F' => 12, 'G' => 9.18, 'H' => 9.18, 'I' => 3, 'J' => 24] as $column => $width) {
+            $detail->getColumnDimension($column)->setWidth($width);
+        }
+        $detail->freezePane('A3');
+        $book->setActiveSheetIndex(0);
+
+        $filename = 'rekap-pegawai-' . $startDate . '-sampai-' . $endDate . ($unit ? '-' . strtolower($unit) : '-semua-unit') . '.xlsx';
+        $response = service('response');
+        $response->setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $response->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"');
+        $response->setHeader('Cache-Control', 'max-age=0');
+        ob_start();
+        (new Xlsx($book))->save('php://output');
+        $output = ob_get_clean();
+        $book->disconnectWorksheets();
+        return $response->setBody($output);
+    }
+
     private function getDateRange(): array
     {
         $defaultStart = date('Y-m-01');
