@@ -19,7 +19,7 @@ class CreateRecapPositionOrders extends Migration
         $this->forge->addUniqueKey('position_name', 'uq_recap_position_name');
         $this->forge->createTable('recap_position_orders', true);
 
-        $defaults = ['KS', 'Guru / Waka', 'Guru / Kur', 'Guru', 'Lazis'];
+        $defaults = ['KS', 'Guru / Waka', 'Guru / Kur', 'Guru'];
         foreach ($defaults as $index => $position) {
             $this->db->table('recap_position_orders')->insert([
                 'position_name' => $position,
