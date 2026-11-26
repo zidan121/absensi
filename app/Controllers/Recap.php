@@ -156,7 +156,8 @@ class Recap extends BaseController
         }
         $employees = $employeeQuery->get()->getResultArray();
 
-        // Urutan jabatan hanya memengaruhi susunan baris sheet REKAB.
+        // Susunan manual pegawai per unit mengungguli urutan jabatan.
+        // Unit yang belum memiliki susunan manual tetap memakai urutan jabatan sebelumnya.
         $positionOrders = $db->table('recap_position_orders')
             ->orderBy('sort_order', 'ASC')
             ->orderBy('position_name', 'ASC')
@@ -165,14 +166,41 @@ class Recap extends BaseController
         foreach ($positionOrders as $index => $positionOrder) {
             $positionRank[mb_strtolower(trim($positionOrder['position_name']))] = $index;
         }
-        usort($employees, static function ($a, $b) use ($positionRank) {
+        $manualOrders = $db->table('employee_recap_orders')
+            ->orderBy('unit_code', 'ASC')
+            ->orderBy('sort_order', 'ASC')
+            ->get()->getResultArray();
+        $employeeOrder = [];
+        $employeeDisplayNames = [];
+        foreach ($manualOrders as $order) {
+            $employeeOrder[$order['unit_code']][(int) $order['employee_id']] = (int) $order['sort_order'];
+            $employeeDisplayNames[(int) $order['employee_id']] = $order['display_name'];
+        }
+        $unitRank = [];
+        foreach ($units as $index => $unitCode) {
+            $unitRank[$unitCode] = $index;
+        }
+        usort($employees, static function ($a, $b) use ($positionRank, $employeeOrder, $unitRank) {
+            $unitA = (string) $a['unit_code'];
+            $unitB = (string) $b['unit_code'];
+            $unitCompare = ($unitRank[$unitA] ?? PHP_INT_MAX) <=> ($unitRank[$unitB] ?? PHP_INT_MAX);
+            if ($unitCompare !== 0) {
+                return $unitCompare;
+            }
+            $idA = (int) $a['id'];
+            $idB = (int) $b['id'];
+            $manualA = $employeeOrder[$unitA][$idA] ?? null;
+            $manualB = $employeeOrder[$unitB][$idB] ?? null;
+            if ($manualA !== null || $manualB !== null) {
+                if ($manualA === null) return 1;
+                if ($manualB === null) return -1;
+                if ($manualA !== $manualB) return $manualA <=> $manualB;
+            }
             $positionA = trim((string) ($a['position'] ?? ''));
             $positionB = trim((string) ($b['position'] ?? ''));
             $rankA = $positionRank[mb_strtolower($positionA)] ?? PHP_INT_MAX;
             $rankB = $positionRank[mb_strtolower($positionB)] ?? PHP_INT_MAX;
-            if ($rankA !== $rankB) {
-                return $rankA <=> $rankB;
-            }
+            if ($rankA !== $rankB) return $rankA <=> $rankB;
             $positionCompare = strcasecmp($positionA, $positionB);
             return $positionCompare !== 0
                 ? $positionCompare
@@ -205,8 +233,8 @@ class Recap extends BaseController
             $employeeId = (int) $employee['id'];
             $summary->fromArray([
                 $number++,
-                $employee['full_name'],
-                // Skema saat ini belum menyimpan nama terpisah dari mesin fingerprint.
+                $employeeDisplayNames[(int) $employee['id']] ?? $employee['full_name'],
+                // Nama master NEURO tetap ditampilkan sebagai referensi di kolom NAMA di Fringer.
                 $employee['full_name'],
                 $employee['position'] ?? '',
             ], null, 'A' . $summaryRow);
