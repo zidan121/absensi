@@ -150,11 +150,22 @@ class Recap extends BaseController
         // Daftar pegawai mengikuti unit yang dipilih, termasuk pegawai tanpa scan.
         $employeeQuery = $db->table('employees')
             ->select('id, employee_code, full_name, position, unit_code')
+            ->where('is_active', 1)
             ->orderBy('full_name', 'ASC');
         if ($units !== []) {
             $employeeQuery->whereIn('unit_code', $units);
         }
         $employees = $employeeQuery->get()->getResultArray();
+
+        // Sheet DATA pada format REKAB hanya memuat scan pegawai aktif.
+        $activeEmployeeIds = array_fill_keys(
+            array_map(static fn ($employee) => (int) $employee['id'], $employees),
+            true
+        );
+        $data['rows'] = array_values(array_filter(
+            $data['rows'],
+            static fn ($item) => isset($activeEmployeeIds[(int) $item['employee_id']])
+        ));
 
         // Susunan manual pegawai per unit mengungguli urutan jabatan.
         // Unit yang belum memiliki susunan manual tetap memakai urutan jabatan sebelumnya.
