@@ -143,8 +143,8 @@ class Recap extends BaseController
             return redirect()->to('/rekap')->with('error', 'Rentang tanggal rekap tidak valid.');
         }
 
-        $unit = $this->getUnit();
-        $data = (new AttendanceRecapService())->build($startDate, $endDate, $unit ?: null);
+        $units = $this->getUnits();
+        $data = (new AttendanceRecapService())->build($startDate, $endDate, $units ?: null);
         $db = db_connect();
 
         // Daftar pegawai mengikuti unit yang dipilih, termasuk pegawai tanpa scan.
@@ -292,7 +292,7 @@ class Recap extends BaseController
         $detail->freezePane('A3');
         $book->setActiveSheetIndex(0);
 
-        $filename = 'rekap-pegawai-' . $startDate . '-sampai-' . $endDate . ($unit ? '-' . strtolower($unit) : '-semua-unit') . '.xlsx';
+        $filename = 'rekap-pegawai-' . $startDate . '-sampai-' . $endDate . ($units ? '-' . strtolower(implode('-', $units)) : '-semua-unit') . '.xlsx';
         $response = service('response');
         $response->setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         $response->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"');
