@@ -3,7 +3,7 @@
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <div>
         <h2 class="mb-1">Pengaturan Urutan Pegawai REKAB</h2>
-        <p class="text-secondary mb-0">Atur urutan nama dan nama tampilan pada ekspor REKAB secara terpisah untuk setiap unit.</p>
+        <p class="text-secondary mb-0">Atur urutan pegawai dan nama tampilan pada ekspor REKAB. Kamu juga bisa mengatur gabungan KBIT + Lazis sebagai satu daftar.</p>
     </div>
     <a href="/rekap" class="btn btn-outline-primary"><i class="bi bi-arrow-left me-1"></i>Kembali ke Rekap</a>
 </div>
@@ -19,7 +19,7 @@
             </select>
         </div>
         <div class="col-md-8 d-flex align-items-end">
-            <div class="small text-secondary">Pengaturan setiap unit disimpan sendiri-sendiri. Perubahan nama di sini hanya memengaruhi kolom NAMA pada ekspor REKAB, bukan nama master pegawai.</div>
+            <div class="small text-secondary">Pilihan Gabungan KBIT + Lazis menyatukan pegawai dari kedua unit untuk diurutkan sebagai satu daftar. Perubahan nama hanya memengaruhi kolom NAMA pada ekspor REKAB, bukan nama master NEURO.</div>
         </div>
     </form>
 </div>
@@ -66,7 +66,7 @@
             </table>
         </div>
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-            <small class="text-secondary">Urutan dan nama hanya diterapkan pada sheet REKAB untuk unit ini. Data absensi dan master pegawai tidak berubah.</small>
+            <small class="text-secondary">Urutan dan nama diterapkan pada sheet REKAB sesuai pilihan unit, termasuk gabungan KBIT + Lazis. Data absensi dan master pegawai tidak berubah.</small>
             <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Simpan Pengaturan</button>
         </div>
     </form>
