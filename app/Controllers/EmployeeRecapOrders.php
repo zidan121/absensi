@@ -11,6 +11,7 @@ class EmployeeRecapOrders extends BaseController
         'SMPIT' => 'SMPIT',
         'YAYASAN' => 'Yayasan',
         'LAZIS' => 'Lazis',
+        'KBIT_LAZIS' => 'Gabungan KBIT + Lazis',
     ];
 
     public function index()
@@ -54,7 +55,7 @@ class EmployeeRecapOrders extends BaseController
             'nikmatul jannah' => ['Nikmatul Jannah', 6],
             'yuli tri w se' => ['Yuli Tri W SE', 7],
         ];
-        if (in_array($unit, ['KBIT', 'KBIT_LAZIS'], true)) {
+        if ($unit === 'KBIT_LAZIS') {
             foreach ($employees as &$employee) {
                 $normalizedName = mb_strtolower(trim((string) $employee['full_name']));
                 foreach ($defaultCombined as $needle => [$displayName, $rank]) {
