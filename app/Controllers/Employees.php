@@ -117,7 +117,7 @@ class Employees extends BaseController
         $rules = [
             'employee_code' => 'required|max_length[40]',
             'full_name' => 'required|max_length[150]',
-            'unit_code' => 'required|in_list[KBIT,RAIT,SDIT,SMPIT,YAYASAN]',
+            'unit_code' => 'required|in_list[KBIT,RAIT,SDIT,SMPIT,YAYASAN,LAZIS]',
         ];
         if (! $this->validate($rules)) {
             return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
