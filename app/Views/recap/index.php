@@ -1,6 +1,9 @@
 <?= $this->extend('layout') ?>
 <?= $this->section('content') ?>
 <?php
+$units = $units ?? [];
+$unitLabels = ['KBIT' => 'KBIT', 'RAIT' => 'RAIT', 'SDIT' => 'SDIT', 'SMPIT' => 'SMPIT', 'YAYASAN' => 'Yayasan', 'LAZIS' => 'Lazis'];
+$exportQuery = http_build_query(['start_date' => $startDate, 'end_date' => $endDate, 'unit' => $units]);
 $maxScans = 1;
 foreach ($data['rows'] as $row) {
     $maxScans = max($maxScans, count($row['scans'] ?? []));
@@ -14,8 +17,21 @@ foreach ($data['rows'] as $row) {
     <div class="row g-2 align-items-end">
         <div class="col-sm-3"><label class="form-label">Tanggal Mulai</label><input class="form-control" type="date" name="start_date" value="<?= esc($startDate) ?>" required></div>
         <div class="col-sm-3"><label class="form-label">Tanggal Selesai</label><input class="form-control" type="date" name="end_date" value="<?= esc($endDate) ?>" min="<?= esc($startDate) ?>" required></div>
-        <div class="col-sm-3"><label class="form-label">Unit</label><select class="form-select" name="unit"><option value="">Semua unit</option><?php foreach (['KBIT','RAIT','SDIT','SMPIT','YAYASAN','LAZIS'] as $code): ?><option value="<?= esc($code) ?>" <?= $unit === $code ? 'selected' : '' ?>><?= esc($code === 'YAYASAN' ? 'Yayasan' : ($code === 'LAZIS' ? 'Lazis' : $code)) ?></option><?php endforeach ?></select></div>
-        <div class="col-sm-3 d-flex flex-wrap gap-2"><button class="btn btn-primary" type="submit">Tampilkan</button><?php if ($hasSearched): ?><a class="btn btn-success" href="/rekap/export?start_date=<?= esc($startDate) ?>&amp;end_date=<?= esc($endDate) ?>&amp;unit=<?= esc($unit) ?>">Ekspor Detail</a><a class="btn btn-outline-success" href="/rekap/export-rekap-pegawai?start_date=<?= esc($startDate) ?>&amp;end_date=<?= esc($endDate) ?>&amp;unit=<?= esc($unit) ?>">Ekspor Format REKAB</a><?php endif ?></div>
+        <div class="col-sm-3">
+            <label class="form-label">Unit (bisa pilih beberapa)</label>
+            <div class="dropdown w-100">
+                <button class="form-select text-start d-flex justify-content-between align-items-center" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <span><?= $units ? esc(implode(' + ', array_map(static fn ($code) => $unitLabels[$code], $units))) : 'Semua unit' ?></span>
+                </button>
+                <div class="dropdown-menu p-3 w-100 shadow" style="min-width:240px">
+                    <div class="d-flex justify-content-between mb-2"><strong class="small">Pilih unit</strong><button type="button" class="btn btn-sm btn-link p-0" id="clearUnits">Semua unit</button></div>
+                    <?php foreach ($unitLabels as $code => $label): ?>
+                        <label class="form-check mb-2"><input class="form-check-input unit-choice" type="checkbox" name="unit[]" value="<?= esc($code) ?>" <?= in_array($code, $units, true) ? 'checked' : '' ?>><span class="form-check-label"><?= esc($label) ?></span></label>
+                    <?php endforeach ?>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-3 d-flex flex-wrap gap-2"><button class="btn btn-primary" type="submit">Tampilkan</button><?php if ($hasSearched): ?><a class="btn btn-success" href="/rekap/export?<?= esc($exportQuery) ?>">Ekspor Detail</a><a class="btn btn-outline-success" href="/rekap/export-rekap-pegawai?<?= esc($exportQuery) ?>">Ekspor Format REKAB</a><?php endif ?></div>
     </div>
 </form>
 <?php if (! $hasSearched): ?>
@@ -95,4 +111,7 @@ foreach ($data['rows'] as $row) {
 <?php endif ?>
 
 <?php endif ?>
+<script>
+document.getElementById('clearUnits')?.addEventListener('click', () => document.querySelectorAll('.unit-choice').forEach(input => input.checked = false));
+</script>
 <?= $this->endSection() ?>
