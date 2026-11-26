@@ -265,7 +265,6 @@ class Recap extends BaseController
         }
         $detail->freezePane('A3');
         $book->setActiveSheetIndex(0);
-        $book->setCalcMode(\PhpOffice\PhpSpreadsheet\Settings::CALC_MODE_AUTO);
 
         $filename = 'rekap-pegawai-' . $startDate . '-sampai-' . $endDate . ($unit ? '-' . strtolower($unit) : '-semua-unit') . '.xlsx';
         $response = service('response');
