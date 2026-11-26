@@ -37,8 +37,9 @@ class AttendanceRecapService
     /**
      * Build a recap for an inclusive date range.
      */
-    public function build(string $startDate, string $endDate, ?string $unit = null): array
+    public function build(string $startDate, string $endDate, string|array|null $unit = null): array
     {
+        $units = $unit === null || $unit === '' ? [] : (is_array($unit) ? $unit : [$unit]);
         $start = $startDate . ' 00:00:00';
         $endExclusive = date('Y-m-d', strtotime($endDate . ' +1 day')) . ' 00:00:00';
 
@@ -119,7 +120,7 @@ class AttendanceRecapService
                 $unmatched[$key]['last_scan'] = max($unmatched[$key]['last_scan'], (string) $log['scanned_at']);
                 continue;
             }
-            if ($unit !== null && $unit !== '' && $employee['unit_code'] !== $unit) {
+            if ($units !== [] && ! in_array($employee['unit_code'], $units, true)) {
                 continue;
             }
 
@@ -239,7 +240,7 @@ class AttendanceRecapService
         return [
             'start_date' => $startDate,
             'end_date' => $endDate,
-            'unit' => $unit,
+            'unit' => $units,
             'rows' => $rows,
             'unmatched' => $unmatched,
             'summary' => [
