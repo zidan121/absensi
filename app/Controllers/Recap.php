@@ -187,8 +187,8 @@ class Recap extends BaseController
                 $employee['full_name'],
                 $employee['position'] ?? '',
             ], null, 'A' . $summaryRow);
-            $summary->setCellValue('E' . $summaryRow, '=COUNTIFS(DATA!$H$3:$H$' . max(3, count($data['rows']) + 2) . ',$H' . $summaryRow . ')');
-            $summary->setCellValue('F' . $summaryRow, '=COUNTIFS(DATA!$H$3:$H$' . max(3, count($data['rows']) + 2) . ',$H' . $summaryRow . ',DATA!$F$3:$F$' . max(3, count($data['rows']) + 2) . ',"Terlambat")');
+            $summary->setCellValue('E' . $summaryRow, '=COUNTIFS(DATA!$I$3:$I$' . max(3, count($data['rows']) + 2) . ',$H' . $summaryRow . ')');
+            $summary->setCellValue('F' . $summaryRow, '=COUNTIFS(DATA!$I$3:$I$' . max(3, count($data['rows']) + 2) . ',$H' . $summaryRow . ',DATA!$F$3:$F$' . max(3, count($data['rows']) + 2) . ',"Terlambat")');
             $summary->setCellValue('G' . $summaryRow, '=E' . $summaryRow . '-F' . $summaryRow);
             $summary->setCellValue('H' . $summaryRow, $employeeId);
             $summaryRow++;
@@ -198,16 +198,16 @@ class Recap extends BaseController
         $summary->getStyle('A1:G' . $summaryLastRow)->getFont()->setName('Arial')->setSize(8);
         $summary->getStyle('A1:G3')->getFont()->setBold(true);
         $summary->getStyle('A1:G2')->getAlignment()
-            ->setHorizontal(\\PhpOffice\\PhpSpreadsheet\\Style\\Alignment::HORIZONTAL_CENTER)
-            ->setVertical(\\PhpOffice\\PhpSpreadsheet\\Style\\Alignment::VERTICAL_CENTER);
+            ->setHorizontal(\PhpOffice\\PhpSpreadsheet\\Style\\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\\PhpSpreadsheet\\Style\\Alignment::VERTICAL_CENTER);
         $summary->getStyle('A3:G' . $summaryLastRow)->getBorders()->getAllBorders()
-            ->setBorderStyle(\\PhpOffice\\PhpSpreadsheet\\Style\\Border::BORDER_THIN);
+            ->setBorderStyle(\PhpOffice\\PhpSpreadsheet\\Style\\Border::BORDER_THIN);
         $summary->getStyle('A3:G' . $summaryLastRow)->getAlignment()
-            ->setVertical(\\PhpOffice\\PhpSpreadsheet\\Style\\Alignment::VERTICAL_CENTER);
+            ->setVertical(\PhpOffice\\PhpSpreadsheet\\Style\\Alignment::VERTICAL_CENTER);
         $summary->getStyle('A4:A' . $summaryLastRow)->getAlignment()
-            ->setHorizontal(\\PhpOffice\\PhpSpreadsheet\\Style\\Alignment::HORIZONTAL_CENTER);
+            ->setHorizontal(\PhpOffice\\PhpSpreadsheet\\Style\\Alignment::HORIZONTAL_CENTER);
         $summary->getStyle('E4:G' . $summaryLastRow)->getAlignment()
-            ->setHorizontal(\\PhpOffice\\PhpSpreadsheet\\Style\\Alignment::HORIZONTAL_CENTER);
+            ->setHorizontal(\PhpOffice\\PhpSpreadsheet\\Style\\Alignment::HORIZONTAL_CENTER);
         foreach (['A' => 6, 'B' => 27, 'C' => 25, 'D' => 18, 'E' => 13, 'F' => 13, 'G' => 15] as $column => $width) {
             $summary->getColumnDimension($column)->setWidth($width);
         }
@@ -246,26 +246,26 @@ class Recap extends BaseController
         $detail->getStyle('A1:H' . $detailLastRow)->getFont()->setName('Arial')->setSize(8);
         $detail->getStyle('A1:H2')->getFont()->setBold(true);
         $detail->getStyle('A1:H' . $detailLastRow)->getBorders()->getAllBorders()
-            ->setBorderStyle(\\PhpOffice\\PhpSpreadsheet\\Style\\Border::BORDER_THIN);
+            ->setBorderStyle(\PhpOffice\\PhpSpreadsheet\\Style\\Border::BORDER_THIN);
         $detail->getStyle('A1:H2')->getAlignment()
-            ->setHorizontal(\\PhpOffice\\PhpSpreadsheet\\Style\\Alignment::HORIZONTAL_CENTER)
-            ->setVertical(\\PhpOffice\\PhpSpreadsheet\\Style\\Alignment::VERTICAL_CENTER)
+            ->setHorizontal(\PhpOffice\\PhpSpreadsheet\\Style\\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\\PhpSpreadsheet\\Style\\Alignment::VERTICAL_CENTER)
             ->setWrapText(true);
         $detail->getStyle('E3:E' . $detailLastRow)->getNumberFormat()->setFormatCode('hh:mm:ss');
         $detail->getStyle('G3:H' . $detailLastRow)->getNumberFormat()->setFormatCode('hh:mm:ss');
         $detail->getStyle('J1')->getFont()->setName('Calibri')->setSize(11);
-        $detail->getStyle('J1')->getFill()->setFillType(\\PhpOffice\\PhpSpreadsheet\\Style\\Fill::FILL_SOLID)
+        $detail->getStyle('J1')->getFill()->setFillType(\PhpOffice\\PhpSpreadsheet\\Style\\Fill::FILL_SOLID)
             ->getStartColor()->setARGB('FFFFFF00');
         $detail->getStyle('J1:J2')->getAlignment()
-            ->setHorizontal(\\PhpOffice\\PhpSpreadsheet\\Style\\Alignment::HORIZONTAL_CENTER)
-            ->setVertical(\\PhpOffice\\PhpSpreadsheet\\Style\\Alignment::VERTICAL_CENTER)
+            ->setHorizontal(\PhpOffice\\PhpSpreadsheet\\Style\\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\\PhpSpreadsheet\\Style\\Alignment::VERTICAL_CENTER)
             ->setWrapText(true);
         foreach (['A' => 9.18, 'B' => 19.18, 'C' => 15, 'D' => 11.91, 'E' => 9.18, 'F' => 12, 'G' => 9.18, 'H' => 9.18, 'I' => 3, 'J' => 24] as $column => $width) {
             $detail->getColumnDimension($column)->setWidth($width);
         }
         $detail->freezePane('A3');
         $book->setActiveSheetIndex(0);
-        $book->setCalcMode(\\PhpOffice\\PhpSpreadsheet\\Settings::CALC_MODE_AUTO);
+        $book->setCalcMode(\PhpOffice\\PhpSpreadsheet\\Settings::CALC_MODE_AUTO);
 
         $filename = 'rekap-pegawai-' . $startDate . '-sampai-' . $endDate . ($unit ? '-' . strtolower($unit) : '-semua-unit') . '.xlsx';
         $response = service('response');
