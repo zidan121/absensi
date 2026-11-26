@@ -91,21 +91,21 @@ class Recap extends BaseController
         $sheet->getStyle('A1:C1')->getFont()->setBold(true);
         $sheet->getStyle('D1:H1')->getFont()->setBold(true);
         $sheet->getStyle('A1:H' . $lastRow)->getBorders()->getAllBorders()
-            ->setBorderStyle(\\PhpOffice\\PhpSpreadsheet\\Style\\Border::BORDER_THIN);
+            ->setBorderStyle(\PhpOffice\\PhpSpreadsheet\\Style\\Border::BORDER_THIN);
         $sheet->getStyle('A1:H2')->getAlignment()
-            ->setHorizontal(\\PhpOffice\\PhpSpreadsheet\\Style\\Alignment::HORIZONTAL_CENTER)
-            ->setVertical(\\PhpOffice\\PhpSpreadsheet\\Style\\Alignment::VERTICAL_CENTER);
+            ->setHorizontal(\PhpOffice\\PhpSpreadsheet\\Style\\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\\PhpSpreadsheet\\Style\\Alignment::VERTICAL_CENTER);
         $sheet->getStyle('A3:E' . $lastRow)->getAlignment()
-            ->setHorizontal(\\PhpOffice\\PhpSpreadsheet\\Style\\Alignment::HORIZONTAL_LEFT);
+            ->setHorizontal(\PhpOffice\\PhpSpreadsheet\\Style\\Alignment::HORIZONTAL_LEFT);
         $sheet->getStyle('F3:F' . $lastRow)->getAlignment()
-            ->setHorizontal(\\PhpOffice\\PhpSpreadsheet\\Style\\Alignment::HORIZONTAL_CENTER);
+            ->setHorizontal(\PhpOffice\\PhpSpreadsheet\\Style\\Alignment::HORIZONTAL_CENTER);
         $sheet->getStyle('A1:H2')->getAlignment()->setWrapText(true);
         $sheet->getStyle('J1')->getFont()->setName('Calibri')->setSize(11);
-        $sheet->getStyle('J1')->getFill()->setFillType(\\PhpOffice\\PhpSpreadsheet\\Style\\Fill::FILL_SOLID)
+        $sheet->getStyle('J1')->getFill()->setFillType(\PhpOffice\\PhpSpreadsheet\\Style\\Fill::FILL_SOLID)
             ->getStartColor()->setARGB('FFFFFF00');
         $sheet->getStyle('J1:J2')->getAlignment()
-            ->setHorizontal(\\PhpOffice\\PhpSpreadsheet\\Style\\Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle('A1')->getAlignment()->setHorizontal(\\PhpOffice\\PhpSpreadsheet\\Style\\Alignment::HORIZONTAL_CENTER);
+            ->setHorizontal(\PhpOffice\\PhpSpreadsheet\\Style\\Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('A1')->getAlignment()->setHorizontal(\PhpOffice\\PhpSpreadsheet\\Style\\Alignment::HORIZONTAL_CENTER);
         $sheet->getColumnDimension('A')->setWidth(9.18);
         $sheet->getColumnDimension('B')->setWidth(19.18);
         $sheet->getColumnDimension('C')->setWidth(15);
