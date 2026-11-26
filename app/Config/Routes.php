@@ -43,10 +43,6 @@ $routes->group('rekap', ['filter' => 'auth'], static function ($routes) {
     $routes->get('export', 'Recap::export');
     $routes->get('export-rekap-pegawai', 'Recap::exportEmployeeSummary');
 });
-$routes->group('pengaturan-urutan-jabatan', ['filter' => 'auth'], static function ($routes) {
-    $routes->get('/', 'RecapPositionOrders::index');
-    $routes->post('simpan', 'RecapPositionOrders::save');
-});
 $routes->group('pengaturan-urutan-pegawai', ['filter' => 'auth'], static function ($routes) {
     $routes->get('/', 'EmployeeRecapOrders::index');
     $routes->post('simpan', 'EmployeeRecapOrders::save');
