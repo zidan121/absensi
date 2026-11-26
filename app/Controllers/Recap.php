@@ -174,7 +174,7 @@ class Recap extends BaseController
         $employeeDisplayNames = [];
         foreach ($manualOrders as $order) {
             $employeeOrder[$order['unit_code']][(int) $order['employee_id']] = (int) $order['sort_order'];
-            $employeeDisplayNames[(int) $order['employee_id']] = $order['display_name'];
+            $employeeDisplayNames[$order['unit_code']][(int) $order['employee_id']] = $order['display_name'];
         }
         $unitRank = [];
         foreach ($units as $index => $unitCode) {
@@ -233,7 +233,7 @@ class Recap extends BaseController
             $employeeId = (int) $employee['id'];
             $summary->fromArray([
                 $number++,
-                $employeeDisplayNames[(int) $employee['id']] ?? $employee['full_name'],
+                ($employeeDisplayNames[$employee['unit_code']][(int) $employee['id']] ?? $employee['full_name']),
                 // Nama master NEURO tetap ditampilkan sebagai referensi di kolom NAMA di Fringer.
                 $employee['full_name'],
                 $employee['position'] ?? '',
