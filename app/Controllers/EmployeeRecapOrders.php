@@ -23,7 +23,7 @@ class EmployeeRecapOrders extends BaseController
         $db = db_connect();
         $employees = $db->table('employees')
             ->select('id, employee_code, full_name, position, unit_code')
-            ->where('unit_code', $unit)
+            ->whereIn('unit_code', $unit === 'KBIT_LAZIS' ? ['KBIT', 'LAZIS'] : [$unit])
             ->orderBy('full_name', 'ASC')
             ->get()->getResultArray();
 
@@ -54,7 +54,7 @@ class EmployeeRecapOrders extends BaseController
             'nikmatul jannah' => ['Nikmatul Jannah', 6],
             'yuli tri w se' => ['Yuli Tri W SE', 7],
         ];
-        if ($unit === 'KBIT_LAZIS' && $saved === []) {
+        if (in_array($unit, ['KBIT', 'KBIT_LAZIS'], true)) {
             foreach ($employees as &$employee) {
                 $normalizedName = mb_strtolower(trim((string) $employee['full_name']));
                 foreach ($defaultCombined as $needle => [$displayName, $rank]) {
@@ -89,8 +89,12 @@ class EmployeeRecapOrders extends BaseController
 
         foreach ($employees as &$employee) {
             $savedRow = $saved[(int) $employee['id']] ?? [];
-            $employee['recap_display_name'] = $savedRow['display_name']
-                ?? ($employee['_default_display_name'] ?? $employee['full_name']);
+            $defaultDisplayName = $employee['_default_display_name'] ?? null;
+            $savedDisplayName = $savedRow['display_name'] ?? null;
+            $employee['recap_display_name'] = ($defaultDisplayName !== null
+                && ($savedDisplayName === null || $savedDisplayName === $employee['full_name']))
+                    ? $defaultDisplayName
+                    : ($savedDisplayName ?? $employee['full_name']);
             unset($employee['_default_rank'], $employee['_default_display_name']);
         }
         unset($employee);
@@ -121,7 +125,7 @@ class EmployeeRecapOrders extends BaseController
 
         $db = db_connect();
         $actualIds = array_map('intval', array_column(
-            $db->table('employees')->select('id')->where('unit_code', $unit)->get()->getResultArray(),
+            $db->table('employees')->select('id')->whereIn('unit_code', $unit === 'KBIT_LAZIS' ? ['KBIT', 'LAZIS'] : [$unit])->get()->getResultArray(),
             'id'
         ));
         $orderedIds = [];
