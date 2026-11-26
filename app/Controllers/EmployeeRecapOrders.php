@@ -55,10 +55,28 @@ class EmployeeRecapOrders extends BaseController
             'nikmatul jannah' => ['Nikmatul Jannah', 6],
             'yuli tri w se' => ['Yuli Tri W SE', 7],
         ];
-        if ($unit === 'KBIT_LAZIS') {
+        $defaultRait = [
+            'tri m spd' => ['Tri Mulyaningsih, SPd', 1],
+            'yuni w a' => ['Yuni Wulansari, AMa', 2],
+            'fitri dwi a' => ['Fitri Dwi Aryani, S.Pd', 3],
+            'sulastri' => ['Sulastri, S.Pd', 4],
+            'setiati spd' => ['Setiyati, SPdl', 5],
+            'musripah spd' => ['Musripah, S.Pd', 6],
+            'sri wijiasih spd' => ['Sri Wiji Asih, S.Pd', 7],
+            'anista dw' => ['Anista Diyah F, S.Psi', 8],
+            'karlina' => ['Karlina, S.Pd', 9],
+            'indah s' => ['Indah Setyaningrum, SPd', 10],
+            'kiki ayu m' => ['Kiki Ayu M', 11],
+            'faridhotun ulfa' => ['Faridhotun Ulfa', 12],
+            'darwanto' => ['Darwanto', 13],
+            'ariana' => ['Ariana Irawati, S.Pd', 14],
+            'deska sofiana' => ['Deska Sofiana', 15],
+        ];
+        $defaultForUnit = $unit === 'KBIT_LAZIS' ? $defaultCombined : ($unit === 'RAIT' ? $defaultRait : []);
+        if ($defaultForUnit !== []) {
             foreach ($employees as &$employee) {
                 $normalizedName = mb_strtolower(trim((string) $employee['full_name']));
-                foreach ($defaultCombined as $needle => [$displayName, $rank]) {
+                foreach ($defaultForUnit as $needle => [$displayName, $rank]) {
                     if (str_contains($normalizedName, $needle)) {
                         $employee['_default_rank'] = $rank;
                         $employee['_default_display_name'] = $displayName;
