@@ -12,6 +12,7 @@ class Employees extends BaseController
         'SDIT' => 'SDIT',
         'SMPIT' => 'SMPIT',
         'YAYASAN' => 'Yayasan',
+        'LAZIS' => 'Lazis',
         'RAIT_KBIT' => 'RAIT + KBIT (belum dipisah)',
     ];
 
