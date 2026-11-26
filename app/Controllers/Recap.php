@@ -214,6 +214,9 @@ class Recap extends BaseController
         $summary->getRowDimension(1)->setRowHeight(15);
         $summary->getRowDimension(2)->setRowHeight(15);
         $summary->getRowDimension(3)->setRowHeight(15);
+        // Aktifkan filter dan sortir Excel untuk seluruh kolom rekap.
+        // Header tabel berada di baris 3, data pegawai dimulai dari baris 4.
+        $summary->setAutoFilter('A3:G' . $summaryLastRow);
         $summary->freezePane('A4');
 
         $detail = $book->createSheet();
