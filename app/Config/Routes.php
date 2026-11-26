@@ -41,6 +41,7 @@ $routes->group('backup/fingerspot', ['filter' => 'auth'], static function ($rout
 $routes->group('rekap', ['filter' => 'auth'], static function ($routes) {
     $routes->get('/', 'Recap::index');
     $routes->get('export', 'Recap::export');
+    $routes->get('export-rekap-pegawai', 'Recap::exportEmployeeSummary');
 });
 $routes->group('pengaturan-absensi', ['filter' => 'auth'], static function ($routes) {
     $routes->get('/', 'AttendanceSettings::index');
