@@ -15,7 +15,7 @@ foreach ($data['rows'] as $row) {
         <div class="col-sm-3"><label class="form-label">Tanggal Mulai</label><input class="form-control" type="date" name="start_date" value="<?= esc($startDate) ?>" required></div>
         <div class="col-sm-3"><label class="form-label">Tanggal Selesai</label><input class="form-control" type="date" name="end_date" value="<?= esc($endDate) ?>" min="<?= esc($startDate) ?>" required></div>
         <div class="col-sm-3"><label class="form-label">Unit</label><select class="form-select" name="unit"><option value="">Semua unit</option><?php foreach (['KBIT','RAIT','SDIT','SMPIT','YAYASAN'] as $code): ?><option value="<?= esc($code) ?>" <?= $unit === $code ? 'selected' : '' ?>><?= esc($code === 'YAYASAN' ? 'Yayasan' : $code) ?></option><?php endforeach ?></select></div>
-        <div class="col-sm-3 d-flex gap-2"><button class="btn btn-primary" type="submit">Tampilkan</button><?php if ($hasSearched): ?><a class="btn btn-success" href="/rekap/export?start_date=<?= esc($startDate) ?>&amp;end_date=<?= esc($endDate) ?>&amp;unit=<?= esc($unit) ?>">Ekspor Excel</a><?php endif ?></div>
+        <div class="col-sm-3 d-flex flex-wrap gap-2"><button class="btn btn-primary" type="submit">Tampilkan</button><?php if ($hasSearched): ?><a class="btn btn-success" href="/rekap/export?start_date=<?= esc($startDate) ?>&amp;end_date=<?= esc($endDate) ?>&amp;unit=<?= esc($unit) ?>">Ekspor Detail</a><a class="btn btn-outline-success" href="/rekap/export-rekap-pegawai?start_date=<?= esc($startDate) ?>&amp;end_date=<?= esc($endDate) ?>&amp;unit=<?= esc($unit) ?>">Ekspor Format REKAB</a><?php endif ?></div>
     </div>
 </form>
 <?php if (! $hasSearched): ?>
