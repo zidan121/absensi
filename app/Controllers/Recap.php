@@ -156,6 +156,29 @@ class Recap extends BaseController
         }
         $employees = $employeeQuery->get()->getResultArray();
 
+        // Urutan jabatan hanya memengaruhi susunan baris sheet REKAB.
+        $positionOrders = $db->table('recap_position_orders')
+            ->orderBy('sort_order', 'ASC')
+            ->orderBy('position_name', 'ASC')
+            ->get()->getResultArray();
+        $positionRank = [];
+        foreach ($positionOrders as $index => $positionOrder) {
+            $positionRank[mb_strtolower(trim($positionOrder['position_name']))] = $index;
+        }
+        usort($employees, static function ($a, $b) use ($positionRank) {
+            $positionA = trim((string) ($a['position'] ?? ''));
+            $positionB = trim((string) ($b['position'] ?? ''));
+            $rankA = $positionRank[mb_strtolower($positionA)] ?? PHP_INT_MAX;
+            $rankB = $positionRank[mb_strtolower($positionB)] ?? PHP_INT_MAX;
+            if ($rankA !== $rankB) {
+                return $rankA <=> $rankB;
+            }
+            $positionCompare = strcasecmp($positionA, $positionB);
+            return $positionCompare !== 0
+                ? $positionCompare
+                : strcasecmp((string) $a['full_name'], (string) $b['full_name']);
+        });
+
         // Ambil satu PIN yang paling baru/terakhir terdaftar untuk ditampilkan pada sheet DATA.
         // Identitas internal employee_id tetap dipakai sebagai kunci rumus agar nama ganda tidak tercampur.
         $mappingQuery = $db->table('employee_fingerprint_mappings')
