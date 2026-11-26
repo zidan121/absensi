@@ -262,7 +262,7 @@ class Recap extends BaseController
                     ?? (($employeeDisplayNames[$employee['unit_code']][(int) $employee['id']] ?? null) !== null
                         && ($employeeDisplayNames[$employee['unit_code']][(int) $employee['id']] ?? null) !== $employee['full_name']
                             ? $employeeDisplayNames[$employee['unit_code']][(int) $employee['id']]
-                            : ($defaultRecapNames[mb_strtolower(trim((string) $employee['full_name']))] ?? $employee['full_name']))),
+                            : (($isKbitLazisCombined ? ($defaultRecapNames[mb_strtolower(trim((string) $employee['full_name']))] ?? null) : null) ?? $employee['full_name']))),
                 // Nama master NEURO tetap ditampilkan sebagai referensi di kolom NAMA di Fringer.
                 $employee['full_name'],
                 $employee['position'] ?? '',
