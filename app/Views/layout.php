@@ -73,6 +73,7 @@
             <div class="nav-caption mt-4">Pengaturan</div>
             <a class="<?= str_starts_with(uri_string(), 'pengaturan-absensi') ? 'active' : '' ?>" href="/pengaturan-absensi"><i class="bi bi-sliders"></i>Pengaturan Absensi</a>
             <a class="<?= str_starts_with(uri_string(), 'pengaturan-urutan-jabatan') ? 'active' : '' ?>" href="/pengaturan-urutan-jabatan"><i class="bi bi-sort-down"></i>Urutan Jabatan REKAB</a>
+            <a class="<?= str_starts_with(uri_string(), 'pengaturan-urutan-pegawai') ? 'active' : '' ?>" href="/pengaturan-urutan-pegawai"><i class="bi bi-list-ol"></i>Urutan Pegawai REKAB</a>
             <a class="<?= str_starts_with(uri_string(), 'kalender-kerja') ? 'active' : '' ?>" href="/kalender-kerja"><i class="bi bi-calendar-event-fill"></i>Kalender Kerja</a>
             <a class="<?= str_starts_with(uri_string(), 'jadwal-hari-kerja') ? 'active' : '' ?>" href="/jadwal-hari-kerja"><i class="bi bi-calendar-week-fill"></i>Jadwal Hari Kerja</a>
             <div class="nav-caption mt-4">Akun</div>
