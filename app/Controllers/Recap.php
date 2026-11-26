@@ -184,6 +184,16 @@ class Recap extends BaseController
                 $combinedDisplayNames[(int) $order['employee_id']] = $order['display_name'];
             }
         }
+        $defaultRecapNames = [
+            'ari wuryaningsih' => 'Ari Wuryaningsih, SE',
+            'yuli karina' => 'Yuli Karina, S.Pd',
+            'winarti' => 'Winarti, S.Pd',
+            'sri munarsih' => 'Sri Munarsih, S.Sos',
+            'nobela' => 'Nobela Windatul Umah, S.Pd',
+            'nikmatul janah' => 'Nikmatul Jannah',
+            'nikmatul jannah' => 'Nikmatul Jannah',
+            'yuli tri w se' => 'Yuli Tri W SE',
+        ];
         $unitRank = [];
         foreach ($units as $index => $unitCode) {
             $unitRank[$unitCode] = $index;
@@ -248,7 +258,11 @@ class Recap extends BaseController
             $employeeId = (int) $employee['id'];
             $summary->fromArray([
                 $number++,
-                ($combinedDisplayNames[(int) $employee['id']] ?? $employeeDisplayNames[$employee['unit_code']][(int) $employee['id']] ?? $employee['full_name']),
+                ($combinedDisplayNames[(int) $employee['id']]
+                    ?? (($employeeDisplayNames[$employee['unit_code']][(int) $employee['id']] ?? null) !== null
+                        && ($employeeDisplayNames[$employee['unit_code']][(int) $employee['id']] ?? null) !== $employee['full_name']
+                            ? $employeeDisplayNames[$employee['unit_code']][(int) $employee['id']]
+                            : ($defaultRecapNames[mb_strtolower(trim((string) $employee['full_name']))] ?? $employee['full_name']))),
                 // Nama master NEURO tetap ditampilkan sebagai referensi di kolom NAMA di Fringer.
                 $employee['full_name'],
                 $employee['position'] ?? '',
