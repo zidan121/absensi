@@ -1,8 +1,8 @@
 <?php
 
-namespace App\\Database\\Migrations;
+namespace App\Database\Migrations;
 
-use CodeIgniter\\Database\\Migration;
+use CodeIgniter\Database\Migration;
 
 class CreateRecapPositionOrders extends Migration
 {
