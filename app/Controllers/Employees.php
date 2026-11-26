@@ -190,6 +190,32 @@ class Employees extends BaseController
         }
     }
 
+    public function toggleStatus($id)
+    {
+        $model = new EmployeeModel();
+        $employee = $model->find((int) $id);
+        if (! $employee) {
+            return redirect()->to('/pegawai')->with('error', 'Data pegawai tidak ditemukan.');
+        }
+
+        $newStatus = (int) ($employee['is_active'] ?? 0) === 1 ? 0 : 1;
+        $model->update((int) $id, ['is_active' => $newStatus]);
+
+        $returnUnit = strtoupper(trim((string) $this->request->getPost('return_unit')));
+        $allowedUnits = array_keys(self::UNITS);
+        $redirectUnit = $returnUnit === 'ALL' || $returnUnit === 'UNASSIGNED' || in_array($returnUnit, $allowedUnits, true)
+            ? $returnUnit
+            : 'ALL';
+        $url = $redirectUnit === 'ALL' ? '/pegawai' : '/pegawai?unit=' . urlencode($redirectUnit);
+
+        return redirect()->to($url)->with(
+            'success',
+            $newStatus === 1
+                ? 'Pegawai berhasil diaktifkan kembali. Riwayat absensi tetap tersimpan.'
+                : 'Pegawai berhasil dinonaktifkan. Riwayat absensi tetap tersimpan.'
+        );
+    }
+
     public function edit($id)
     {
         $employee = (new EmployeeModel())->find((int) $id);
