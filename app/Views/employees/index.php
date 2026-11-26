@@ -42,7 +42,14 @@
                     <td><span class="badge text-bg-secondary"><?= esc($units[$employee['unit_code'] ?? ''] ?? 'Belum ditentukan') ?></span></td>
                     <td><?= esc($employee['position'] ?? '-') ?></td>
                     <td><?= ! empty($employee['is_active']) ? '<span class="text-success">Aktif</span>' : '<span class="text-secondary">Nonaktif</span>' ?></td>
-                    <td><a class="btn btn-sm btn-outline-primary" href="/pegawai/<?= (int) $employee['id'] ?>/edit?unit=<?= esc($selectedUnit) ?>">Edit</a></td>
+                    <td class="text-nowrap">
+                        <a class="btn btn-sm btn-outline-primary" href="/pegawai/<?= (int) $employee['id'] ?>/edit?unit=<?= esc($selectedUnit) ?>">Edit</a>
+                        <form method="post" action="/pegawai/<?= (int) $employee['id'] ?>/status" class="d-inline" onsubmit="return confirm('<?= ! empty($employee['is_active']) ? 'Nonaktifkan' : 'Aktifkan kembali' ?> pegawai ini? Riwayat absensinya tetap disimpan.');">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="return_unit" value="<?= esc($selectedUnit) ?>">
+                            <button type="submit" class="btn btn-sm <?= ! empty($employee['is_active']) ? 'btn-outline-danger' : 'btn-outline-success' ?>"><?= ! empty($employee['is_active']) ? 'Nonaktifkan' : 'Aktifkan' ?></button>
+                        </form>
+                    </td>
                 </tr>
             <?php endforeach ?>
             <?php if (empty($employees)): ?>
