@@ -1,0 +1,148 @@
+<?php
+
+namespace App\Controllers;
+
+class EmployeeRecapOrders extends BaseController
+{
+    private const UNITS = [
+        'KBIT' => 'KBIT',
+        'RAIT' => 'RAIT',
+        'SDIT' => 'SDIT',
+        'SMPIT' => 'SMPIT',
+        'YAYASAN' => 'Yayasan',
+        'LAZIS' => 'Lazis',
+        'KBIT_LAZIS' => 'Gabungan KBIT + Lazis',
+    ];
+
+    public function index()
+    {
+        $unit = strtoupper(trim((string) $this->request->getGet('unit')));
+        if (! isset(self::UNITS[$unit])) {
+            $unit = 'KBIT';
+        }
+
+        $db = db_connect();
+        $employees = $db->table('employees')
+            ->select('id, employee_code, full_name, position, unit_code')
+            ->whereIn('unit_code', $unit === 'KBIT_LAZIS' ? ['KBIT', 'LAZIS'] : [$unit])
+            ->orderBy('full_name', 'ASC')
+            ->get()->getResultArray();
+
+        $savedRows = $db->table('employee_recap_orders')
+            ->where('unit_code', $unit)
+            ->orderBy('sort_order', 'ASC')
+            ->get()->getResultArray();
+        $saved = [];
+        foreach ($savedRows as $row) {
+            $saved[(int) $row['employee_id']] = $row;
+        }
+
+        $positionRows = $db->table('recap_position_orders')
+            ->orderBy('sort_order', 'ASC')
+            ->get()->getResultArray();
+        $positionRank = [];
+        foreach ($positionRows as $index => $row) {
+            $positionRank[mb_strtolower(trim($row['position_name']))] = $index;
+        }
+
+        usort($employees, static function ($a, $b) use ($saved, $positionRank) {
+            $idA = (int) $a['id'];
+            $idB = (int) $b['id'];
+            $hasA = isset($saved[$idA]);
+            $hasB = isset($saved[$idB]);
+            if ($hasA && $hasB && (int) $saved[$idA]['sort_order'] !== (int) $saved[$idB]['sort_order']) {
+                return (int) $saved[$idA]['sort_order'] <=> (int) $saved[$idB]['sort_order'];
+            }
+            if ($hasA !== $hasB) {
+                return $hasA ? -1 : 1;
+            }
+            $rankA = $positionRank[mb_strtolower(trim((string) ($a['position'] ?? '')))] ?? PHP_INT_MAX;
+            $rankB = $positionRank[mb_strtolower(trim((string) ($b['position'] ?? '')))] ?? PHP_INT_MAX;
+            if ($rankA !== $rankB) {
+                return $rankA <=> $rankB;
+            }
+            $positionCompare = strcasecmp((string) ($a['position'] ?? ''), (string) ($b['position'] ?? ''));
+            return $positionCompare !== 0
+                ? $positionCompare
+                : strcasecmp((string) $a['full_name'], (string) $b['full_name']);
+        });
+
+        foreach ($employees as &$employee) {
+            $savedRow = $saved[(int) $employee['id']] ?? [];
+            $employee['recap_display_name'] = $savedRow['display_name'] ?? $employee['full_name'];
+        }
+        unset($employee);
+
+        return view('employee_recap_orders/index', [
+            'title' => 'Urutan Pegawai REKAB',
+            'units' => self::UNITS,
+            'selectedUnit' => $unit,
+            'employees' => $employees,
+        ]);
+    }
+
+    public function save()
+    {
+        $unit = strtoupper(trim((string) $this->request->getPost('unit_code')));
+        if (! isset(self::UNITS[$unit])) {
+            return redirect()->back()->with('error', 'Unit tidak valid.');
+        }
+
+        $employeeIds = $this->request->getPost('employee_ids');
+        $displayNames = $this->request->getPost('display_names');
+        if (! is_array($employeeIds)) {
+            $employeeIds = [];
+        }
+        if (! is_array($displayNames)) {
+            $displayNames = [];
+        }
+
+        $db = db_connect();
+        $actualIds = array_map('intval', array_column(
+            $db->table('employees')->select('id')->whereIn('unit_code', $unit === 'KBIT_LAZIS' ? ['KBIT', 'LAZIS'] : [$unit])->get()->getResultArray(),
+            'id'
+        ));
+        $orderedIds = [];
+        foreach ($employeeIds as $rawId) {
+            $id = (int) $rawId;
+            if ($id > 0 && in_array($id, $actualIds, true) && ! in_array($id, $orderedIds, true)) {
+                $orderedIds[] = $id;
+            }
+        }
+        if (count($orderedIds) !== count($actualIds)) {
+            return redirect()->to('/pengaturan-urutan-pegawai?unit=' . urlencode($unit))
+                ->with('error', 'Daftar pegawai berubah atau tidak lengkap. Muat ulang halaman sebelum menyimpan.');
+        }
+
+        foreach ($orderedIds as $id) {
+            $name = trim((string) ($displayNames[$id] ?? ''));
+            if ($name === '' || mb_strlen($name) > 150) {
+                return redirect()->to('/pengaturan-urutan-pegawai?unit=' . urlencode($unit))
+                    ->with('error', 'Nama REKAB wajib diisi dan maksimal 150 karakter.');
+            }
+        }
+
+        $now = date('Y-m-d H:i:s');
+        $db->transStart();
+        $db->table('employee_recap_orders')->where('unit_code', $unit)->delete();
+        foreach ($orderedIds as $index => $id) {
+            $db->table('employee_recap_orders')->insert([
+                'unit_code' => $unit,
+                'employee_id' => $id,
+                'sort_order' => $index + 1,
+                'display_name' => trim((string) $displayNames[$id]),
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        }
+        $db->transComplete();
+
+        if (! $db->transStatus()) {
+            return redirect()->to('/pengaturan-urutan-pegawai?unit=' . urlencode($unit))
+                ->with('error', 'Pengaturan urutan pegawai gagal disimpan.');
+        }
+
+        return redirect()->to('/pengaturan-urutan-pegawai?unit=' . urlencode($unit))
+            ->with('success', 'Urutan dan nama REKAB pegawai berhasil disimpan.');
+    }
+}
