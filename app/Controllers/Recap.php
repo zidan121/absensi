@@ -193,12 +193,35 @@ class Recap extends BaseController
             'nikmatul janah' => 'Nikmatul Jannah',
             'nikmatul jannah' => 'Nikmatul Jannah',
             'yuli tri w se' => 'Yuli Tri W SE',
+            'tri m spd' => 'Tri Mulyaningsih, SPd',
+            'yuni w a' => 'Yuni Wulansari, AMa',
+            'fitri dwi a' => 'Fitri Dwi Aryani, S.Pd',
+            'sulastri' => 'Sulastri, S.Pd',
+            'setiati spd' => 'Setiyati, SPdl',
+            'musripah spd' => 'Musripah, S.Pd',
+            'sri wijiasih spd' => 'Sri Wiji Asih, S.Pd',
+            'anista dw' => 'Anista Diyah F, S.Psi',
+            'karlina' => 'Karlina, S.Pd',
+            'indah s' => 'Indah Setyaningrum, SPd',
+            'kiki ayu m' => 'Kiki Ayu M',
+            'faridhotun ulfa' => 'Faridhotun Ulfa',
+            'darwanto' => 'Darwanto',
+            'ariana' => 'Ariana Irawati, S.Pd',
+            'deska sofiana' => 'Deska Sofiana',
         ];
+        $defaultRaitOrder = [
+            'tri m spd' => 1, 'yuni w a' => 2, 'fitri dwi a' => 3,
+            'sulastri' => 4, 'setiati spd' => 5, 'musripah spd' => 6,
+            'sri wijiasih spd' => 7, 'anista dw' => 8, 'karlina' => 9,
+            'indah s' => 10, 'kiki ayu m' => 11, 'faridhotun ulfa' => 12,
+            'darwanto' => 13, 'ariana' => 14, 'deska sofiana' => 15,
+        ];
+        $isRaitOnly = $units === ['RAIT'];
         $unitRank = [];
         foreach ($units as $index => $unitCode) {
             $unitRank[$unitCode] = $index;
         }
-        usort($employees, static function ($a, $b) use ($positionRank, $employeeOrder, $unitRank, $isKbitLazisCombined, $combinedOrder) {
+        usort($employees, static function ($a, $b) use ($positionRank, $employeeOrder, $unitRank, $isKbitLazisCombined, $combinedOrder, $isRaitOnly, $defaultRaitOrder) {
             $idA = (int) $a['id'];
             $idB = (int) $b['id'];
             if ($isKbitLazisCombined && $combinedOrder !== []) {
@@ -209,6 +232,17 @@ class Recap extends BaseController
                     if ($manualB === null) return -1;
                     if ($manualA !== $manualB) return $manualA <=> $manualB;
                 }
+            }
+            if ($isRaitOnly) {
+                $nameA = mb_strtolower(trim((string) $a['full_name']));
+                $nameB = mb_strtolower(trim((string) $b['full_name']));
+                $rankA = PHP_INT_MAX;
+                $rankB = PHP_INT_MAX;
+                foreach ($defaultRaitOrder as $needle => $rank) {
+                    if (str_contains($nameA, $needle)) $rankA = $rank;
+                    if (str_contains($nameB, $needle)) $rankB = $rank;
+                }
+                if ($rankA !== $rankB) return $rankA <=> $rankB;
             }
             $unitA = (string) $a['unit_code'];
             $unitB = (string) $b['unit_code'];
@@ -262,7 +296,7 @@ class Recap extends BaseController
                     ?? (($employeeDisplayNames[$employee['unit_code']][(int) $employee['id']] ?? null) !== null
                         && ($employeeDisplayNames[$employee['unit_code']][(int) $employee['id']] ?? null) !== $employee['full_name']
                             ? $employeeDisplayNames[$employee['unit_code']][(int) $employee['id']]
-                            : (($isKbitLazisCombined ? ($defaultRecapNames[mb_strtolower(trim((string) $employee['full_name']))] ?? null) : null) ?? $employee['full_name']))),
+                            : ((($isKbitLazisCombined || $isRaitOnly) ? ($defaultRecapNames[mb_strtolower(trim((string) $employee['full_name']))] ?? null) : null) ?? $employee['full_name']))),
                 // Nama master NEURO tetap ditampilkan sebagai referensi di kolom NAMA di Fringer.
                 $employee['full_name'],
                 $employee['position'] ?? '',
