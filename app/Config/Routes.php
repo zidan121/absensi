@@ -89,4 +89,12 @@ $routes->group('impor', ['filter' => 'auth'], static function ($routes) {
     $routes->get('preview', 'Imports::showPreview');
     $routes->post('proses', 'Imports::process');
 });
+$routes->group('sdit', ['filter' => 'auth'], static function ($routes) {
+    $routes->get('/', 'Sdit::index');
+    $routes->get('impor', 'Sdit::imports');
+    $routes->get('scan', 'Sdit::scans');
+    $routes->get('rekap', 'Sdit::recap');
+    $routes->get('pemeriksaan-waktu', 'Sdit::timeCheck');
+    $routes->get('pemetaan-pin', 'Sdit::pinMapping');
+});
 $routes->get('health', static fn () => service('response')->setJSON(['app' => 'NEURO ABSENSI', 'status' => 'ok']));
