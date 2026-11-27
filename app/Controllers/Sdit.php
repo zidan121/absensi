@@ -370,8 +370,8 @@ class Sdit extends BaseController
         $startDate = (string) $this->request->getGet('start_date');
         $endDate = (string) $this->request->getGet('end_date');
         $hasSearched = $this->request->getGet('show') === '1';
-        if (!preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $startDate)) $startDate = date('Y-m-01');
-        if (!preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $endDate)) $endDate = date('Y-m-d');
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $startDate)) $startDate = date('Y-m-01');
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $endDate)) $endDate = date('Y-m-d');
         if ($endDate < $startDate) { [$startDate, $endDate] = [$endDate, $startDate]; }
 
         $db = db_connect();
@@ -485,7 +485,7 @@ class Sdit extends BaseController
         @set_time_limit(300);
         $startDate=(string)$this->request->getGet('start_date');
         $endDate=(string)$this->request->getGet('end_date');
-        if (!preg_match('/^\\d{4}-\\d{2}-\\d{2}$/',$startDate) || !preg_match('/^\\d{4}-\\d{2}-\\d{2}$/',$endDate) || $endDate<$startDate) {
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/',$startDate) || !preg_match('/^\d{4}-\d{2}-\d{2}$/',$endDate) || $endDate<$startDate) {
             return redirect()->to('/sdit/rekap')->with('error','Rentang tanggal rekap SDIT tidak valid.');
         }
         $endExclusive=date('Y-m-d',strtotime($endDate.' +1 day')).' 00:00:00';
@@ -521,7 +521,7 @@ class Sdit extends BaseController
         @set_time_limit(300);
         $startDate = (string) $this->request->getGet('start_date');
         $endDate = (string) $this->request->getGet('end_date');
-        if (!preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $startDate) || !preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $endDate) || $endDate < $startDate) {
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $startDate) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $endDate) || $endDate < $startDate) {
             return redirect()->to('/sdit/rekap')->with('error', 'Rentang tanggal rekap SDIT tidak valid.');
         }
 
@@ -568,7 +568,7 @@ class Sdit extends BaseController
             return [$late ? 'Terlambat' : 'Tepat Waktu', true, $late];
         };
 
-        $book = new \\PhpOffice\\PhpSpreadsheet\\Spreadsheet();
+        $book = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $summary = $book->getActiveSheet();
         $summary->setTitle('REKAB');
         $summary->mergeCells('A1:G1');
@@ -597,8 +597,8 @@ class Sdit extends BaseController
         $summaryLast = max(3, $row - 1);
         $summary->getStyle('A1:G' . $summaryLast)->getFont()->setName('Arial')->setSize(8);
         $summary->getStyle('A1:G3')->getFont()->setBold(true);
-        $summary->getStyle('A1:G2')->getAlignment()->setHorizontal(\\PhpOffice\\PhpSpreadsheet\\Style\\Alignment::HORIZONTAL_CENTER);
-        $summary->getStyle('A3:G' . $summaryLast)->getBorders()->getAllBorders()->setBorderStyle(\\PhpOffice\\PhpSpreadsheet\\Style\\Border::BORDER_THIN);
+        $summary->getStyle('A1:G2')->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        $summary->getStyle('A3:G' . $summaryLast)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
         foreach (['A'=>6,'B'=>27,'C'=>25,'D'=>18,'E'=>13,'F'=>13,'G'=>15] as $col=>$width) $summary->getColumnDimension($col)->setWidth($width);
         $summary->setAutoFilter('A3:G' . $summaryLast);
         $summary->freezePane('A4');
@@ -627,7 +627,7 @@ class Sdit extends BaseController
         $detailLast = max(1, $detailRow - 1);
         $detail->getStyle('A1:I' . $detailLast)->getFont()->setName('Arial')->setSize(8);
         $detail->getStyle('A1:I1')->getFont()->setBold(true);
-        $detail->getStyle('A1:I' . $detailLast)->getBorders()->getAllBorders()->setBorderStyle(\\PhpOffice\\PhpSpreadsheet\\Style\\Border::BORDER_THIN);
+        $detail->getStyle('A1:I' . $detailLast)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
         foreach (['A'=>10,'B'=>25,'C'=>18,'D'=>13,'E'=>12,'F'=>25,'G'=>12,'H'=>12,'I'=>13] as $col=>$width) $detail->getColumnDimension($col)->setWidth($width);
         $detail->getStyle('E2:E' . $detailLast)->getNumberFormat()->setFormatCode('hh:mm');
         $detail->getStyle('G2:H' . $detailLast)->getNumberFormat()->setFormatCode('hh:mm');
@@ -635,7 +635,7 @@ class Sdit extends BaseController
         $detail->setAutoFilter('A1:I' . $detailLast);
         $book->setActiveSheetIndex(0);
 
-        $writer = new \\PhpOffice\\PhpSpreadsheet\\Writer\\Xlsx($book);
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($book);
         ob_start(); $writer->save('php://output'); $output = ob_get_clean(); $book->disconnectWorksheets();
         return $this->response->setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
             ->setHeader('Content-Disposition', 'attachment; filename="REKAB-SDIT-' . $startDate . '-' . $endDate . '.xlsx"')
@@ -663,7 +663,7 @@ class Sdit extends BaseController
                 $workday = !empty($item['is_workday']) ? 1 : 0;
                 $start = $item['start_time'] ?? '07:30';
                 $end = $item['end_time'] ?? '16:00';
-                if (!preg_match('/^([01]\\d|2[0-3]):[0-5]\\d$/',$start) || !preg_match('/^([01]\\d|2[0-3]):[0-5]\\d$/',$end)) {
+                if (!preg_match('/^([01]\d|2[0-3]):[0-5]\d$/',$start) || !preg_match('/^([01]\d|2[0-3]):[0-5]\d$/',$end)) {
                     throw new \InvalidArgumentException('Format jam jadwal tidak valid pada hari '.$day.'.');
                 }
                 $payload = [
@@ -730,10 +730,10 @@ class Sdit extends BaseController
         $db = db_connect();
         $employee = $db->table('sdit_employees')->where('pin', $pin)->get()->getRowArray();
         if (!$employee || $day < 1 || $day > 7
-            || !preg_match('/^([01]\\d|2[0-3]):[0-5]\\d$/', $start)
-            || !preg_match('/^([01]\\d|2[0-3]):[0-5]\\d$/', $end)
-            || ($from !== '' && !preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $from))
-            || ($until !== '' && !preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $until))
+            || !preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $start)
+            || !preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $end)
+            || ($from !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $from))
+            || ($until !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $until))
             || ($from !== '' && $until !== '' && $until < $from)) {
             return redirect()->to('/sdit/jadwal-pegawai')->with('error', 'Data jadwal khusus tidak valid.');
         }
@@ -770,7 +770,7 @@ class Sdit extends BaseController
     public function calendar()
     {
         $month = (string)$this->request->getGet('bulan');
-        if (!preg_match('/^\\d{4}-(0[1-9]|1[0-2])$/',$month)) $month = date('Y-m');
+        if (!preg_match('/^\d{4}-(0[1-9]|1[0-2])$/',$month)) $month = date('Y-m');
         $rows = db_connect()->table('sdit_work_calendar')
             ->where('work_date >=',$month.'-01')
             ->where('work_date <',date('Y-m-d',strtotime($month.'-01 +1 month')))
@@ -782,7 +782,7 @@ class Sdit extends BaseController
     {
         $date = (string)$this->request->getPost('work_date');
         $type = (string)$this->request->getPost('day_type');
-        if (!preg_match('/^\\d{4}-\\d{2}-\\d{2}$/',$date) || !in_array($type,['holiday','workday'],true)) {
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/',$date) || !in_array($type,['holiday','workday'],true)) {
             return redirect()->to('/sdit/kalender')->with('error','Tanggal atau jenis hari tidak valid.');
         }
         $db = db_connect();
@@ -810,8 +810,8 @@ class Sdit extends BaseController
         $startDate = trim((string)$this->request->getGet('start_date'));
         $endDate = trim((string)$this->request->getGet('end_date'));
         $pin = trim((string)$this->request->getGet('pin'));
-        if ($startDate !== '' && !preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $startDate)) $startDate = '';
-        if ($endDate !== '' && !preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $endDate)) $endDate = '';
+        if ($startDate !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $startDate)) $startDate = '';
+        if ($endDate !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $endDate)) $endDate = '';
         if ($startDate !== '' && $endDate !== '' && $endDate < $startDate) [$startDate, $endDate] = [$endDate, $startDate];
         $builder = $db->table('sdit_invalid_scans')->orderBy('id', 'DESC');
         if ($startDate !== '') $builder->where('original_scanned_at >=', $startDate . ' 00:00:00');
