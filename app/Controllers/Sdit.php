@@ -406,7 +406,7 @@ class Sdit extends BaseController
                 sort($scans);
                 $scanTimes = array_map(static fn($v) => substr($v,11,8), $scans);
                 $date = $group['date'];
-                $weekday = (int)(new \\DateTimeImmutable($date))->format('N');
+                $weekday = (int)(new \DateTimeImmutable($date))->format('N');
 
                 $calendar = $db->table('sdit_work_calendar')->where('work_date',$date)->get()->getRowArray();
                 $individual = $employee ? $db->table('sdit_employee_schedules')
@@ -488,7 +488,7 @@ class Sdit extends BaseController
         $logs=$db->table('sdit_attendance_logs')->select('pin,scanned_at')
             ->where('scanned_at >=',$startDate.' 00:00:00')->where('scanned_at <',$endExclusive)
             ->orderBy('pin','ASC')->orderBy('scanned_at','ASC')->get()->getResultArray();
-        $book=new \\PhpOffice\\PhpSpreadsheet\\Spreadsheet();
+        $book=new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet=$book->getActiveSheet(); $sheet->setTitle('Detail SDIT');
         $sheet->fromArray(['PIN','Nama','Jabatan','Tanggal','Scan 1','Status','Scan 2','Scan 3','Jumlah Scan'],null,'A1');
         $pins=array_values(array_unique(array_column($logs,'pin')));
@@ -504,7 +504,7 @@ class Sdit extends BaseController
         }
         $sheet->getStyle('A1:I1')->getFont()->setBold(true); foreach(range('A','I') as $col)$sheet->getColumnDimension($col)->setAutoSize(true);
         $sheet->freezePane('A2'); $sheet->setAutoFilter('A1:I'.max(1,$row-1));
-        $writer=new \\PhpOffice\\PhpSpreadsheet\\Writer\\Xlsx($book);
+        $writer=new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($book);
         ob_start(); $writer->save('php://output'); $output=ob_get_clean(); $book->disconnectWorksheets();
         return $this->response->setHeader('Content-Type','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
             ->setHeader('Content-Disposition','attachment; filename="Rekap-Detail-SDIT-'.$startDate.'-'.$endDate.'.xlsx"')
@@ -524,7 +524,7 @@ class Sdit extends BaseController
         $endExclusive=date('Y-m-d',strtotime($endDate.' +1 day')).' 00:00:00';
         $logs=$db->table('sdit_attendance_logs')->select('pin,scanned_at')->where('scanned_at >=',$startDate.' 00:00:00')->where('scanned_at <',$endExclusive)->orderBy('scanned_at','ASC')->get()->getResultArray();
         $logsByPin=[]; foreach($logs as $log)$logsByPin[(string)$log['pin']][]=$log['scanned_at'];
-        $book=new \\PhpOffice\\PhpSpreadsheet\\Spreadsheet();
+        $book=new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $summary=$book->getActiveSheet(); $summary->setTitle('REKAB');
         $summary->mergeCells('A1:G1'); $summary->mergeCells('A2:G2');
         $summary->setCellValue('A1','REKAB ABSEN SDIT'); $summary->setCellValue('A2',date('d-m-Y',strtotime($startDate)).' s.d. '.date('d-m-Y',strtotime($endDate)));
@@ -534,7 +534,7 @@ class Sdit extends BaseController
             $pin=(string)$employee['pin']; $dates=[];
             foreach($logsByPin[$pin]??[] as $scan)$dates[substr($scan,0,10)][]= $scan;
             $present=0;$late=0;
-            foreach($dates as $date=>$scans){sort($scans);$present++;$weekday=(int)(new \\DateTimeImmutable($date))->format('N');
+            foreach($dates as $date=>$scans){sort($scans);$present++;$weekday=(int)(new \DateTimeImmutable($date))->format('N');
                 $rule=$db->table('sdit_employee_schedules')->where('pin',$pin)->where('day_of_week',$weekday)->groupStart()->where('effective_from <=',$date)->orWhere('effective_from',null)->groupEnd()->groupStart()->where('effective_until >=',$date)->orWhere('effective_until',null)->groupEnd()->orderBy('effective_from','DESC')->get(1)->getRowArray();
                 $rule=$rule?:$db->table('sdit_work_schedules')->where('schedule_name','Jadwal SDIT')->where('day_of_week',$weekday)->get(1)->getRowArray();
                 $calendar=$db->table('sdit_work_calendar')->where('work_date',$date)->get(1)->getRowArray();
@@ -550,7 +550,7 @@ class Sdit extends BaseController
         $row=2;
         foreach($logsByPin as $pin=>$scans){$dates=[];foreach($scans as $scan)$dates[substr($scan,0,10)][]=$scan;foreach($dates as $date=>$dayScans){sort($dayScans);$employeeName='Belum dipetakan';$position='';foreach($employees as $e)if((string)$e['pin']===$pin){$employeeName=$e['full_name'];$position=$e['position']??'';break;}$dataSheet->fromArray([$pin,$employeeName,$position,date('d-m-Y',strtotime($date)),substr($dayScans[0],11,5),isset($dayScans[1])?substr(end($dayScans),11,5):'',isset($dayScans[2])?substr($dayScans[2],11,5):'',count($dayScans)],null,'A'.$row++);}}
         $dataSheet->getStyle('A1:H1')->getFont()->setBold(true);foreach(range('A','H') as $col)$dataSheet->getColumnDimension($col)->setAutoSize(true);$dataSheet->freezePane('A2');$dataSheet->setAutoFilter('A1:H'.max(1,$row-1));
-        $writer=new \\PhpOffice\\PhpSpreadsheet\\Writer\\Xlsx($book);ob_start();$writer->save('php://output');$output=ob_get_clean();$book->disconnectWorksheets();
+        $writer=new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($book);ob_start();$writer->save('php://output');$output=ob_get_clean();$book->disconnectWorksheets();
         return $this->response->setHeader('Content-Type','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
             ->setHeader('Content-Disposition','attachment; filename="REKAB-SDIT-'.$startDate.'-'.$endDate.'.xlsx"')->setBody($output);
     }
