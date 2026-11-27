@@ -24,8 +24,13 @@ foreach ($data['rows'] as $row) {
                     <span>SDIT</span>
                 </button>
                 <div class="dropdown-menu p-3 w-100 shadow" style="min-width:240px">
-                    <div class="d-flex justify-content-between mb-2"><strong class="small">Pilih unit</strong></div>
+                    <div class="d-flex justify-content-between mb-2"><strong class="small">Pilih unit</strong><button type="button" class="btn btn-sm btn-link p-0" disabled>Semua unit</button></div>
+                    <label class="form-check mb-2"><input class="form-check-input" type="checkbox" disabled><span class="form-check-label">KBIT</span></label>
+                    <label class="form-check mb-2"><input class="form-check-input" type="checkbox" disabled><span class="form-check-label">RAIT</span></label>
                     <label class="form-check mb-2"><input class="form-check-input" type="checkbox" checked disabled><span class="form-check-label">SDIT</span></label>
+                    <label class="form-check mb-2"><input class="form-check-input" type="checkbox" disabled><span class="form-check-label">SMPIT</span></label>
+                    <label class="form-check mb-2"><input class="form-check-input" type="checkbox" disabled><span class="form-check-label">Yayasan</span></label>
+                    <label class="form-check mb-2"><input class="form-check-input" type="checkbox" disabled><span class="form-check-label">Lazis</span></label>
                 </div>
             </div>
         </div>
