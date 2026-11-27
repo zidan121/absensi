@@ -556,6 +556,87 @@ class Sdit extends BaseController
             ->setHeader('Content-Disposition','attachment; filename="REKAB-SDIT-'.$startDate.'-'.$endDate.'.xlsx"')->setBody($output);
     }
 
+    public function schedules()
+    {
+        $rows = db_connect()->table('sdit_work_schedules')->where('schedule_name','Jadwal SDIT')->orderBy('day_of_week','ASC')->get()->getResultArray();
+        $map = [];
+        foreach ($rows as $row) $map[(int)$row['day_of_week']] = $row;
+        return view('sdit/schedules', ['title'=>'Jadwal Kerja SDIT','days'=>[
+            1=>'Senin',2=>'Selasa',3=>'Rabu',4=>'Kamis',5=>'Jumat',6=>'Sabtu',7=>'Minggu'
+        ],'schedules'=>$map]);
+    }
+
+    public function saveSchedules()
+    {
+        $db = db_connect();
+        $now = date('Y-m-d H:i:s');
+        $days = $this->request->getPost('days') ?? [];
+        $db->transBegin();
+        try {
+            for ($day=1; $day<=7; $day++) {
+                $item = $days[$day] ?? [];
+                $workday = !empty($item['is_workday']) ? 1 : 0;
+                $start = $item['start_time'] ?? '07:30';
+                $end = $item['end_time'] ?? '16:00';
+                if (!preg_match('/^([01]\\d|2[0-3]):[0-5]\\d$/',$start) || !preg_match('/^([01]\\d|2[0-3]):[0-5]\\d$/',$end)) {
+                    throw new \\InvalidArgumentException('Format jam jadwal tidak valid pada hari '.$day.'.');
+                }
+                $payload = [
+                    'schedule_name'=>'Jadwal SDIT','day_of_week'=>$day,
+                    'start_time'=>$start.':00','end_time'=>$end.':00',
+                    'late_after_minutes'=>max(0,(int)($item['late_after_minutes'] ?? 0)),
+                    'is_workday'=>$workday,'updated_at'=>$now
+                ];
+                $exists = $db->table('sdit_work_schedules')->where('schedule_name','Jadwal SDIT')->where('day_of_week',$day)->get()->getRowArray();
+                if ($exists) $db->table('sdit_work_schedules')->where('id',$exists['id'])->update($payload);
+                else { $payload['created_at']=$now; $db->table('sdit_work_schedules')->insert($payload); }
+            }
+            if ($db->transStatus() === false) throw new \\RuntimeException('Gagal menyimpan jadwal SDIT.');
+            $db->transCommit();
+            return redirect()->to('/sdit/jadwal')->with('success','Jadwal mingguan SDIT berhasil disimpan.');
+        } catch (\\Throwable $e) {
+            $db->transRollback();
+            return redirect()->to('/sdit/jadwal')->with('error',$e->getMessage());
+        }
+    }
+
+    public function calendar()
+    {
+        $month = (string)$this->request->getGet('bulan');
+        if (!preg_match('/^\\d{4}-(0[1-9]|1[0-2])$/',$month)) $month = date('Y-m');
+        $rows = db_connect()->table('sdit_work_calendar')
+            ->where('work_date >=',$month.'-01')
+            ->where('work_date <',date('Y-m-d',strtotime($month.'-01 +1 month')))
+            ->orderBy('work_date','ASC')->get()->getResultArray();
+        return view('sdit/calendar',['title'=>'Kalender Kerja SDIT','month'=>$month,'rows'=>$rows]);
+    }
+
+    public function saveCalendar()
+    {
+        $date = (string)$this->request->getPost('work_date');
+        $type = (string)$this->request->getPost('day_type');
+        if (!preg_match('/^\\d{4}-\\d{2}-\\d{2}$/',$date) || !in_array($type,['holiday','workday'],true)) {
+            return redirect()->to('/sdit/kalender')->with('error','Tanggal atau jenis hari tidak valid.');
+        }
+        $db = db_connect();
+        $payload = [
+            'work_date'=>$date,'day_type'=>$type,
+            'description'=>trim((string)$this->request->getPost('description')) ?: null,
+            'allow_afternoon_entry'=>$this->request->getPost('allow_afternoon_entry') ? 1 : 0,
+            'updated_at'=>date('Y-m-d H:i:s')
+        ];
+        $exists=$db->table('sdit_work_calendar')->where('work_date',$date)->get()->getRowArray();
+        if($exists) $db->table('sdit_work_calendar')->where('id',$exists['id'])->update($payload);
+        else { $payload['created_at']=date('Y-m-d H:i:s'); $db->table('sdit_work_calendar')->insert($payload); }
+        return redirect()->to('/sdit/kalender?bulan='.substr($date,0,7))->with('success','Kalender kerja SDIT berhasil disimpan.');
+    }
+
+    public function deleteCalendar(int $id)
+    {
+        db_connect()->table('sdit_work_calendar')->where('id',$id)->delete();
+        return redirect()->back()->with('success','Pengecualian kalender SDIT dihapus.');
+    }
+
     public function timeCheck()
     {
         $rows = db_connect()->table('sdit_invalid_scans')->orderBy('id', 'DESC')->limit(500)->get()->getResultArray();
