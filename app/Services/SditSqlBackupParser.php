@@ -122,7 +122,7 @@ class SditSqlBackupParser
             $ch=$tuple[$i];
             if ($quote!==null) {
                 if ($escaped) { $value.=$ch; $escaped=false; }
-                elseif ($ch==='\\\\') $escaped=true;
+                elseif ($ch==='\\') $escaped=true;
                 elseif ($ch===$quote) {
                     if (($tuple[$i+1] ?? '')===$quote) { $value.=$quote; $i++; }
                     else $quote=null;
