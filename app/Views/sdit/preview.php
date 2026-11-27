@@ -43,5 +43,11 @@
         </table>
     </div>
 </div>
-<div class="alert alert-info mb-0"><i class="bi bi-info-circle me-2"></i>Ini masih tahap pratinjau. Belum ada data yang masuk ke database. Periksa hasil pembacaan terlebih dahulu.</div>
+<div class="card"><div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+    <div><strong>Simpan hasil impor ke database khusus SDIT?</strong><div class="small text-secondary">Scan valid dan waktu tidak valid akan disimpan terpisah. PIN dan riwayat unit lain tidak disentuh.</div></div>
+    <form method="post" action="/sdit/impor/proses-bin" onsubmit="return confirm('Simpan seluruh hasil impor BIN ini ke database SDIT?')">
+        <?= csrf_field() ?>
+        <button class="btn btn-success"><i class="bi bi-database-check me-2"></i>Simpan ke Database SDIT</button>
+    </form>
+</div></div>
 <?= $this->endSection() ?>
