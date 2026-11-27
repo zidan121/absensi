@@ -376,7 +376,7 @@ class Sdit extends BaseController
 
         $db = db_connect();
         $employees = [];
-        $summary = ['attendance_days'=>0, 'late_days'=>0, 'one_scan_days'=>0, 'unmatched_identities'=>0, 'employees_with_scans'=>0, 'total_scans'=>0];
+        $summary = ['attendance_days'=>0, 'late_days'=>0, 'one_scan_days'=>0, 'afternoon_entry_days'=>0, 'holiday_scan_days'=>0, 'unmatched_identities'=>0, 'employees_with_scans'=>0, 'total_scans'=>0];
         $unmatched = [];
         if ($hasSearched) {
             $endExclusive = date('Y-m-d', strtotime($endDate . ' +1 day')) . ' 00:00:00';
@@ -457,10 +457,13 @@ class Sdit extends BaseController
                     'late_after'=>$startTime !== null && $lateAfter !== null ? $cutoff : '',
                     'calendar'=>$calendar['description'] ?? '',
                 ];
-                if (!$isHoliday && $isWorkday) {
+                if ($isHoliday || !$isWorkday) {
+                    $summary['holiday_scan_days']++;
+                } else {
                     $summary['attendance_days']++;
                     if ($late) $summary['late_days']++;
-                    if (count($scans)===1) $summary['one_scan_days']++;
+                    if (count($scans) === 1) $summary['one_scan_days']++;
+                    if (!empty($calendar['allow_afternoon_entry'])) $summary['afternoon_entry_days']++;
                 }
                 $summary['total_scans'] += count($scans);
             }
