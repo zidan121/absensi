@@ -385,7 +385,8 @@ class Recap extends BaseController
                 $employee['full_name'],
                 $employee['position'] ?? '',
             ], null, 'A' . $summaryRow);
-            $summary->setCellValue('E' . $summaryRow, '=COUNTIFS(DATA!$I$3:$I            $summary->setCellValue('F' . $summaryRow, '=COUNTIFS(DATA!$I$3:$I$' . max(3, count($data['rows']) + 2) . ',$H' . $summaryRow . ',DATA!$F$3:$F$' . max(3, count($data['rows']) + 2) . ',"Terlambat")');
+            $summary->setCellValue('E' . $summaryRow, '=COUNTIFS(DATA!$I$3:$I$' . max(3, count($data['rows']) + 2) . ',$H' . $summaryRow . ',DATA!$F$3:$F$' . max(3, count($data['rows']) + 2) . ',"<>Hari Libur (ada scan)",DATA!$F$3:$F$' . max(3, count($data['rows']) + 2) . ',"<>Libur Mingguan (ada scan)")');
+            $summary->setCellValue('F' . $summaryRow, '=COUNTIFS(DATA!$I$3:$I$' . max(3, count($data['rows']) + 2) . ',$H' . $summaryRow . ',DATA!$F$3:$F$' . max(3, count($data['rows']) + 2) . ',"Terlambat")');
             $summary->setCellValue('G' . $summaryRow, '=E' . $summaryRow . '-F' . $summaryRow);
             $summary->setCellValue('H' . $summaryRow, $employeeId);
             $summaryRow++;
