@@ -19,7 +19,7 @@ class CreateSditWorkRules extends Migration
             'created_at'=>['type'=>'DATETIME','null'=>true],
             'updated_at'=>['type'=>'DATETIME','null'=>true],
         ]);
-        $this->forge->addKey('id',true);
+        $this->forge->addPrimaryKey('id');
         $this->forge->addUniqueKey(['schedule_name','day_of_week'],'uq_sdit_schedule_day');
         $this->forge->createTable('sdit_work_schedules',true);
 
@@ -36,7 +36,7 @@ class CreateSditWorkRules extends Migration
             'created_at'=>['type'=>'DATETIME','null'=>true],
             'updated_at'=>['type'=>'DATETIME','null'=>true],
         ]);
-        $this->forge->addKey('id',true);
+        $this->forge->addPrimaryKey('id');
         $this->forge->addKey(['pin','day_of_week','effective_from'],'idx_sdit_employee_schedule');
         $this->forge->createTable('sdit_employee_schedules',true);
 
@@ -49,7 +49,7 @@ class CreateSditWorkRules extends Migration
             'created_at'=>['type'=>'DATETIME','null'=>true],
             'updated_at'=>['type'=>'DATETIME','null'=>true],
         ]);
-        $this->forge->addKey('id',true);
+        $this->forge->addPrimaryKey('id');
         $this->forge->addUniqueKey('work_date','uq_sdit_calendar_date');
         $this->forge->createTable('sdit_work_calendar',true);
     }
