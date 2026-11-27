@@ -44,6 +44,11 @@
         </a>
     </div>
     <div class="col-12 col-md-6 col-xl-4">
+        <a href="/sdit/jadwal-pegawai" class="card h-100 text-decoration-none text-reset">
+            <div class="card-body p-4"><div class="rounded-3 bg-info-subtle text-info d-inline-flex p-3 mb-3"><i class="bi bi-person-gear fs-4"></i></div><h5>Jadwal Khusus Pegawai</h5><p class="text-secondary mb-0">Atur jadwal berbeda untuk pegawai tertentu berdasarkan PIN dan masa berlaku.</p></div>
+        </a>
+    </div>
+    <div class="col-12 col-md-6 col-xl-4">
         <a href="/sdit/kalender" class="card h-100 text-decoration-none text-reset">
             <div class="card-body p-4"><div class="rounded-3 bg-warning-subtle text-warning d-inline-flex p-3 mb-3"><i class="bi bi-calendar2-event fs-4"></i></div><h5>Kalender Kerja SDIT</h5><p class="text-secondary mb-0">Atur hari libur, hari kerja pengganti, dan izin masuk siang.</p></div>
         </a>
