@@ -72,7 +72,29 @@ class EmployeeRecapOrders extends BaseController
             'ariana' => ['Ariana Irawati, S.Pd', 14],
             'deska sofiana' => ['Deska Sofiana', 15],
         ];
-        $defaultForUnit = $unit === 'KBIT_LAZIS' ? $defaultCombined : ($unit === 'RAIT' ? $defaultRait : []);
+        $defaultSmp = [
+            'fitri anggraeni' => ['Fitri Anggraeni, SPd', 1],
+            'ruchayati r sd' => ['Ruchayati R Sd', 2],
+            'ahmad tukul' => ['Ahmad Tukul SPd', 3],
+            'ari wahono' => ['Ari Wahono SPd', 4],
+            'endang r' => ['Endang R SPd', 5],
+            'eko s shum' => ['Eko S Shum', 6],
+            'tri widagdo' => ['Tri Widagdo Spd', 7],
+            'nita l' => ['Nita L Spd', 8],
+            'fathienahas' => ['FathienahAS SPd', 9],
+            'fathienah as' => ['FathienahAS SPd', 9],
+            'zainul arifin' => ['Zainul Arifin', 10],
+            'mujiono' => ['Mujiono', 11],
+            "imam safi'i" => ["Imam Safi'i", 12],
+            'imam safi' => ["Imam Safi'i", 12],
+            'nunung megawati' => ['Nunung Megawati', 13],
+            'm solikin' => ['M solikin', 14],
+            'nur indah nila khoiriyah' => ['Nur Indah Nila Khoiriyah', 15],
+            'laila yurin nabila' => ['Laila Yurin Nabila', 16],
+            'laila yurin nabila' => ['Laila Yurin Nabila', 16],
+        ];
+        $defaultForUnit = $unit === 'KBIT_LAZIS' ? $defaultCombined
+            : ($unit === 'RAIT' ? $defaultRait : ($unit === 'SMPIT' ? $defaultSmp : []));
         if ($defaultForUnit !== []) {
             foreach ($employees as &$employee) {
                 $normalizedName = mb_strtolower(trim((string) $employee['full_name']));
