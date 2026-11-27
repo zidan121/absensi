@@ -366,106 +366,193 @@ class Sdit extends BaseController
 
     public function recap()
     {
-        $month = (string) $this->request->getGet('bulan');
-        if (!preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $month)) {
-            $month = date('Y-m');
-        }
-        $start = $month . '-01 00:00:00';
-        $end = date('Y-m-d H:i:s', strtotime($start . ' +1 month'));
-        $db = db_connect();
-        $daily = $db->table('sdit_attendance_logs l')
-            ->select("l.pin, DATE(l.scanned_at) AS work_date, MIN(TIME(l.scanned_at)) AS first_scan, MAX(TIME(l.scanned_at)) AS last_scan, COUNT(*) AS scan_count", false)
-            ->where('l.scanned_at >=', $start)
-            ->where('l.scanned_at <', $end)
-            ->groupBy('l.pin, DATE(l.scanned_at)')
-            ->orderBy('l.pin', 'ASC')
-            ->orderBy('work_date', 'ASC')
-            ->get()->getResultArray();
+        @set_time_limit(180);
+        $startDate = (string) $this->request->getGet('start_date');
+        $endDate = (string) $this->request->getGet('end_date');
+        $hasSearched = $this->request->getGet('show') === '1';
+        if (!preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $startDate)) $startDate = date('Y-m-01');
+        if (!preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $endDate)) $endDate = date('Y-m-d');
+        if ($endDate < $startDate) { [$startDate, $endDate] = [$endDate, $startDate]; }
 
+        $db = db_connect();
         $employees = [];
-        foreach ($daily as $row) {
-            $pin = (string) $row['pin'];
-            if (!isset($employees[$pin])) {
-                $employees[$pin] = [
-                    'pin'=>$pin, 'employee_code'=>$pin, 'full_name'=>'Belum dipetakan',
-                    'days'=>0, 'total_scans'=>0, 'details'=>[]
-                ];
+        $summary = ['attendance_days'=>0, 'late_days'=>0, 'one_scan_days'=>0, 'unmatched_identities'=>0, 'employees_with_scans'=>0, 'total_scans'=>0];
+        $unmatched = [];
+        if ($hasSearched) {
+            $endExclusive = date('Y-m-d', strtotime($endDate . ' +1 day')) . ' 00:00:00';
+            $logs = $db->table('sdit_attendance_logs')
+                ->select('pin, scanned_at')
+                ->where('scanned_at >=', $startDate . ' 00:00:00')
+                ->where('scanned_at <', $endExclusive)
+                ->orderBy('scanned_at', 'ASC')->get()->getResultArray();
+            $pins = array_values(array_unique(array_column($logs, 'pin')));
+            $masters = $pins ? $db->table('sdit_employees')->whereIn('pin', $pins)->get()->getResultArray() : [];
+            $masterMap = [];
+            foreach ($masters as $master) $masterMap[(string)$master['pin']] = $master;
+
+            $groups = [];
+            foreach ($logs as $log) {
+                $pin = (string)$log['pin'];
+                $date = substr($log['scanned_at'], 0, 10);
+                $groups[$pin.'|'.$date]['pin'] = $pin;
+                $groups[$pin.'|'.$date]['date'] = $date;
+                $groups[$pin.'|'.$date]['scans'][] = $log['scanned_at'];
             }
-            $employees[$pin]['days']++;
-            $employees[$pin]['total_scans'] += (int) $row['scan_count'];
-            $employees[$pin]['details'][] = $row;
-        }
-        if ($employees) {
-            $pins = array_keys($employees);
-            $masters = $db->table('sdit_employees')->whereIn('pin', $pins)->get()->getResultArray();
-            foreach ($masters as $employee) {
-                $pin = (string) $employee['pin'];
-                if (isset($employees[$pin])) {
-                    $employees[$pin]['employee_code'] = $employee['employee_code'] ?: $pin;
-                    $employees[$pin]['full_name'] = $employee['full_name'];
+
+            foreach ($groups as $group) {
+                $pin = $group['pin'];
+                $employee = $masterMap[$pin] ?? null;
+                $scans = array_values(array_unique($group['scans'], SORT_STRING));
+                sort($scans);
+                $scanTimes = array_map(static fn($v) => substr($v,11,8), $scans);
+                $date = $group['date'];
+                $weekday = (int)(new \\DateTimeImmutable($date))->format('N');
+
+                $calendar = $db->table('sdit_work_calendar')->where('work_date',$date)->get()->getRowArray();
+                $individual = $employee ? $db->table('sdit_employee_schedules')
+                    ->where('pin',$pin)->where('day_of_week',$weekday)
+                    ->groupStart()->where('effective_from <=',$date)->orWhere('effective_from',null)->groupEnd()
+                    ->groupStart()->where('effective_until >=',$date)->orWhere('effective_until',null)->groupEnd()
+                    ->orderBy('effective_from','DESC')->get(1)->getRowArray() : null;
+                $weekly = $db->table('sdit_work_schedules')->where('schedule_name','Jadwal SDIT')
+                    ->where('day_of_week',$weekday)->get(1)->getRowArray();
+                $schedule = $individual ?: $weekly;
+                $isHoliday = ($calendar['day_type'] ?? '') === 'holiday';
+                $isWorkday = $calendar
+                    ? !$isHoliday
+                    : (bool)($schedule['is_workday'] ?? true);
+                $lateAfter = $schedule['late_after_minutes'] ?? null;
+                $startTime = $schedule['start_time'] ?? null;
+                $late = false;
+                $status = 'Jadwal Belum Diatur';
+                if ($isHoliday) $status = 'Hari Libur (ada scan)';
+                elseif (!$isWorkday) $status = 'Libur Mingguan (ada scan)';
+                elseif ($startTime !== null && $lateAfter !== null) {
+                    $cutoff = date('H:i:s', strtotime($startTime . ' +' . (int)$lateAfter . ' minutes'));
+                    $late = $scanTimes[0] > $cutoff;
+                    $status = $late ? 'Terlambat' : 'Tepat Waktu';
                 }
+
+                if (!$employee) {
+                    if (!isset($unmatched[$pin])) $unmatched[$pin] = ['pin'=>$pin,'scan_count'=>0,'first_scan'=>$scans[0],'last_scan'=>$scans[count($scans)-1]];
+                    $unmatched[$pin]['scan_count'] += count($scans);
+                    $unmatched[$pin]['first_scan'] = min($unmatched[$pin]['first_scan'],$scans[0]);
+                    $unmatched[$pin]['last_scan'] = max($unmatched[$pin]['last_scan'],$scans[count($scans)-1]);
+                }
+                $key = $employee ? $pin : 'UNKNOWN-'.$pin;
+                if (!isset($employees[$key])) $employees[$key] = [
+                    'pin'=>$pin,'employee_code'=>$employee['employee_code'] ?? $pin,
+                    'full_name'=>$employee['full_name'] ?? 'Belum dipetakan',
+                    'position'=>$employee['position'] ?? '', 'days'=>0,'total_scans'=>0,'details'=>[]
+                ];
+                $employees[$key]['days']++;
+                $employees[$key]['total_scans'] += count($scans);
+                $employees[$key]['details'][] = [
+                    'work_date'=>$date,'first_scan'=>$scanTimes[0],
+                    'last_scan'=>count($scanTimes)>1 ? $scanTimes[count($scanTimes)-1] : '',
+                    'scan_count'=>count($scanTimes),'scans'=>$scanTimes,
+                    'status'=>$status,'late'=>$late,'is_counted'=>!$isHoliday && $isWorkday,
+                    'late_after'=>$startTime !== null && $lateAfter !== null ? $cutoff : '',
+                    'calendar'=>$calendar['description'] ?? '',
+                ];
+                if (!$isHoliday && $isWorkday) {
+                    $summary['attendance_days']++;
+                    if ($late) $summary['late_days']++;
+                    if (count($scans)===1) $summary['one_scan_days']++;
+                }
+                $summary['total_scans'] += count($scans);
             }
+            uasort($employees, static fn($a,$b) => strnatcasecmp($a['employee_code'],$b['employee_code']));
+            $summary['employees_with_scans'] = count(array_filter($employees,static fn($e)=>$e['full_name']!=='Belum dipetakan'));
+            $summary['unmatched_identities'] = count($unmatched);
         }
-        uasort($employees, static function ($a, $b) {
-            return strnatcasecmp($a['employee_code'], $b['employee_code']);
-        });
+        $maxScans = 1;
+        foreach ($employees as $employee) foreach ($employee['details'] as $detail) $maxScans=max($maxScans,count($detail['scans']));
         return view('sdit/recap', [
-            'title'=>'Rekap Absensi SDIT', 'month'=>$month,
-            'employees'=>array_values($employees),
-            'totalDays'=>count($daily),
-            'totalScans'=>array_sum(array_column($daily, 'scan_count')),
+            'title'=>'Rekap Absensi SDIT','startDate'=>$startDate,'endDate'=>$endDate,
+            'hasSearched'=>$hasSearched,'employees'=>array_values($employees),'summary'=>$summary,
+            'unmatched'=>array_values($unmatched),'maxScans'=>$maxScans,
         ]);
     }
 
-
     public function exportRecap()
     {
-        $month = (string) $this->request->getGet('bulan');
-        if (!preg_match('/^\\d{4}-(0[1-9]|1[0-2])$/', $month)) {
-            return redirect()->to('/sdit/rekap')->with('error', 'Bulan rekap SDIT tidak valid.');
+        @set_time_limit(300);
+        $startDate=(string)$this->request->getGet('start_date');
+        $endDate=(string)$this->request->getGet('end_date');
+        if (!preg_match('/^\\d{4}-\\d{2}-\\d{2}$/',$startDate) || !preg_match('/^\\d{4}-\\d{2}-\\d{2}$/',$endDate) || $endDate<$startDate) {
+            return redirect()->to('/sdit/rekap')->with('error','Rentang tanggal rekap SDIT tidak valid.');
         }
-        $start = $month . '-01 00:00:00';
-        $end = date('Y-m-d H:i:s', strtotime($start . ' +1 month'));
-        $db = db_connect();
-        $daily = $db->table('sdit_attendance_logs')
-            ->select("pin, DATE(scanned_at) AS work_date, MIN(TIME(scanned_at)) AS first_scan, MAX(TIME(scanned_at)) AS last_scan, COUNT(*) AS scan_count", false)
-            ->where('scanned_at >=', $start)->where('scanned_at <', $end)
-            ->groupBy('pin, DATE(scanned_at)')->orderBy('pin', 'ASC')->orderBy('work_date', 'ASC')
-            ->get()->getResultArray();
-        $pins = array_values(array_unique(array_column($daily, 'pin')));
-        $masters = $pins ? $db->table('sdit_employees')->whereIn('pin', $pins)->get()->getResultArray() : [];
-        $map = [];
-        foreach ($masters as $employee) $map[(string) $employee['pin']] = $employee;
+        $endExclusive=date('Y-m-d',strtotime($endDate.' +1 day')).' 00:00:00';
+        $db=db_connect();
+        $logs=$db->table('sdit_attendance_logs')->select('pin,scanned_at')
+            ->where('scanned_at >=',$startDate.' 00:00:00')->where('scanned_at <',$endExclusive)
+            ->orderBy('pin','ASC')->orderBy('scanned_at','ASC')->get()->getResultArray();
+        $book=new \\PhpOffice\\PhpSpreadsheet\\Spreadsheet();
+        $sheet=$book->getActiveSheet(); $sheet->setTitle('Detail SDIT');
+        $sheet->fromArray(['PIN','Nama','Jabatan','Tanggal','Scan 1','Status','Scan 2','Scan 3','Jumlah Scan'],null,'A1');
+        $pins=array_values(array_unique(array_column($logs,'pin')));
+        $masters=$pins?$db->table('sdit_employees')->whereIn('pin',$pins)->get()->getResultArray():[];
+        $map=[]; foreach($masters as $m)$map[(string)$m['pin']]=$m;
+        $groups=[]; foreach($logs as $log){$key=$log['pin'].'|'.substr($log['scanned_at'],0,10);$groups[$key][]=$log['scanned_at'];}
+        $row=2;
+        foreach($groups as $key=>$times){
+            [$pin,$date]=explode('|',$key,2); $times=array_values(array_unique($times)); sort($times);
+            $employee=$map[$pin]??[];
+            $sheet->fromArray([$pin,$employee['full_name']??'Belum dipetakan',$employee['position']??'',date('d-m-Y',strtotime($date)),
+                substr($times[0],11,5),'Periksa di rekap',isset($times[1])?substr($times[1],11,5):'',isset($times[2])?substr($times[2],11,5):'',count($times)],null,'A'.$row++);
+        }
+        $sheet->getStyle('A1:I1')->getFont()->setBold(true); foreach(range('A','I') as $col)$sheet->getColumnDimension($col)->setAutoSize(true);
+        $sheet->freezePane('A2'); $sheet->setAutoFilter('A1:I'.max(1,$row-1));
+        $writer=new \\PhpOffice\\PhpSpreadsheet\\Writer\\Xlsx($book);
+        ob_start(); $writer->save('php://output'); $output=ob_get_clean(); $book->disconnectWorksheets();
+        return $this->response->setHeader('Content-Type','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            ->setHeader('Content-Disposition','attachment; filename="Rekap-Detail-SDIT-'.$startDate.'-'.$endDate.'.xlsx"')
+            ->setBody($output);
+    }
 
-        $book = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
-        $sheet = $book->getActiveSheet();
-        $sheet->setTitle('Rekap SDIT');
-        $sheet->fromArray(['No.','Kode Pegawai','Nama Pegawai','PIN','Tanggal','Scan Pertama / Datang','Scan Terakhir / Pulang','Jumlah Scan'], null, 'A1');
-        $line = 2;
-        $number = 1;
-        foreach ($daily as $row) {
-            $employee = $map[(string) $row['pin']] ?? [];
-            $sheet->fromArray([
-                $number++, $employee['employee_code'] ?? $row['pin'],
-                $employee['full_name'] ?? 'Belum dipetakan', $row['pin'],
-                date('d-m-Y', strtotime($row['work_date'])),
-                substr($row['first_scan'], 0, 5),
-                (int) $row['scan_count'] > 1 ? substr($row['last_scan'], 0, 5) : '',
-                (int) $row['scan_count'],
-            ], null, 'A' . $line++);
+    public function exportEmployeeSummary()
+    {
+        @set_time_limit(300);
+        $startDate=(string)$this->request->getGet('start_date');
+        $endDate=(string)$this->request->getGet('end_date');
+        if (!preg_match('/^\\d{4}-\\d{2}-\\d{2}$/',$startDate) || !preg_match('/^\\d{4}-\\d{2}-\\d{2}$/',$endDate) || $endDate<$startDate) {
+            return redirect()->to('/sdit/rekap')->with('error','Rentang tanggal rekap SDIT tidak valid.');
         }
-        $sheet->getStyle('A1:H1')->getFont()->setBold(true);
-        foreach (range('A', 'H') as $column) $sheet->getColumnDimension($column)->setAutoSize(true);
-        $sheet->freezePane('A2');
-        $sheet->setAutoFilter('A1:H' . max(1, $line - 1));
-        $directory = WRITEPATH . 'exports';
-        if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
-            throw new \RuntimeException('Folder ekspor SDIT tidak dapat dibuat.');
+        $db=db_connect();
+        $employees=$db->table('sdit_employees')->where('is_active',1)->orderBy('employee_code','ASC')->get()->getResultArray();
+        $endExclusive=date('Y-m-d',strtotime($endDate.' +1 day')).' 00:00:00';
+        $logs=$db->table('sdit_attendance_logs')->select('pin,scanned_at')->where('scanned_at >=',$startDate.' 00:00:00')->where('scanned_at <',$endExclusive)->orderBy('scanned_at','ASC')->get()->getResultArray();
+        $logsByPin=[]; foreach($logs as $log)$logsByPin[(string)$log['pin']][]=$log['scanned_at'];
+        $book=new \\PhpOffice\\PhpSpreadsheet\\Spreadsheet();
+        $summary=$book->getActiveSheet(); $summary->setTitle('REKAB');
+        $summary->mergeCells('A1:G1'); $summary->mergeCells('A2:G2');
+        $summary->setCellValue('A1','REKAB ABSEN SDIT'); $summary->setCellValue('A2',date('d-m-Y',strtotime($startDate)).' s.d. '.date('d-m-Y',strtotime($endDate)));
+        $summary->fromArray(['NO','NAMA','NAMA di Fingerprint','JABATAN','KEDATANGAN','TERLAMBAT','TEPAT WAKTU'],null,'A3');
+        $row=4; $no=1;
+        foreach($employees as $employee){
+            $pin=(string)$employee['pin']; $dates=[];
+            foreach($logsByPin[$pin]??[] as $scan)$dates[substr($scan,0,10)][]= $scan;
+            $present=0;$late=0;
+            foreach($dates as $date=>$scans){sort($scans);$present++;$weekday=(int)(new \\DateTimeImmutable($date))->format('N');
+                $rule=$db->table('sdit_employee_schedules')->where('pin',$pin)->where('day_of_week',$weekday)->groupStart()->where('effective_from <=',$date)->orWhere('effective_from',null)->groupEnd()->groupStart()->where('effective_until >=',$date)->orWhere('effective_until',null)->groupEnd()->orderBy('effective_from','DESC')->get(1)->getRowArray();
+                $rule=$rule?:$db->table('sdit_work_schedules')->where('schedule_name','Jadwal SDIT')->where('day_of_week',$weekday)->get(1)->getRowArray();
+                $calendar=$db->table('sdit_work_calendar')->where('work_date',$date)->get(1)->getRowArray();
+                $isWorkday=$calendar ? ($calendar['day_type']!=='holiday') : (bool)($rule['is_workday']??true);
+                if($isWorkday && $rule && $rule['start_time'] && $scans[0] > $date.' '.$rule['start_time'].':00' && (int)$rule['late_after_minutes']===0)$late++;
+                elseif($isWorkday && $rule && $rule['start_time']){$cutoff=date('H:i:s',strtotime($rule['start_time'].' +'.(int)$rule['late_after_minutes'].' minutes'));if(substr($scans[0],11,8)>$cutoff)$late++;}
+            }
+            $summary->fromArray([$no++,$employee['full_name'],$employee['full_name'],$employee['position']??'',$present,$late,$present-$late],null,'A'.$row++);
         }
-        $path = $directory . DIRECTORY_SEPARATOR . 'rekap-sdit-' . $month . '.xlsx';
-        (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($book))->save($path);
-        $book->disconnectWorksheets();
-        return $this->response->download($path, null)->setFileName('Rekap-Absensi-SDIT-' . $month . '.xlsx');
+        $summary->getStyle('A3:G3')->getFont()->setBold(true); foreach(range('A','G') as $col)$summary->getColumnDimension($col)->setAutoSize(true);
+        $dataSheet=$book->createSheet();$dataSheet->setTitle('DATA');
+        $dataSheet->fromArray(['PIN','Nama','Jabatan','Tanggal','Scan 1','Scan 2','Scan 3','Jumlah Scan'],null,'A1');
+        $row=2;
+        foreach($logsByPin as $pin=>$scans){$dates=[];foreach($scans as $scan)$dates[substr($scan,0,10)][]=$scan;foreach($dates as $date=>$dayScans){sort($dayScans);$employeeName='Belum dipetakan';$position='';foreach($employees as $e)if((string)$e['pin']===$pin){$employeeName=$e['full_name'];$position=$e['position']??'';break;}$dataSheet->fromArray([$pin,$employeeName,$position,date('d-m-Y',strtotime($date)),substr($dayScans[0],11,5),isset($dayScans[1])?substr(end($dayScans),11,5):'',isset($dayScans[2])?substr($dayScans[2],11,5):'',count($dayScans)],null,'A'.$row++);}}
+        $dataSheet->getStyle('A1:H1')->getFont()->setBold(true);foreach(range('A','H') as $col)$dataSheet->getColumnDimension($col)->setAutoSize(true);$dataSheet->freezePane('A2');$dataSheet->setAutoFilter('A1:H'.max(1,$row-1));
+        $writer=new \\PhpOffice\\PhpSpreadsheet\\Writer\\Xlsx($book);ob_start();$writer->save('php://output');$output=ob_get_clean();$book->disconnectWorksheets();
+        return $this->response->setHeader('Content-Type','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            ->setHeader('Content-Disposition','attachment; filename="REKAB-SDIT-'.$startDate.'-'.$endDate.'.xlsx"')->setBody($output);
     }
 
     public function timeCheck()
