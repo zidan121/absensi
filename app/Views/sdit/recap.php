@@ -4,7 +4,7 @@
     <div><h1>Rekap Absensi SDIT</h1><p class="text-secondary mb-0">Rekap dihitung dari scan yang benar-benar tercatat pada mesin SDIT.</p></div>
     <form method="get" class="d-flex align-items-center gap-2">
         <input type="month" name="bulan" class="form-control" value="<?= esc($month) ?>">
-        <button class="btn btn-primary">Tampilkan</button>
+        <button class="btn btn-primary">Tampilkan</button><a class="btn btn-success" href="/sdit/rekap/export?bulan=<?= esc($month) ?>">Excel</a>
     </form>
 </div>
 <div class="row g-3 mb-4">
