@@ -195,8 +195,11 @@ class AttendanceRecapService
                 ? max(0, strtotime($group['date'] . ' ' . $arrivalTime) - strtotime($group['date'] . ' ' . $lateAfter))
                 : 0;
             $lateMinutes = $isLate ? max(1, (int) ceil($lateSeconds / 60)) : 0;
+            // Scan pada hari libur tetap menjadi riwayat, tetapi bukan hari kehadiran reguler.
+            $isCountedAttendance = ! $isHoliday && ! $isNonWorkingDay;
             $rows[] = [
                 'employee_id' => $group['employee_id'],
+                'is_counted_attendance' => $isCountedAttendance,
                 'employee_code' => $group['employee_code'],
                 'fingerprint_pin' => $group['fingerprint_pin'],
                 'full_name' => $group['full_name'],
@@ -244,9 +247,9 @@ class AttendanceRecapService
             'rows' => $rows,
             'unmatched' => $unmatched,
             'summary' => [
-                'attendance_days' => count($rows),
-                'late_days' => count(array_filter($rows, static fn ($r) => $r['late_minutes'] > 0)),
-                'one_scan_days' => count(array_filter($rows, static fn ($r) => $r['scan_count'] === 1)),
+                'attendance_days' => count(array_filter($rows, static fn ($r) => $r['is_counted_attendance'])),
+                'late_days' => count(array_filter($rows, static fn ($r) => $r['is_counted_attendance'] && $r['late_minutes'] > 0)),
+                'one_scan_days' => count(array_filter($rows, static fn ($r) => $r['is_counted_attendance'] && $r['scan_count'] === 1)),
                 'unmatched_identities' => count($unmatched),
             ],
         ];
