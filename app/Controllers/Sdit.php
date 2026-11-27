@@ -422,9 +422,30 @@ class Sdit extends BaseController
 
         $maxScans = 1;
         foreach ($rows as $row) $maxScans = max($maxScans, count($row['scans']));
+        $unmatchedMap = [];
+        foreach ($rows as $row) {
+            if ($row['full_name'] !== 'Belum dipetakan') continue;
+            $pin = (string) $row['fingerprint_pin'];
+            if (!isset($unmatchedMap[$pin])) {
+                $unmatchedMap[$pin] = [
+                    'device_name' => 'Mesin Fingerprint SDIT',
+                    'device_code' => self::MACHINE_SERIAL,
+                    'pin' => $pin,
+                    'scan_count' => 0,
+                    'first_scan' => $row['date'] . ' ' . ($row['scans'][0] ?? '00:00:00'),
+                    'last_scan' => $row['date'] . ' ' . ($row['scans'][count($row['scans']) - 1] ?? '00:00:00'),
+                ];
+            }
+            $unmatchedMap[$pin]['scan_count'] += (int) $row['scan_count'];
+            $unmatchedMap[$pin]['first_scan'] = min($unmatchedMap[$pin]['first_scan'], $row['date'] . ' ' . ($row['scans'][0] ?? '00:00:00'));
+            $unmatchedMap[$pin]['last_scan'] = max($unmatchedMap[$pin]['last_scan'], $row['date'] . ' ' . ($row['scans'][count($row['scans']) - 1] ?? '00:00:00'));
+        }
+        $summary['unmatched_identities'] = count($unmatchedMap);
+        $data = ['rows' => $rows, 'summary' => $summary, 'unmatched' => array_values($unmatchedMap)];
+
         return view('sdit/recap', [
             'title'=>'Rekap Absensi SDIT', 'startDate'=>$startDate, 'endDate'=>$endDate,
-            'hasSearched'=>$hasSearched, 'rows'=>$rows, 'summary'=>$summary, 'maxScans'=>$maxScans,
+            'hasSearched'=>$hasSearched, 'units'=>['SDIT'], 'data'=>$data,
         ]);
     }
 
