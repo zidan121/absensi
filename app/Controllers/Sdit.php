@@ -580,7 +580,7 @@ class Sdit extends BaseController
                 $start = $item['start_time'] ?? '07:30';
                 $end = $item['end_time'] ?? '16:00';
                 if (!preg_match('/^([01]\\d|2[0-3]):[0-5]\\d$/',$start) || !preg_match('/^([01]\\d|2[0-3]):[0-5]\\d$/',$end)) {
-                    throw new \\InvalidArgumentException('Format jam jadwal tidak valid pada hari '.$day.'.');
+                    throw new \InvalidArgumentException('Format jam jadwal tidak valid pada hari '.$day.'.');
                 }
                 $payload = [
                     'schedule_name'=>'Jadwal SDIT','day_of_week'=>$day,
@@ -592,10 +592,10 @@ class Sdit extends BaseController
                 if ($exists) $db->table('sdit_work_schedules')->where('id',$exists['id'])->update($payload);
                 else { $payload['created_at']=$now; $db->table('sdit_work_schedules')->insert($payload); }
             }
-            if ($db->transStatus() === false) throw new \\RuntimeException('Gagal menyimpan jadwal SDIT.');
+            if ($db->transStatus() === false) throw new \RuntimeException('Gagal menyimpan jadwal SDIT.');
             $db->transCommit();
             return redirect()->to('/sdit/jadwal')->with('success','Jadwal mingguan SDIT berhasil disimpan.');
-        } catch (\\Throwable $e) {
+        } catch (\Throwable $e) {
             $db->transRollback();
             return redirect()->to('/sdit/jadwal')->with('error',$e->getMessage());
         }
