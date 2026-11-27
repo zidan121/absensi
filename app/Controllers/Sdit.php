@@ -608,7 +608,7 @@ class Sdit extends BaseController
         $employees = $db->table('sdit_employees')->where('is_active', 1)->orderBy('employee_code', 'ASC')->get()->getResultArray();
         $rows = $db->table('sdit_employee_schedules')
             ->select('sdit_employee_schedules.*, sdit_employees.full_name, sdit_employees.employee_code')
-            ->join('sdit_employees', 'sdit_employees.pin = sdit_employee_schedules.pin', 'left')
+            ->join('sdit_employees', 'sdit_employees.pin COLLATE utf8mb4_unicode_ci = sdit_employee_schedules.pin COLLATE utf8mb4_unicode_ci', 'left')
             ->orderBy('sdit_employees.employee_code', 'ASC')
             ->orderBy('sdit_employee_schedules.effective_from', 'DESC')
             ->orderBy('sdit_employee_schedules.day_of_week', 'ASC')
