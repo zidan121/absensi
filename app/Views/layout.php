@@ -120,47 +120,46 @@
         <div class="brand-wrap"><div class="brand-mark"><i class="bi bi-fingerprint"></i></div><div><div class="brand-name">NEURO ABSENSI</div><div class="brand-caption">ATTENDANCE MANAGEMENT</div></div></div>
         <?php $currentPath = uri_string(); ?>
         <nav>
+            <div class="nav-caption">Beranda</div>
             <div class="nav-main">
                 <a class="<?= $currentPath === '' ? 'active' : '' ?>" href="/"><i class="bi bi-grid-1x2-fill"></i>Dashboard</a>
             </div>
+
+            <div class="nav-caption">Operasional</div>
             <details <?= (str_starts_with($currentPath, 'pegawai') || str_starts_with($currentPath, 'rekap')) ? 'open' : '' ?>>
-                <summary>Manajemen</summary>
+                <summary>Data & Kehadiran</summary>
                 <div class="nav-sub">
                     <a class="<?= str_starts_with($currentPath, 'pegawai') ? 'active' : '' ?>" href="/pegawai"><i class="bi bi-people-fill"></i>Data Pegawai</a>
                     <a class="<?= str_starts_with($currentPath, 'rekap') ? 'active' : '' ?>" href="/rekap"><i class="bi bi-calendar2-check-fill"></i>Rekap Absensi</a>
                 </div>
             </details>
-            <details <?= (str_starts_with($currentPath, 'pengaturan-absensi') || str_starts_with($currentPath, 'pengaturan-urutan-pegawai') || str_starts_with($currentPath, 'kalender-kerja') || str_starts_with($currentPath, 'jadwal-hari-kerja')) ? 'open' : '' ?>>
-                <summary>Pengaturan</summary>
-                <div class="nav-sub">
-                    <a class="<?= str_starts_with($currentPath, 'pengaturan-absensi') ? 'active' : '' ?>" href="/pengaturan-absensi"><i class="bi bi-sliders"></i>Pengaturan Absensi</a>
-                    <a class="<?= str_starts_with($currentPath, 'pengaturan-urutan-pegawai') ? 'active' : '' ?>" href="/pengaturan-urutan-pegawai"><i class="bi bi-list-ol"></i>Urutan Pegawai REKAB</a>
-                    <a class="<?= str_starts_with($currentPath, 'kalender-kerja') ? 'active' : '' ?>" href="/kalender-kerja"><i class="bi bi-calendar-event-fill"></i>Kalender Kerja</a>
-                    <a class="<?= str_starts_with($currentPath, 'jadwal-hari-kerja') ? 'active' : '' ?>" href="/jadwal-hari-kerja"><i class="bi bi-calendar-week-fill"></i>Jadwal Hari Kerja</a>
-                </div>
-            </details>
-            <details <?= str_starts_with($currentPath, 'akun') ? 'open' : '' ?>>
-                <summary>Akun</summary>
-                <div class="nav-sub">
-                    <a class="<?= str_starts_with($currentPath, 'akun') ? 'active' : '' ?>" href="/akun"><i class="bi bi-person-gear"></i>Pengaturan Akun</a>
-                </div>
-            </details>
-            <details <?= (str_starts_with($currentPath, 'impor') || str_starts_with($currentPath, 'impor-backup')) ? 'open' : '' ?>>
-                <summary>Data Fingerprint</summary>
+
+            <div class="nav-caption">Impor Fingerprint</div>
+            <details <?= (str_starts_with($currentPath, 'impor') || str_starts_with($currentPath, 'sdit')) ? 'open' : '' ?>>
+                <summary>Pengolahan Data</summary>
                 <div class="nav-sub">
                     <a class="<?= str_starts_with($currentPath, 'impor') && !str_starts_with($currentPath, 'impor-backup') ? 'active' : '' ?>" href="/impor"><i class="bi bi-file-earmark-arrow-up-fill"></i>Impor Log TXT</a>
                     <a class="<?= str_starts_with($currentPath, 'impor-backup') ? 'active' : '' ?>" href="/impor-backup"><i class="bi bi-database-fill-up"></i>Impor Backup SQL</a>
+                    <a class="<?= str_starts_with($currentPath, 'sdit') ? 'active' : '' ?>" href="/sdit"><i class="bi bi-building"></i>Modul SDIT (BIN)</a>
                 </div>
             </details>
-            <details <?= str_starts_with($currentPath, 'sdit') ? 'open' : '' ?>>
-                <summary>Modul SDIT</summary>
+
+            <div class="nav-caption">Pengaturan</div>
+            <details <?= (str_starts_with($currentPath, 'pengaturan-absensi') || str_starts_with($currentPath, 'pengaturan-urutan-pegawai') || str_starts_with($currentPath, 'kalender-kerja') || str_starts_with($currentPath, 'jadwal-hari-kerja')) ? 'open' : '' ?>>
+                <summary>Aturan Kehadiran</summary>
                 <div class="nav-sub">
-                    <a class="<?= str_starts_with($currentPath, 'sdit') ? 'active' : '' ?>" href="/sdit"><i class="bi bi-building"></i>Menu Khusus SDIT</a>
+                    <a class="<?= str_starts_with($currentPath, 'pengaturan-absensi') ? 'active' : '' ?>" href="/pengaturan-absensi"><i class="bi bi-sliders"></i>Pengaturan Absensi</a>
+                    <a class="<?= str_starts_with($currentPath, 'jadwal-hari-kerja') ? 'active' : '' ?>" href="/jadwal-hari-kerja"><i class="bi bi-calendar-week-fill"></i>Jadwal Hari Kerja</a>
+                    <a class="<?= str_starts_with($currentPath, 'kalender-kerja') ? 'active' : '' ?>" href="/kalender-kerja"><i class="bi bi-calendar-event-fill"></i>Kalender Kerja</a>
+                    <a class="<?= str_starts_with($currentPath, 'pengaturan-urutan-pegawai') ? 'active' : '' ?>" href="/pengaturan-urutan-pegawai"><i class="bi bi-list-ol"></i>Urutan Rekap Pegawai</a>
                 </div>
             </details>
-            <details <?= str_starts_with($currentPath, 'backup') ? 'open' : '' ?>>
-                <summary>Pemeliharaan</summary>
+
+            <div class="nav-caption">Administrasi</div>
+            <details <?= (str_starts_with($currentPath, 'akun') || str_starts_with($currentPath, 'backup')) ? 'open' : '' ?>>
+                <summary>Akun & Sistem</summary>
                 <div class="nav-sub">
+                    <a class="<?= str_starts_with($currentPath, 'akun') ? 'active' : '' ?>" href="/akun"><i class="bi bi-person-gear"></i>Pengaturan Akun</a>
                     <a class="<?= str_starts_with($currentPath, 'backup') ? 'active' : '' ?>" href="/backup"><i class="bi bi-database-fill-down"></i>Backup & Pemulihan</a>
                 </div>
             </details>
