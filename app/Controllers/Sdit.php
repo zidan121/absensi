@@ -430,46 +430,53 @@ class Sdit extends BaseController
 
     public function exportRecap()
     {
-        $month = (string) $this->request->getGet('bulan');
-        if (!preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $month)) $month = date('Y-m');
-        $start = $month . '-01 00:00:00';
-        $end = date('Y-m-d H:i:s', strtotime($start . ' +1 month'));
+        @set_time_limit(180);
+        $startDate = (string) $this->request->getGet('start_date');
+        $endDate = (string) $this->request->getGet('end_date');
+        if (!preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $startDate)
+            || !preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $endDate)
+            || $endDate < $startDate) {
+            return redirect()->to('/sdit/rekap')->with('error', 'Rentang tanggal rekap SDIT tidak valid.');
+        }
+        $endExclusive = date('Y-m-d', strtotime($endDate . ' +1 day')) . ' 00:00:00';
         $rows = db_connect()->table('sdit_attendance_logs')
-            ->select("pin, DATE(scanned_at) AS work_date, MIN(TIME(scanned_at)) AS first_scan, MAX(TIME(scanned_at)) AS last_scan, COUNT(*) AS scan_count", false)
-            ->where('scanned_at >=', $start)->where('scanned_at <', $end)
-            ->groupBy('pin, DATE(scanned_at)')->orderBy('pin','ASC')->orderBy('work_date','ASC')
+            ->select("pin, DATE(scanned_at) AS work_date, MIN(TIME(scanned_at)) AS first_scan, MAX(TIME(scanned_at)) AS last_scan, COUNT(DISTINCT scanned_at) AS scan_count", false)
+            ->where('scanned_at >=', $startDate . ' 00:00:00')
+            ->where('scanned_at <', $endExclusive)
+            ->groupBy('pin, DATE(scanned_at)')
+            ->orderBy('pin', 'ASC')->orderBy('work_date', 'ASC')
             ->get()->getResultArray();
         $pins = array_values(array_unique(array_column($rows, 'pin')));
-        $masters = $pins ? db_connect()->table('sdit_employees')->whereIn('pin',$pins)->get()->getResultArray() : [];
+        $masters = $pins ? db_connect()->table('sdit_employees')->whereIn('pin', $pins)->get()->getResultArray() : [];
         $map = [];
-        foreach ($masters as $employee) $map[(string)$employee['pin']] = $employee;
-        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
-        $sheet = $spreadsheet->getActiveSheet();
+        foreach ($masters as $employee) $map[(string) $employee['pin']] = $employee;
+
+        $book = new \\PhpOffice\\PhpSpreadsheet\\Spreadsheet();
+        $sheet = $book->getActiveSheet();
         $sheet->setTitle('Rekap SDIT');
-        $sheet->fromArray(['No','Kode Pegawai','Nama Pegawai','PIN','Tanggal','Datang','Pulang','Jumlah Scan'],null,'A1');
+        $sheet->fromArray(['PIN','Nama','Jabatan','Tanggal','Scan 1','Status','Scan 2','Jumlah Scan'], null, 'A1');
         $line = 2;
-        foreach ($rows as $i=>$row) {
-            $employee = $map[(string)$row['pin']] ?? [];
+        foreach ($rows as $row) {
+            $employee = $map[(string) $row['pin']] ?? [];
             $sheet->fromArray([
-                $i+1, $employee['employee_code'] ?? $row['pin'],
-                $employee['full_name'] ?? 'Belum dipetakan', $row['pin'],
-                $row['work_date'], substr($row['first_scan'],0,5),
-                (int)$row['scan_count'] > 1 ? substr($row['last_scan'],0,5) : '',
-                (int)$row['scan_count']
-            ],null,'A'.$line++);
+                $row['pin'], $employee['full_name'] ?? 'Belum dipetakan',
+                $employee['position'] ?? '', date('d-m-Y', strtotime($row['work_date'])),
+                substr($row['first_scan'], 0, 5), 'Belum dihitung',
+                (int) $row['scan_count'] > 1 ? substr($row['last_scan'], 0, 5) : '',
+                (int) $row['scan_count'],
+            ], null, 'A' . $line++);
         }
         $sheet->getStyle('A1:H1')->getFont()->setBold(true);
-        foreach (range('A','H') as $column) $sheet->getColumnDimension($column)->setAutoSize(true);
+        foreach (range('A', 'H') as $column) $sheet->getColumnDimension($column)->setAutoSize(true);
         $sheet->freezePane('A2');
-        $sheet->setAutoFilter('A1:H'.max(1,$line-1));
-        $dir = WRITEPATH . 'exports';
-        if (!is_dir($dir) && !mkdir($dir,0775,true) && !is_dir($dir)) {
-            throw new \RuntimeException('Folder ekspor SDIT tidak dapat dibuat.');
+        $sheet->setAutoFilter('A1:H' . max(1, $line - 1));
+        $path = WRITEPATH . 'exports/rekap-sdit-' . $startDate . '-sampai-' . $endDate . '.xlsx';
+        if (!is_dir(dirname($path)) && !mkdir(dirname($path), 0775, true) && !is_dir(dirname($path))) {
+            throw new \\RuntimeException('Folder ekspor SDIT tidak dapat dibuat.');
         }
-        $path = $dir . DIRECTORY_SEPARATOR . 'rekap-sdit-'.$month.'-'.date('YmdHis').'.xlsx';
-        (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet))->save($path);
-        $spreadsheet->disconnectWorksheets();
-        return $this->response->download($path,null)->setFileName('Rekap-Absensi-SDIT-'.$month.'.xlsx');
+        (new \\PhpOffice\\PhpSpreadsheet\\Writer\\Xlsx($book))->save($path);
+        $book->disconnectWorksheets();
+        return $this->response->download($path, null)->setFileName('Rekap-Absensi-SDIT-' . $startDate . '-' . $endDate . '.xlsx');
     }
 
     public function timeCheck()
