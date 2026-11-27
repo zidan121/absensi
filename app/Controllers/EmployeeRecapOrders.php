@@ -114,21 +114,22 @@ class EmployeeRecapOrders extends BaseController
             unset($employee);
         }
 
-        // Terapkan preset SMPIT tepat satu kali. Marker mencegah pengaturan manual
-        // pengguna tertimpa kembali pada kunjungan halaman berikutnya.
+        // Terapkan preset SMPIT versi 2 satu kali. Versi baru memperbaiki
+        // data urutan yang telanjur tersimpan oleh preset sebelumnya.
         if ($unit === 'SMPIT') {
             $marker = $db->table('employee_recap_orders')
                 ->where('unit_code', 'SMPIT')
                 ->where('employee_id', 0)
-                ->where('display_name', '__PRESET_SMPIT_V1__')
+                ->where('display_name', '__PRESET_SMPIT_V2__')
                 ->countAllResults() > 0;
 
             if (! $marker) {
                 $now = date('Y-m-d H:i:s');
+                $matchedIds = [];
                 foreach ($employees as $employee) {
                     if (! isset($employee['_default_rank'])) continue;
                     $id = (int) $employee['id'];
-                    $existing = $saved[$id] ?? null;
+                    $matchedIds[] = $id;
                     $row = [
                         'unit_code' => 'SMPIT',
                         'employee_id' => $id,
@@ -136,7 +137,7 @@ class EmployeeRecapOrders extends BaseController
                         'display_name' => $employee['_default_display_name'],
                         'updated_at' => $now,
                     ];
-                    if ($existing) {
+                    if (isset($saved[$id])) {
                         $db->table('employee_recap_orders')
                             ->where('unit_code', 'SMPIT')
                             ->where('employee_id', $id)
@@ -148,11 +149,37 @@ class EmployeeRecapOrders extends BaseController
                     $saved[$id] = $row;
                 }
 
+                // Pegawai SMPIT lain yang tidak ada dalam contoh diletakkan setelah
+                // 16 nama acuan, tetap diurutkan berdasarkan nama master.
+                $remaining = array_values(array_filter(
+                    $employees,
+                    static fn ($employee) => ! in_array((int) $employee['id'], $matchedIds, true)
+                ));
+                usort($remaining, static fn ($a, $b) => strcasecmp((string) $a['full_name'], (string) $b['full_name']));
+                $nextOrder = 17;
+                foreach ($remaining as $employee) {
+                    $id = (int) $employee['id'];
+                    $row = [
+                        'unit_code' => 'SMPIT',
+                        'employee_id' => $id,
+                        'sort_order' => $nextOrder++,
+                        'display_name' => $employee['full_name'],
+                        'updated_at' => $now,
+                    ];
+                    if (isset($saved[$id])) {
+                        $db->table('employee_recap_orders')->where('unit_code', 'SMPIT')->where('employee_id', $id)->update($row);
+                    } else {
+                        $row['created_at'] = $now;
+                        $db->table('employee_recap_orders')->insert($row);
+                    }
+                    $saved[$id] = $row;
+                }
+
                 $db->table('employee_recap_orders')->insert([
                     'unit_code' => 'SMPIT',
                     'employee_id' => 0,
                     'sort_order' => 0,
-                    'display_name' => '__PRESET_SMPIT_V1__',
+                    'display_name' => '__PRESET_SMPIT_V2__',
                     'created_at' => $now,
                     'updated_at' => $now,
                 ]);
