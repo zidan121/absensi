@@ -8,53 +8,53 @@ class CreateSditWorkRules extends Migration
 {
     public function up()
     {
-        $this->forge->addField([
-            'id'=>'BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY',
-            'schedule_name'=>['type'=>'VARCHAR','constraint'=>100,'default'=>'Jadwal SDIT'],
-            'day_of_week'=>['type'=>'TINYINT','constraint'=>1],
-            'start_time'=>['type'=>'TIME'],
-            'end_time'=>['type'=>'TIME'],
-            'late_after_minutes'=>['type'=>'SMALLINT','default'=>0],
-            'is_workday'=>['type'=>'TINYINT','constraint'=>1,'default'=>1],
-            'created_at'=>['type'=>'DATETIME','null'=>true],
-            'updated_at'=>['type'=>'DATETIME','null'=>true],
-        ]);
-        $this->forge->addUniqueKey(['schedule_name','day_of_week'],'uq_sdit_schedule_day');
-        $this->forge->createTable('sdit_work_schedules',true);
+        $this->db->query("CREATE TABLE IF NOT EXISTS sdit_work_schedules (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            schedule_name VARCHAR(100) NOT NULL DEFAULT 'Jadwal SDIT',
+            day_of_week TINYINT(1) NOT NULL,
+            start_time TIME NOT NULL,
+            end_time TIME NOT NULL,
+            late_after_minutes SMALLINT NOT NULL DEFAULT 0,
+            is_workday TINYINT(1) NOT NULL DEFAULT 1,
+            created_at DATETIME NULL,
+            updated_at DATETIME NULL,
+            PRIMARY KEY (id),
+            UNIQUE KEY uq_sdit_schedule_day (schedule_name, day_of_week)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
-        $this->forge->addField([
-            'id'=>'BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY',
-            'pin'=>['type'=>'VARCHAR','constraint'=>32],
-            'day_of_week'=>['type'=>'TINYINT','constraint'=>1],
-            'start_time'=>['type'=>'TIME'],
-            'end_time'=>['type'=>'TIME'],
-            'late_after_minutes'=>['type'=>'SMALLINT','default'=>0],
-            'effective_from'=>['type'=>'DATE','null'=>true],
-            'effective_until'=>['type'=>'DATE','null'=>true],
-            'is_workday'=>['type'=>'TINYINT','constraint'=>1,'default'=>1],
-            'created_at'=>['type'=>'DATETIME','null'=>true],
-            'updated_at'=>['type'=>'DATETIME','null'=>true],
-        ]);
-        $this->forge->addKey(['pin','day_of_week','effective_from'],'idx_sdit_employee_schedule');
-        $this->forge->createTable('sdit_employee_schedules',true);
+        $this->db->query("CREATE TABLE IF NOT EXISTS sdit_employee_schedules (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            pin VARCHAR(32) NOT NULL,
+            day_of_week TINYINT(1) NOT NULL,
+            start_time TIME NOT NULL,
+            end_time TIME NOT NULL,
+            late_after_minutes SMALLINT NOT NULL DEFAULT 0,
+            effective_from DATE NULL,
+            effective_until DATE NULL,
+            is_workday TINYINT(1) NOT NULL DEFAULT 1,
+            created_at DATETIME NULL,
+            updated_at DATETIME NULL,
+            PRIMARY KEY (id),
+            KEY idx_sdit_employee_schedule (pin, day_of_week, effective_from)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
-        $this->forge->addField([
-            'id'=>'BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY',
-            'work_date'=>['type'=>'DATE'],
-            'day_type'=>['type'=>'VARCHAR','constraint'=>30,'default'=>'holiday'],
-            'description'=>['type'=>'VARCHAR','constraint'=>255,'null'=>true],
-            'allow_afternoon_entry'=>['type'=>'TINYINT','constraint'=>1,'default'=>0],
-            'created_at'=>['type'=>'DATETIME','null'=>true],
-            'updated_at'=>['type'=>'DATETIME','null'=>true],
-        ]);
-        $this->forge->addUniqueKey('work_date','uq_sdit_calendar_date');
-        $this->forge->createTable('sdit_work_calendar',true);
+        $this->db->query("CREATE TABLE IF NOT EXISTS sdit_work_calendar (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            work_date DATE NOT NULL,
+            day_type VARCHAR(30) NOT NULL DEFAULT 'holiday',
+            description VARCHAR(255) NULL,
+            allow_afternoon_entry TINYINT(1) NOT NULL DEFAULT 0,
+            created_at DATETIME NULL,
+            updated_at DATETIME NULL,
+            PRIMARY KEY (id),
+            UNIQUE KEY uq_sdit_calendar_date (work_date)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     }
 
     public function down()
     {
-        $this->forge->dropTable('sdit_work_calendar',true);
-        $this->forge->dropTable('sdit_employee_schedules',true);
-        $this->forge->dropTable('sdit_work_schedules',true);
+        $this->forge->dropTable('sdit_work_calendar', true);
+        $this->forge->dropTable('sdit_employee_schedules', true);
+        $this->forge->dropTable('sdit_work_schedules', true);
     }
 }
