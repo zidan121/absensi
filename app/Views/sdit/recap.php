@@ -2,66 +2,84 @@
 <?= $this->section('content') ?>
 <?php
 $exportQuery = http_build_query(['start_date'=>$startDate,'end_date'=>$endDate]);
+$rows = [];
+$maxScans = 1;
+foreach ($employees as $employee) {
+    foreach ($employee['details'] as $detail) {
+        $maxScans = max($maxScans, count($detail['scans'] ?? []));
+        $rows[] = [
+            'fingerprint_pin'=>$employee['pin'],
+            'full_name'=>$employee['full_name'],
+            'position'=>$employee['position'] ?? '',
+            'date'=>$detail['work_date'],
+            'scans'=>$detail['scans'] ?? [],
+            'status'=>$detail['status'] ?? 'Jadwal Belum Diatur',
+        ];
+    }
+}
 ?>
-<div class="page-heading d-flex flex-wrap justify-content-between align-items-center gap-3">
-    <div><h1>Rekap Absensi SDIT</h1><p class="text-secondary mb-0">Rekap dihitung dari scan yang benar-benar tercatat pada mesin SDIT.</p></div>
-    <form method="get" class="d-flex flex-wrap align-items-center gap-2">
-        <input type="hidden" name="show" value="1">
-        <input type="date" name="start_date" class="form-control" value="<?= esc($startDate) ?>" required>
-        <span class="text-secondary">s.d.</span>
-        <input type="date" name="end_date" class="form-control" value="<?= esc($endDate) ?>" min="<?= esc($startDate) ?>" required>
-        <button class="btn btn-primary">Tampilkan</button>
-        <?php if ($hasSearched): ?>
-            <a class="btn btn-success" href="/sdit/rekap/export?<?= esc($exportQuery) ?>">Excel Detail</a>
-            <a class="btn btn-outline-success" href="/sdit/rekap/export-rekap-pegawai?<?= esc($exportQuery) ?>">Format REKAB</a>
-        <?php endif ?>
-    </form>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div><h2 class="mb-1">Rekap Absensi</h2><p class="text-secondary mb-0">Rekap berdasarkan identitas mesin fingerprint + PIN khusus SDIT.</p></div>
 </div>
-<?php if (!$hasSearched): ?>
-<div class="alert alert-info mt-3">Pilih tanggal mulai dan tanggal selesai, lalu klik <strong>Tampilkan</strong> untuk memuat rekap SDIT.</div>
-<?php else: ?>
-<div class="row g-3 mb-4">
-    <div class="col-md-4"><div class="card"><div class="card-body"><div class="small text-secondary">Pegawai dengan scan</div><div class="fs-3 fw-bold"><?= number_format($summary['employees_with_scans']) ?></div></div></div></div>
-    <div class="col-md-4"><div class="card"><div class="card-body"><div class="small text-secondary">Hari kehadiran tercatat</div><div class="fs-3 fw-bold"><?= number_format($summary['attendance_days']) ?></div><div class="small text-secondary">Terlambat: <?= number_format($summary['late_days']) ?> hari · Satu scan: <?= number_format($summary['one_scan_days']) ?></div></div></div></div>
-    <div class="col-md-4"><div class="card"><div class="card-body"><div class="small text-secondary">Total scan valid</div><div class="fs-3 fw-bold"><?= number_format($summary['total_scans']) ?></div></div></div></div>
-</div>
-<div class="alert alert-info">Aturan rekap: tanggal tanpa scan tidak ditampilkan dan tidak dihitung alpa. Scan pertama menjadi waktu datang, scan terakhir menjadi waktu pulang. Jika hanya satu scan, waktu pulang tetap kosong. Status terlambat dihitung dari jadwal SDIT; jika jadwal belum diatur, status ditampilkan sebagai <strong>Jadwal Belum Diatur</strong>. Scan pada hari libur tetap tersimpan sebagai riwayat.</div>
-<?php if (!$employees): ?><div class="card"><div class="card-body text-center text-secondary py-5">Belum ada scan pada periode <?= esc(date('d-m-Y',strtotime($startDate))) ?> s.d. <?= esc(date('d-m-Y',strtotime($endDate))) ?>.</div></div><?php endif ?>
-<?php foreach ($employees as $employee): ?>
-<div class="card mb-3">
-    <div class="card-header d-flex flex-wrap justify-content-between gap-2">
-        <div><strong><?= esc($employee['employee_code']) ?> · <?= esc($employee['full_name']) ?></strong><div class="small text-secondary">PIN <?= esc($employee['pin']) ?><?= $employee['position'] ? ' · '.esc($employee['position']) : '' ?></div></div>
-        <div class="text-end"><strong><?= number_format($employee['days']) ?> hari</strong><div class="small text-secondary"><?= number_format($employee['total_scans']) ?> scan</div></div>
+<form class="card p-3 mb-3" method="get" action="/sdit/rekap">
+    <input type="hidden" name="show" value="1">
+    <div class="row g-2 align-items-end">
+        <div class="col-sm-3"><label class="form-label">Tanggal Mulai</label><input class="form-control" type="date" name="start_date" value="<?= esc($startDate) ?>" required></div>
+        <div class="col-sm-3"><label class="form-label">Tanggal Selesai</label><input class="form-control" type="date" name="end_date" value="<?= esc($endDate) ?>" min="<?= esc($startDate) ?>" required></div>
+        <div class="col-sm-3">
+            <label class="form-label">Unit</label>
+            <div class="dropdown w-100">
+                <button class="form-select text-start d-flex justify-content-between align-items-center" type="button" data-bs-toggle="dropdown" aria-expanded="false"><span>SDIT</span></button>
+                <div class="dropdown-menu p-3 w-100 shadow" style="min-width:240px">
+                    <strong class="small">Unit yang direkap</strong>
+                    <label class="form-check mt-2 mb-0"><input class="form-check-input" type="checkbox" checked disabled><span class="form-check-label">SDIT</span></label>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-3 d-flex flex-wrap gap-2">
+            <button class="btn btn-primary" type="submit">Tampilkan</button>
+            <?php if ($hasSearched): ?>
+                <a class="btn btn-success" href="/sdit/rekap/export?<?= esc($exportQuery) ?>">Ekspor Detail</a>
+                <a class="btn btn-outline-success" href="/sdit/rekap/export-rekap-pegawai?<?= esc($exportQuery) ?>">Ekspor Format REKAB</a>
+            <?php endif ?>
+        </div>
     </div>
-    <div class="table-responsive"><table class="table table-sm table-hover mb-0">
-        <thead><tr><th style="width:50px">No.</th><th>Tanggal</th><th>Scan pertama / Datang</th><th>Scan terakhir / Pulang</th><th>Jumlah scan</th><th>Status</th><?php for($i=3;$i<=$maxScans;$i++): ?><th>Scan <?= $i ?></th><?php endfor ?></tr></thead>
+</form>
+<?php if (!$hasSearched): ?>
+<div class="alert alert-info mt-3"><strong>Rekap belum ditampilkan.</strong> Pilih tanggal, lalu klik tombol <strong>Tampilkan</strong> untuk memuat data absensi SDIT.</div>
+<?php else: ?>
+<div class="alert alert-secondary py-2">Periode rekap: <strong><?= esc(date('d-m-Y',strtotime($startDate))) ?></strong> sampai <strong><?= esc(date('d-m-Y',strtotime($endDate))) ?></strong> (termasuk kedua tanggal).</div>
+<div class="row g-3 mb-3">
+    <div class="col-md-3"><div class="card p-3"><div class="text-secondary small">Hari kehadiran</div><div class="fs-3 fw-bold"><?= (int)$summary['attendance_days'] ?></div></div></div>
+    <div class="col-md-3"><div class="card p-3"><div class="text-secondary small">Hari terlambat</div><div class="fs-3 fw-bold"><?= (int)$summary['late_days'] ?></div></div></div>
+    <div class="col-md-3"><div class="card p-3"><div class="text-secondary small">Hanya satu scan</div><div class="fs-3 fw-bold"><?= (int)$summary['one_scan_days'] ?></div></div></div>
+    <div class="col-md-3"><div class="card p-3"><div class="text-secondary small">Identitas belum cocok</div><div class="fs-3 fw-bold <?= $summary['unmatched_identities'] ? 'text-danger' : 'text-success' ?>"><?= (int)$summary['unmatched_identities'] ?></div></div></div>
+</div>
+<div class="alert alert-info small">Setiap baris mewakili satu pegawai pada satu tanggal. Scan ditampilkan berurutan dari yang paling awal. Timestamp duplikat pada waktu yang sama dihitung satu kali; jumlah kolom scan menyesuaikan scan terbanyak dalam hasil filter.</div>
+<div class="card p-3">
+    <div class="d-flex justify-content-between align-items-center mb-3"><h5 class="mb-0">Detail kehadiran</h5><span class="badge text-bg-light"><?= count($rows) ?> baris</span></div>
+    <div class="table-responsive" style="max-height:520px;overflow:auto"><table class="table table-sm table-bordered table-hover align-middle">
+        <thead class="table-light"><tr><th>PIN</th><th>Nama</th><th>Jabatan</th><th>Tanggal</th>
+            <?php for($i=1;$i<=$maxScans;$i++): ?><th>Scan <?= $i ?></th><?php if($i===1): ?><th>Status</th><?php endif ?><?php endfor ?>
+        </tr></thead>
         <tbody>
-        <?php foreach ($employee['details'] as $i=>$day): ?>
-        <tr>
-            <td><?= $i+1 ?></td><td><?= esc(date('d-m-Y',strtotime($day['work_date']))) ?></td>
-            <td><?= esc(substr($day['first_scan'],0,5)) ?></td>
-            <td><?= $day['last_scan'] ? esc(substr($day['last_scan'],0,5)) : '<span class="text-secondary">—</span>' ?></td>
-            <td><?= number_format($day['scan_count']) ?></td>
-            <td><?php if($day['status']==='Terlambat'): ?><span class="text-danger fw-semibold">Terlambat</span><?php elseif($day['status']==='Tepat Waktu'): ?><span class="text-success">Tepat Waktu</span><?php else: ?><?= esc($day['status']) ?><?php endif ?></td>
-            <?php for($j=2;$j<$maxScans;$j++): ?><td><?= isset($day['scans'][$j]) ? esc(substr($day['scans'][$j],0,5)) : '—' ?></td><?php endfor ?>
-        </tr>
-        <?php endforeach ?>
+        <?php foreach($rows as $r): ?><tr>
+            <td><?= esc($r['fingerprint_pin']) ?></td><td><?= esc($r['full_name']) ?></td><td><?= esc($r['position'] ?: '-') ?></td><td><?= esc(date('d-m-Y',strtotime($r['date']))) ?></td>
+            <?php foreach($r['scans'] as $i=>$scan): ?><td><?= esc(substr($scan,0,5)) ?></td><?php if($i===0): ?><td><?= esc($r['status']) ?></td><?php endif ?><?php endforeach ?>
+            <?php if(count($r['scans'])<$maxScans): ?>
+                <?php for($i=count($r['scans']);$i<$maxScans;$i++): ?><td>-</td><?php if($i===0): ?><td><?= esc($r['status']) ?></td><?php endif ?><?php endfor ?>
+            <?php endif ?>
+        </tr><?php endforeach ?>
+        <?php if(!$rows): ?><tr><td colspan="<?= 5+$maxScans ?>" class="text-center text-secondary py-4">Belum ada scan yang cocok untuk periode ini.</td></tr><?php endif ?>
         </tbody>
     </table></div>
 </div>
-<?php endforeach ?>
-<?php if ($unmatched): ?>
-<div class="card mb-3">
-    <div class="card-header"><strong class="text-danger">Detail PIN belum dipetakan</strong></div>
-    <div class="table-responsive"><table class="table table-sm table-hover mb-0">
-        <thead><tr><th>PIN</th><th>Jumlah scan</th><th>Scan pertama</th><th>Scan terakhir</th></tr></thead>
-        <tbody><?php foreach($unmatched as $item): ?><tr>
-            <td><?= esc($item['pin']) ?></td><td><?= (int)$item['scan_count'] ?></td>
-            <td><?= esc(date('d-m-Y H:i:s',strtotime($item['first_scan']))) ?></td>
-            <td><?= esc(date('d-m-Y H:i:s',strtotime($item['last_scan']))) ?></td>
-        </tr><?php endforeach ?></tbody>
-    </table></div>
-    <div class="card-body small text-secondary">Periksa pemetaan PIN sebelum menambahkan pegawai baru.</div>
+<?php if($unmatched): ?>
+<div class="card p-3 mt-3">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3"><div><h5 class="mb-1 text-danger">Detail identitas belum cocok</h5><p class="text-secondary small mb-0">PIN berikut memiliki scan pada periode terpilih, tetapi belum terpasang ke master pegawai SDIT.</p></div><span class="badge text-bg-danger"><?= count($unmatched) ?> identitas</span></div>
+    <div class="table-responsive"><table class="table table-sm table-bordered table-hover align-middle"><thead class="table-light"><tr><th>Perangkat</th><th>Kode perangkat</th><th>PIN</th><th>Jumlah scan</th><th>Scan pertama</th><th>Scan terakhir</th></tr></thead>
+    <tbody><?php foreach($unmatched as $identity): ?><tr><td>Mesin Fingerprint SDIT</td><td>FS2010195000514</td><td><strong><?= esc($identity['pin']) ?></strong></td><td><?= (int)$identity['scan_count'] ?></td><td><?= esc(date('d-m-Y H:i:s',strtotime($identity['first_scan']))) ?></td><td><?= esc(date('d-m-Y H:i:s',strtotime($identity['last_scan']))) ?></td></tr><?php endforeach ?></tbody></table></div>
+    <div class="alert alert-warning small mt-3 mb-0">Periksa pemetaan PIN sebelum menambahkan pegawai baru.</div>
 </div>
 <?php endif ?>
 <?php endif ?>
