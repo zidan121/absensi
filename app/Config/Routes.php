@@ -105,5 +105,10 @@ $routes->group('sdit', ['filter' => 'auth'], static function ($routes) {
     $routes->get('rekap/export-rekap-pegawai', 'Sdit::exportEmployeeSummary');
     $routes->get('pemeriksaan-waktu', 'Sdit::timeCheck');
     $routes->get('pemetaan-pin', 'Sdit::pinMapping');
+    $routes->get('jadwal', 'Sdit::schedules');
+    $routes->post('jadwal/simpan', 'Sdit::saveSchedules');
+    $routes->get('kalender', 'Sdit::calendar');
+    $routes->post('kalender/simpan', 'Sdit::saveCalendar');
+    $routes->post('kalender/hapus/(:num)', 'Sdit::deleteCalendar/$1');
 });
 $routes->get('health', static fn () => service('response')->setJSON(['app' => 'NEURO ABSENSI', 'status' => 'ok']));
