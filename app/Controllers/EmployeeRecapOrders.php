@@ -114,6 +114,43 @@ class EmployeeRecapOrders extends BaseController
             unset($employee);
         }
 
+        // Terapkan preset SMPIT satu kali ke data tersimpan yang masih memakai nama master.
+        // Setelah preset tersimpan, pengguna bebas mengubah urutan/nama melalui halaman ini.
+        if ($unit === 'SMPIT') {
+            $needsPreset = false;
+            foreach ($employees as $employee) {
+                $savedRow = $saved[(int) $employee['id']] ?? null;
+                if (isset($employee['_default_rank'])
+                    && ($savedRow === null || ($savedRow['display_name'] ?? '') === $employee['full_name'])) {
+                    $needsPreset = true;
+                    break;
+                }
+            }
+            if ($needsPreset) {
+                $now = date('Y-m-d H:i:s');
+                foreach ($employees as $employee) {
+                    if (! isset($employee['_default_rank'])) continue;
+                    $id = (int) $employee['id'];
+                    $existing = $saved[$id] ?? null;
+                    $displayName = $employee['_default_display_name'];
+                    $row = [
+                        'unit_code' => 'SMPIT',
+                        'employee_id' => $id,
+                        'sort_order' => (int) $employee['_default_rank'],
+                        'display_name' => $displayName,
+                        'updated_at' => $now,
+                    ];
+                    if ($existing) {
+                        $db->table('employee_recap_orders')->where('unit_code', 'SMPIT')->where('employee_id', $id)->update($row);
+                    } else {
+                        $row['created_at'] = $now;
+                        $db->table('employee_recap_orders')->insert($row);
+                    }
+                    $saved[$id] = $row;
+                }
+            }
+        }
+
         usort($employees, static function ($a, $b) use ($saved, $positionRank) {
             $idA = (int) $a['id'];
             $idB = (int) $b['id'];
