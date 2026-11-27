@@ -602,6 +602,62 @@ class Sdit extends BaseController
         }
     }
 
+    public function employeeSchedules()
+    {
+        $db = db_connect();
+        $employees = $db->table('sdit_employees')->where('is_active', 1)->orderBy('employee_code', 'ASC')->get()->getResultArray();
+        $rows = $db->table('sdit_employee_schedules')
+            ->select('sdit_employee_schedules.*, sdit_employees.full_name, sdit_employees.employee_code')
+            ->join('sdit_employees', 'sdit_employees.pin = sdit_employee_schedules.pin', 'left')
+            ->orderBy('sdit_employees.employee_code', 'ASC')
+            ->orderBy('sdit_employee_schedules.effective_from', 'DESC')
+            ->orderBy('sdit_employee_schedules.day_of_week', 'ASC')
+            ->get()->getResultArray();
+        return view('sdit/employee_schedules', [
+            'title' => 'Jadwal Khusus Pegawai SDIT',
+            'employees' => $employees,
+            'rows' => $rows,
+            'days' => [1=>'Senin',2=>'Selasa',3=>'Rabu',4=>'Kamis',5=>'Jumat',6=>'Sabtu',7=>'Minggu'],
+        ]);
+    }
+
+    public function saveEmployeeSchedule()
+    {
+        $pin = trim((string)$this->request->getPost('pin'));
+        $day = (int)$this->request->getPost('day_of_week');
+        $start = (string)$this->request->getPost('start_time');
+        $end = (string)$this->request->getPost('end_time');
+        $from = trim((string)$this->request->getPost('effective_from'));
+        $until = trim((string)$this->request->getPost('effective_until'));
+        $db = db_connect();
+        $employee = $db->table('sdit_employees')->where('pin', $pin)->get()->getRowArray();
+        if (!$employee || $day < 1 || $day > 7
+            || !preg_match('/^([01]\\d|2[0-3]):[0-5]\\d$/', $start)
+            || !preg_match('/^([01]\\d|2[0-3]):[0-5]\\d$/', $end)
+            || ($from !== '' && !preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $from))
+            || ($until !== '' && !preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $until))
+            || ($from !== '' && $until !== '' && $until < $from)) {
+            return redirect()->to('/sdit/jadwal-pegawai')->with('error', 'Data jadwal khusus tidak valid.');
+        }
+        $payload = [
+            'pin'=>$pin,'day_of_week'=>$day,'start_time'=>$start.':00','end_time'=>$end.':00',
+            'late_after_minutes'=>max(0,(int)$this->request->getPost('late_after_minutes')),
+            'effective_from'=>$from !== '' ? $from : null,
+            'effective_until'=>$until !== '' ? $until : null,
+            'is_workday'=>$this->request->getPost('is_workday') ? 1 : 0,
+            'updated_at'=>date('Y-m-d H:i:s'),
+        ];
+        $payload['created_at']=date('Y-m-d H:i:s');
+        $db->table('sdit_employee_schedules')->insert($payload);
+        return redirect()->to('/sdit/jadwal-pegawai')->with('success', 'Jadwal khusus pegawai SDIT berhasil ditambahkan.');
+    }
+
+    public function deleteEmployeeSchedule(int $id)
+    {
+        db_connect()->table('sdit_employee_schedules')->where('id', $id)->delete();
+        return redirect()->to('/sdit/jadwal-pegawai')->with('success', 'Jadwal khusus pegawai SDIT dihapus.');
+    }
+
     public function calendar()
     {
         $month = (string)$this->request->getGet('bulan');
