@@ -193,6 +193,144 @@ class Sdit extends BaseController
         }
     }
 
+    public function previewSqlEmployees()
+    {
+        return $this->previewSql('employees');
+    }
+
+    public function previewSqlLogs()
+    {
+        return $this->previewSql('logs');
+    }
+
+    private function previewSql(string $kind)
+    {
+        $file = $this->request->getFile('sql_file');
+        if (!$file || !$file->isValid() || strtolower($file->getExtension()) !== 'sql') {
+            return redirect()->back()->with('error', 'Pilih file backup SQL yang valid.');
+        }
+        try {
+            $raw = file_get_contents($file->getTempName());
+            if ($raw === false) throw new \RuntimeException('File SQL tidak dapat dibaca.');
+            $parser = new \App\Services\SditSqlBackupParser();
+            $parsed = $kind === 'employees' ? $parser->parseEmployees($raw) : $parser->parseLogs($raw);
+            $dir = WRITEPATH . 'uploads/sdit';
+            if (!is_dir($dir) && !mkdir($dir, 0775, true) && !is_dir($dir)) throw new \RuntimeException('Folder sementara SDIT gagal dibuat.');
+            $staged = bin2hex(random_bytes(16)) . '.sql';
+            if (file_put_contents($dir . DIRECTORY_SEPARATOR . $staged, $raw, LOCK_EX) === false) throw new \RuntimeException('File gagal disimpan sementara.');
+            $key = $kind === 'employees' ? 'sdit_sql_preview' : 'sdit_sql_logs_preview';
+            session()->set($key, [
+                'original_name'=>$file->getClientName(), 'sha256'=>hash('sha256',$raw),
+                'size'=>strlen($raw), 'staged_name'=>$staged, 'parsed'=>$parsed
+            ]);
+            return view($kind === 'employees' ? 'sdit/sql_preview' : 'sdit/sql_logs_preview', [
+                'title'=>$kind === 'employees' ? 'Pratinjau Master Pegawai SDIT' : 'Pratinjau Riwayat Scan SDIT',
+                'preview'=>$parsed, 'originalName'=>$file->getClientName(), 'fileSize'=>strlen($raw)
+            ]);
+        } catch (\Throwable $e) {
+            log_message('error', 'SDIT SQL preview failed: '.$e->getMessage());
+            return redirect()->to('/sdit/impor')->with('error', 'Backup SQL gagal dibaca: '.$e->getMessage());
+        }
+    }
+
+    public function processSqlEmployees()
+    {
+        return $this->processSql('employees');
+    }
+
+    public function processSqlLogs()
+    {
+        return $this->processSql('logs');
+    }
+
+    private function processSql(string $kind)
+    {
+        $key = $kind === 'employees' ? 'sdit_sql_preview' : 'sdit_sql_logs_preview';
+        $saved = session()->get($key);
+        if (!$saved || empty($saved['staged_name'])) return redirect()->to('/sdit/impor')->with('error', 'Pratinjau SQL tidak ditemukan. Unggah ulang file.');
+        $path = WRITEPATH . 'uploads/sdit/' . basename($saved['staged_name']);
+        if (!is_file($path)) return redirect()->to('/sdit/impor')->with('error', 'File sementara tidak ditemukan. Unggah ulang.');
+        $db = db_connect();
+        $format = $kind === 'employees' ? 'SQL_EMP' : 'SQL_LOG';
+        if ($db->table('sdit_import_batches')->where('file_sha256',$saved['sha256'])->where('source_format',$format)->countAllResults() > 0) {
+            return redirect()->to('/sdit/impor')->with('error', 'File backup ini sudah pernah diimpor.');
+        }
+        try {
+            $raw = file_get_contents($path);
+            if ($raw === false) throw new \RuntimeException('File SQL gagal dibaca ulang.');
+            $parser = new \App\Services\SditSqlBackupParser();
+            $parsed = $kind === 'employees' ? $parser->parseEmployees($raw) : $parser->parseLogs($raw);
+            $db->transBegin();
+            $now = date('Y-m-d H:i:s');
+            $validCount = $kind === 'employees' ? count($parsed['records']) : count($parsed['records']);
+            $invalidCount = $kind === 'employees' ? $parsed['invalid'] : count($parsed['invalid_records']);
+            $db->table('sdit_import_batches')->insert([
+                'source_format'=>$format, 'original_filename'=>mb_substr($saved['original_name'],0,255),
+                'file_sha256'=>$saved['sha256'], 'total_rows'=>$parsed['total'],
+                'valid_rows'=>$validCount, 'invalid_rows'=>$invalidCount,
+                'duplicate_rows'=>0, 'status'=>'processing', 'created_at'=>$now
+            ]);
+            $batch = (int)$db->insertID();
+            $duplicates = 0;
+            if ($kind === 'employees') {
+                $seen = [];
+                foreach ($parsed['records'] as $employee) {
+                    $pin = trim((string)$employee['fingerprint_pin']);
+                    if (isset($seen[$pin])) { $duplicates++; continue; }
+                    $seen[$pin] = true;
+                    $row = [
+                        'source_employee_id'=>$employee['source_employee_id'] ?: null,
+                        'pin'=>$pin, 'employee_code'=>$employee['employee_code'] ?: $pin,
+                        'full_name'=>$employee['full_name'], 'position'=>null,
+                        'phone'=>$employee['phone'], 'division_1'=>$employee['source_division_1'] ?: null,
+                        'division_2'=>$employee['source_division_2'] ?: null, 'division_3'=>$employee['source_division_3'] ?: null,
+                        'employment_start'=>$employee['employment_start'], 'employment_end'=>$employee['employment_end'],
+                        'is_active'=>$employee['is_active'], 'created_at'=>$now, 'updated_at'=>$now
+                    ];
+                    $exists = $db->table('sdit_employees')->where('pin',$pin)->countAllResults() > 0;
+                    if ($exists) $db->table('sdit_employees')->where('pin',$pin)->update($row);
+                    else $db->table('sdit_employees')->insert($row);
+                }
+            } else {
+                $seen = [];
+                foreach ($parsed['records'] as $record) {
+                    $identity = $record['machine_serial'].'|'.$record['pin'].'|'.$record['scanned_at'];
+                    if (isset($seen[$identity])) { $duplicates++; continue; }
+                    $seen[$identity] = true;
+                    $exists = $db->table('sdit_attendance_logs')->where('machine_serial',$record['machine_serial'])->where('pin',$record['pin'])->where('scanned_at',$record['scanned_at'])->countAllResults() > 0;
+                    if ($exists) { $duplicates++; continue; }
+                    $db->table('sdit_attendance_logs')->insert([
+                        'import_batch_id'=>$batch, 'machine_serial'=>$record['machine_serial'],
+                        'pin'=>$record['pin'], 'scanned_at'=>$record['scanned_at'],
+                        'verify_mode'=>$record['verify_mode'], 'inout_mode'=>$record['inout_mode'],
+                        'source_format'=>'SQL', 'source_row'=>$record['source_row'], 'created_at'=>$now
+                    ]);
+                }
+                foreach ($parsed['invalid_records'] as $record) {
+                    $db->table('sdit_invalid_scans')->insert([
+                        'import_batch_id'=>$batch, 'machine_serial'=>self::MACHINE_SERIAL,
+                        'pin'=>$record['pin'], 'original_scanned_at'=>$record['original_scanned_at'],
+                        'reason'=>'Waktu SQL Tidak Valid', 'source_format'=>'SQL',
+                        'source_row'=>$record['source_row'], 'created_at'=>$now
+                    ]);
+                }
+            }
+            $db->table('sdit_import_batches')->where('id',$batch)->update([
+                'valid_rows'=>$validCount-$duplicates, 'duplicate_rows'=>$duplicates, 'status'=>'completed'
+            ]);
+            if ($db->transStatus() === false) throw new \RuntimeException('Database menolak sebagian data impor.');
+            $db->transCommit();
+            @unlink($path);
+            session()->remove($key);
+            return redirect()->to($kind === 'employees' ? '/sdit/pemetaan-pin' : '/sdit/scan')
+                ->with('success', $kind === 'employees' ? 'Master pegawai SDIT berhasil diimpor.' : 'Riwayat scan SDIT berhasil diimpor.');
+        } catch (\Throwable $e) {
+            $db->transRollback();
+            log_message('error','SDIT SQL import failed: '.$e->getMessage());
+            return redirect()->to('/sdit/impor')->with('error','Impor SQL gagal: '.$e->getMessage());
+        }
+    }
+
     public function scans()
     {
         $db = db_connect();
