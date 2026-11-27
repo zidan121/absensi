@@ -539,7 +539,7 @@ class Sdit extends BaseController
             ->where('work_date >=', $startDate)->where('work_date <=', $endDate)->get()->getResultArray();
         $calendarMap = [];
         foreach ($calendarRows as $item) $calendarMap[$item['work_date']] = $item;
-        $weeklyRows = $db->table('sdit_work_schedules')->get()->getResultArray();
+        $weeklyRows = $db->table('sdit_work_schedules')->where('schedule_name', 'Jadwal SDIT')->get()->getResultArray();
         $weeklyMap = [];
         foreach ($weeklyRows as $item) $weeklyMap[(int) $item['day_of_week']] = $item;
         $individualRows = $db->table('sdit_employee_schedules')->get()->getResultArray();
