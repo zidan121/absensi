@@ -1,6 +1,6 @@
 <?php
 
-namespace App\\Services;
+namespace App\Services;
 
 use DateTime;
 
@@ -95,7 +95,7 @@ class SditSqlBackupParser
                 if ($quote !== null) {
                     $tuple.=$ch;
                     if ($escaped) $escaped=false;
-                    elseif ($ch==='\\\\') $escaped=true;
+                    elseif ($ch==='\\') $escaped=true;
                     elseif ($ch===$quote) {
                         if (($sql[$i+1] ?? '')===$quote) $tuple.=$sql[++$i];
                         else $quote=null;
