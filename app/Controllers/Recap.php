@@ -230,13 +230,19 @@ class Recap extends BaseController
             'fathienahas' => 'FathienahAS SPd',
             'fathienah as' => 'FathienahAS SPd',
             'zainul arifin' => 'Zainul Arifin',
+            'zainal a' => 'Zainul Arifin',
             'mujiono' => 'Mujiono',
+            'mujion' => 'Mujiono',
             "imam safi'i" => "Imam Safi'i",
             'imam safi' => "Imam Safi'i",
+            'imam safii' => "Imam Safi'i",
             'nunung megawati' => 'Nunung Megawati',
             'm solikin' => 'M solikin',
+            'm soliki' => 'M solikin',
             'nur indah nila khoiriyah' => 'Nur Indah Nila Khoiriyah',
+            'bu indah' => 'Nur Indah Nila Khoiriyah',
             'laila yurin nabila' => 'Laila Yurin Nabila',
+            'laela' => 'Laila Yurin Nabila',
         ];
         $defaultRaitOrder = [
             'tri m spd' => 1, 'yuni w a' => 2, 'fitri dwi a' => 3,
@@ -251,10 +257,10 @@ class Recap extends BaseController
             'fitri anggraeni' => 1, 'ruchayati r sd' => 2, 'ahmad tukul' => 3,
             'ari wahono' => 4, 'endang r' => 5, 'eko s shum' => 6,
             'tri widagdo' => 7, 'nita l' => 8, 'fathienahas' => 9,
-            'fathienah as' => 9, 'zainul arifin' => 10, 'mujiono' => 11,
-            "imam safi'i" => 12, 'imam safi' => 12, 'nunung megawati' => 13,
-            'm solikin' => 14, 'nur indah nila khoiriyah' => 15,
-            'laila yurin nabila' => 16,
+            'fathienah as' => 9, 'zainul arifin' => 10, 'zainal a' => 10, 'mujiono' => 11, 'mujion' => 11,
+            "imam safi'i" => 12, 'imam safi' => 12, 'imam safii' => 12, 'nunung megawati' => 13,
+            'm solikin' => 14, 'm soliki' => 14, 'nur indah nila khoiriyah' => 15, 'bu indah' => 15,
+            'laila yurin nabila' => 16, 'laela' => 16,
         ];
         $unitRank = [];
         foreach ($units as $index => $unitCode) {
