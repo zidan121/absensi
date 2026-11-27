@@ -606,13 +606,28 @@ class Sdit extends BaseController
     {
         $db = db_connect();
         $employees = $db->table('sdit_employees')->where('is_active', 1)->orderBy('employee_code', 'ASC')->get()->getResultArray();
-        $rows = $db->table('sdit_employee_schedules')
-            ->select('sdit_employee_schedules.*, sdit_employees.full_name, sdit_employees.employee_code')
-            ->join('sdit_employees', 'sdit_employees.pin COLLATE utf8mb4_unicode_ci = sdit_employee_schedules.pin COLLATE utf8mb4_unicode_ci', 'left')
-            ->orderBy('sdit_employees.employee_code', 'ASC')
-            ->orderBy('sdit_employee_schedules.effective_from', 'DESC')
-            ->orderBy('sdit_employee_schedules.day_of_week', 'ASC')
+        $employeeMap = [];
+        foreach ($employees as $employee) {
+            $employeeMap[(string) $employee['pin']] = $employee;
+        }
+
+        // Avoid SQL JOIN on PIN because legacy tables may use different collations.
+        $scheduleRows = $db->table('sdit_employee_schedules')
+            ->orderBy('effective_from', 'DESC')
+            ->orderBy('day_of_week', 'ASC')
             ->get()->getResultArray();
+        $rows = [];
+        foreach ($scheduleRows as $schedule) {
+            $employee = $employeeMap[(string) $schedule['pin']] ?? [];
+            $schedule['full_name'] = $employee['full_name'] ?? null;
+            $schedule['employee_code'] = $employee['employee_code'] ?? null;
+            $rows[] = $schedule;
+        }
+        usort($rows, static function ($a, $b) {
+            $codeCompare = strnatcasecmp((string) ($a['employee_code'] ?? $a['pin']), (string) ($b['employee_code'] ?? $b['pin']));
+            return $codeCompare !== 0 ? $codeCompare : ((int) $a['day_of_week'] <=> (int) $b['day_of_week']);
+        });
+
         return view('sdit/employee_schedules', [
             'title' => 'Jadwal Khusus Pegawai SDIT',
             'employees' => $employees,
