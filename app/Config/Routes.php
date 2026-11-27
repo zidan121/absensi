@@ -106,6 +106,9 @@ $routes->group('sdit', ['filter' => 'auth'], static function ($routes) {
     $routes->get('pemeriksaan-waktu', 'Sdit::timeCheck');
     $routes->get('pemetaan-pin', 'Sdit::pinMapping');
     $routes->get('jadwal', 'Sdit::schedules');
+    $routes->get('jadwal-pegawai', 'Sdit::employeeSchedules');
+    $routes->post('jadwal-pegawai/simpan', 'Sdit::saveEmployeeSchedule');
+    $routes->post('jadwal-pegawai/hapus/(:num)', 'Sdit::deleteEmployeeSchedule/$1');
     $routes->post('jadwal/simpan', 'Sdit::saveSchedules');
     $routes->get('kalender', 'Sdit::calendar');
     $routes->post('kalender/simpan', 'Sdit::saveCalendar');
