@@ -547,7 +547,7 @@ class Sdit extends BaseController
 
         $resolveStatus = static function (string $pin, string $date, array $scans) use ($calendarMap, $weeklyMap, $individualMap): array {
             $calendar = $calendarMap[$date] ?? null;
-            $weekday = (int)(new \\DateTimeImmutable($date))->format('N');
+            $weekday = (int)(new \DateTimeImmutable($date))->format('N');
             $rule = null;
             foreach ($individualMap[$pin][$weekday] ?? [] as $candidate) {
                 $from = $candidate['effective_from'] ?: '0001-01-01';
