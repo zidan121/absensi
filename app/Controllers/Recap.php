@@ -385,7 +385,2056 @@ class Recap extends BaseController
                 $employee['full_name'],
                 $employee['position'] ?? '',
             ], null, 'A' . $summaryRow);
-            $summary->setCellValue('E' . $summaryRow, '=COUNTIFS(DATA!$I$3:$I
+            $summary->setCellValue('E' . $summaryRow, '=COUNTIFS(DATA!$I$3:$I            $summary->setCellValue('F' . $summaryRow, '=COUNTIFS(DATA!$I$3:$I$' . max(3, count($data['rows']) + 2) . ',$H' . $summaryRow . ',DATA!$F$3:$F$' . max(3, count($data['rows']) + 2) . ',"Terlambat")');
+            $summary->setCellValue('G' . $summaryRow, '=E' . $summaryRow . '-F' . $summaryRow);
+            $summary->setCellValue('H' . $summaryRow, $employeeId);
+            $summaryRow++;
+        }
+        $summaryLastRow = max(3, $summaryRow - 1);
+        $summary->getColumnDimension('H')->setVisible(false);
+        $summary->getStyle('A1:G' . $summaryLastRow)->getFont()->setName('Arial')->setSize(8);
+        $summary->getStyle('A1:G3')->getFont()->setBold(true);
+        $summary->getStyle('A1:G2')->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+        $summary->getStyle('A3:G' . $summaryLastRow)->getBorders()->getAllBorders()
+            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $summary->getStyle('A3:G' . $summaryLastRow)->getAlignment()
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+        $summary->getStyle('A4:A' . $summaryLastRow)->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        $summary->getStyle('E4:G' . $summaryLastRow)->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        foreach (['A' => 6, 'B' => 27, 'C' => 25, 'D' => 18, 'E' => 13, 'F' => 13, 'G' => 15] as $column => $width) {
+            $summary->getColumnDimension($column)->setWidth($width);
+        }
+        $summary->getRowDimension(1)->setRowHeight(15);
+        $summary->getRowDimension(2)->setRowHeight(15);
+        $summary->getRowDimension(3)->setRowHeight(15);
+        // Aktifkan filter dan sortir Excel untuk seluruh kolom rekap.
+        // Header tabel berada di baris 3, data pegawai dimulai dari baris 4.
+        $summary->setAutoFilter('A3:G' . $summaryLastRow);
+        $summary->freezePane('A4');
+
+        $detail = $book->createSheet();
+        $detail->setTitle('DATA');
+        $detail->setCellValue('A1', 'Pegawai');
+        $detail->setCellValue('D1', 'Data scanlog');
+        $detail->setCellValue('J1', 'MAX JAM MASUK');
+        $detail->fromArray(['PIN', 'Nama', 'Jabatan', 'Tanggal', 'Scan 1', 'Status', 'Scan 2', 'Scan 3'], null, 'A2');
+
+        // Satu nilai MAX JAM MASUK berdasarkan aturan unit yang dipilih,
+        // berlaku untuk seluruh sheet DATA (bukan nilai per pegawai).
+        $unitForMaxTime = count($units) === 1 ? $units[0] : null;
+        $maxArrivalTime = null;
+        if ($unitForMaxTime !== null) {
+            $unitRule = $db->table('unit_attendance_rules')
+                ->where('unit_code', $unitForMaxTime)
+                ->where('effective_from <=', $startDate)
+                ->groupStart()
+                    ->where('effective_to >=', $startDate)
+                    ->orWhere('effective_to', null)
+                ->groupEnd()
+                ->orderBy('effective_from', 'DESC')
+                ->get(1)->getRowArray();
+            $maxArrivalTime = $unitRule['late_after'] ?? null;
+            if ($maxArrivalTime === null) {
+                $maxArrivalTime = [
+                    'KBIT' => '07:45:59',
+                    'RAIT' => '07:15:59',
+                    'SDIT' => '07:00:59',
+                    'SMPIT' => '07:00:59',
+                    'YAYASAN' => '07:45:59',
+                    'LAZIS' => '07:45:59',
+                ][$unitForMaxTime] ?? null;
+            }
+        }
+        if ($maxArrivalTime !== null && preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$/', $maxArrivalTime)) {
+            [$hours, $minutes, $seconds] = array_map('intval', explode(':', $maxArrivalTime));
+            $detail->setCellValue('J2', ($hours * 3600 + $minutes * 60 + $seconds) / 86400);
+            $detail->getStyle('J2')->getNumberFormat()->setFormatCode('hh:mm');
+        } else {
+            $detail->setCellValue('J2', 'Pilih satu unit');
+        }
+        $toExcelTime = static function ($value) {
+            $value = trim((string) $value);
+            if (preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$/', $value)) {
+                $parts = array_map('intval', explode(':', $value));
+                $seconds = ($parts[0] * 3600) + ($parts[1] * 60) + ($parts[2] ?? 0);
+                return $seconds / 86400;
+            }
+            return $value;
+        };
+
+        $detailRow = 3;
+        foreach ($data['rows'] as $item) {
+            $scans = $item['scans'] ?? [];
+            $detail->fromArray([
+                $item['fingerprint_pin'] ?? ($pinByEmployee[(int) $item['employee_id']] ?? ''),
+                $item['full_name'],
+                $item['position'] ?? '',
+                date('d-m-Y', strtotime($item['date'])),
+                $toExcelTime($scans[0] ?? ''),
+                // Status merupakan hasil aturan jadwal/kalendar NEURO, bukan ambang tunggal Excel.
+                $item['status'] ?? ((int) ($item['late_minutes'] ?? 0) > 0 ? 'Terlambat' : 'Tepat Waktu'),
+                $toExcelTime($scans[1] ?? ''),
+                $toExcelTime($scans[2] ?? ''),
+                (int) $item['employee_id'],
+            ], null, 'A' . $detailRow);
+            $detailRow++;
+        }
+        $detailLastRow = max(2, $detailRow - 1);
+        $detail->getColumnDimension('I')->setVisible(false);
+        $detail->getDefaultRowDimension()->setRowHeight(12);
+        $detail->getStyle('A1:H' . $detailLastRow)->getFont()->setName('Arial')->setSize(8);
+        $detail->getStyle('A1:H2')->getFont()->setBold(true);
+        $detail->getStyle('A1:H' . $detailLastRow)->getBorders()->getAllBorders()
+            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $detail->getStyle('A1:H2')->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
+        $detail->getStyle('E3:E' . $detailLastRow)->getNumberFormat()->setFormatCode('hh:mm');
+        $detail->getStyle('G3:H' . $detailLastRow)->getNumberFormat()->setFormatCode('hh:mm');
+        $detail->getStyle('J1')->getFont()->setName('Calibri')->setSize(11);
+        $detail->getStyle('J1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->getStartColor()->setARGB('FFFFFF00');
+        $detail->getStyle('J1:J2')->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
+        foreach (['A' => 9.18, 'B' => 19.18, 'C' => 15, 'D' => 11.91, 'E' => 9.18, 'F' => 12, 'G' => 9.18, 'H' => 9.18, 'I' => 3, 'J' => 24] as $column => $width) {
+            $detail->getColumnDimension($column)->setWidth($width);
+        }
+        $detail->freezePane('A3');
+        $book->setActiveSheetIndex(0);
+
+        $filename = 'rekap-pegawai-' . $startDate . '-sampai-' . $endDate . ($units ? '-' . strtolower(implode('-', $units)) : '-semua-unit') . '.xlsx';
+        $response = service('response');
+        $response->setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $response->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"');
+        $response->setHeader('Cache-Control', 'max-age=0');
+        ob_start();
+        (new Xlsx($book))->save('php://output');
+        $output = ob_get_clean();
+        $book->disconnectWorksheets();
+        return $response->setBody($output);
+    }
+
+    private function getDateRange(): array
+    {
+        $defaultStart = date('Y-m-01');
+        $defaultEnd = date('Y-m-t');
+        $startDate = (string) ($this->request->getGet('start_date') ?? $defaultStart);
+        $endDate = (string) ($this->request->getGet('end_date') ?? $defaultEnd);
+
+        if (! $this->isValidDate($startDate) || ! $this->isValidDate($endDate) || $endDate < $startDate) {
+            return [$defaultStart, $defaultEnd];
+        }
+
+        return [$startDate, $endDate];
+    }
+
+    private function getUnits(): array
+    {
+        $input = $this->request->getGet('unit');
+        $values = is_array($input) ? $input : [$input];
+        $units = [];
+        foreach ($values as $value) {
+            $unit = strtoupper(trim((string) $value));
+            if (in_array($unit, self::ALLOWED_UNITS, true) && ! in_array($unit, $units, true)) {
+                $units[] = $unit;
+            }
+        }
+        return $units;
+    }
+
+    private function isValidDate(string $date): bool
+    {
+        $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+        return $parsed !== false && $parsed->format('Y-m-d') === $date;
+    }
+}
+ . max(3, count($data['rows']) + 2) . ',$H' . $summaryRow . ',DATA!$F$3:$F
+            $summary->setCellValue('F' . $summaryRow, '=COUNTIFS(DATA!$I$3:$I$' . max(3, count($data['rows']) + 2) . ',$H' . $summaryRow . ',DATA!$F$3:$F$' . max(3, count($data['rows']) + 2) . ',"Terlambat")');
+            $summary->setCellValue('G' . $summaryRow, '=E' . $summaryRow . '-F' . $summaryRow);
+            $summary->setCellValue('H' . $summaryRow, $employeeId);
+            $summaryRow++;
+        }
+        $summaryLastRow = max(3, $summaryRow - 1);
+        $summary->getColumnDimension('H')->setVisible(false);
+        $summary->getStyle('A1:G' . $summaryLastRow)->getFont()->setName('Arial')->setSize(8);
+        $summary->getStyle('A1:G3')->getFont()->setBold(true);
+        $summary->getStyle('A1:G2')->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+        $summary->getStyle('A3:G' . $summaryLastRow)->getBorders()->getAllBorders()
+            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $summary->getStyle('A3:G' . $summaryLastRow)->getAlignment()
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+        $summary->getStyle('A4:A' . $summaryLastRow)->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        $summary->getStyle('E4:G' . $summaryLastRow)->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        foreach (['A' => 6, 'B' => 27, 'C' => 25, 'D' => 18, 'E' => 13, 'F' => 13, 'G' => 15] as $column => $width) {
+            $summary->getColumnDimension($column)->setWidth($width);
+        }
+        $summary->getRowDimension(1)->setRowHeight(15);
+        $summary->getRowDimension(2)->setRowHeight(15);
+        $summary->getRowDimension(3)->setRowHeight(15);
+        // Aktifkan filter dan sortir Excel untuk seluruh kolom rekap.
+        // Header tabel berada di baris 3, data pegawai dimulai dari baris 4.
+        $summary->setAutoFilter('A3:G' . $summaryLastRow);
+        $summary->freezePane('A4');
+
+        $detail = $book->createSheet();
+        $detail->setTitle('DATA');
+        $detail->setCellValue('A1', 'Pegawai');
+        $detail->setCellValue('D1', 'Data scanlog');
+        $detail->setCellValue('J1', 'MAX JAM MASUK');
+        $detail->fromArray(['PIN', 'Nama', 'Jabatan', 'Tanggal', 'Scan 1', 'Status', 'Scan 2', 'Scan 3'], null, 'A2');
+
+        // Satu nilai MAX JAM MASUK berdasarkan aturan unit yang dipilih,
+        // berlaku untuk seluruh sheet DATA (bukan nilai per pegawai).
+        $unitForMaxTime = count($units) === 1 ? $units[0] : null;
+        $maxArrivalTime = null;
+        if ($unitForMaxTime !== null) {
+            $unitRule = $db->table('unit_attendance_rules')
+                ->where('unit_code', $unitForMaxTime)
+                ->where('effective_from <=', $startDate)
+                ->groupStart()
+                    ->where('effective_to >=', $startDate)
+                    ->orWhere('effective_to', null)
+                ->groupEnd()
+                ->orderBy('effective_from', 'DESC')
+                ->get(1)->getRowArray();
+            $maxArrivalTime = $unitRule['late_after'] ?? null;
+            if ($maxArrivalTime === null) {
+                $maxArrivalTime = [
+                    'KBIT' => '07:45:59',
+                    'RAIT' => '07:15:59',
+                    'SDIT' => '07:00:59',
+                    'SMPIT' => '07:00:59',
+                    'YAYASAN' => '07:45:59',
+                    'LAZIS' => '07:45:59',
+                ][$unitForMaxTime] ?? null;
+            }
+        }
+        if ($maxArrivalTime !== null && preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$/', $maxArrivalTime)) {
+            [$hours, $minutes, $seconds] = array_map('intval', explode(':', $maxArrivalTime));
+            $detail->setCellValue('J2', ($hours * 3600 + $minutes * 60 + $seconds) / 86400);
+            $detail->getStyle('J2')->getNumberFormat()->setFormatCode('hh:mm');
+        } else {
+            $detail->setCellValue('J2', 'Pilih satu unit');
+        }
+        $toExcelTime = static function ($value) {
+            $value = trim((string) $value);
+            if (preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$/', $value)) {
+                $parts = array_map('intval', explode(':', $value));
+                $seconds = ($parts[0] * 3600) + ($parts[1] * 60) + ($parts[2] ?? 0);
+                return $seconds / 86400;
+            }
+            return $value;
+        };
+
+        $detailRow = 3;
+        foreach ($data['rows'] as $item) {
+            $scans = $item['scans'] ?? [];
+            $detail->fromArray([
+                $item['fingerprint_pin'] ?? ($pinByEmployee[(int) $item['employee_id']] ?? ''),
+                $item['full_name'],
+                $item['position'] ?? '',
+                date('d-m-Y', strtotime($item['date'])),
+                $toExcelTime($scans[0] ?? ''),
+                // Status merupakan hasil aturan jadwal/kalendar NEURO, bukan ambang tunggal Excel.
+                $item['status'] ?? ((int) ($item['late_minutes'] ?? 0) > 0 ? 'Terlambat' : 'Tepat Waktu'),
+                $toExcelTime($scans[1] ?? ''),
+                $toExcelTime($scans[2] ?? ''),
+                (int) $item['employee_id'],
+            ], null, 'A' . $detailRow);
+            $detailRow++;
+        }
+        $detailLastRow = max(2, $detailRow - 1);
+        $detail->getColumnDimension('I')->setVisible(false);
+        $detail->getDefaultRowDimension()->setRowHeight(12);
+        $detail->getStyle('A1:H' . $detailLastRow)->getFont()->setName('Arial')->setSize(8);
+        $detail->getStyle('A1:H2')->getFont()->setBold(true);
+        $detail->getStyle('A1:H' . $detailLastRow)->getBorders()->getAllBorders()
+            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $detail->getStyle('A1:H2')->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
+        $detail->getStyle('E3:E' . $detailLastRow)->getNumberFormat()->setFormatCode('hh:mm');
+        $detail->getStyle('G3:H' . $detailLastRow)->getNumberFormat()->setFormatCode('hh:mm');
+        $detail->getStyle('J1')->getFont()->setName('Calibri')->setSize(11);
+        $detail->getStyle('J1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->getStartColor()->setARGB('FFFFFF00');
+        $detail->getStyle('J1:J2')->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
+        foreach (['A' => 9.18, 'B' => 19.18, 'C' => 15, 'D' => 11.91, 'E' => 9.18, 'F' => 12, 'G' => 9.18, 'H' => 9.18, 'I' => 3, 'J' => 24] as $column => $width) {
+            $detail->getColumnDimension($column)->setWidth($width);
+        }
+        $detail->freezePane('A3');
+        $book->setActiveSheetIndex(0);
+
+        $filename = 'rekap-pegawai-' . $startDate . '-sampai-' . $endDate . ($units ? '-' . strtolower(implode('-', $units)) : '-semua-unit') . '.xlsx';
+        $response = service('response');
+        $response->setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $response->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"');
+        $response->setHeader('Cache-Control', 'max-age=0');
+        ob_start();
+        (new Xlsx($book))->save('php://output');
+        $output = ob_get_clean();
+        $book->disconnectWorksheets();
+        return $response->setBody($output);
+    }
+
+    private function getDateRange(): array
+    {
+        $defaultStart = date('Y-m-01');
+        $defaultEnd = date('Y-m-t');
+        $startDate = (string) ($this->request->getGet('start_date') ?? $defaultStart);
+        $endDate = (string) ($this->request->getGet('end_date') ?? $defaultEnd);
+
+        if (! $this->isValidDate($startDate) || ! $this->isValidDate($endDate) || $endDate < $startDate) {
+            return [$defaultStart, $defaultEnd];
+        }
+
+        return [$startDate, $endDate];
+    }
+
+    private function getUnits(): array
+    {
+        $input = $this->request->getGet('unit');
+        $values = is_array($input) ? $input : [$input];
+        $units = [];
+        foreach ($values as $value) {
+            $unit = strtoupper(trim((string) $value));
+            if (in_array($unit, self::ALLOWED_UNITS, true) && ! in_array($unit, $units, true)) {
+                $units[] = $unit;
+            }
+        }
+        return $units;
+    }
+
+    private function isValidDate(string $date): bool
+    {
+        $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+        return $parsed !== false && $parsed->format('Y-m-d') === $date;
+    }
+}
+ . max(3, count($data['rows']) + 2) . ',"<>Hari Libur (ada scan)",DATA!$F$3:$F
+            $summary->setCellValue('F' . $summaryRow, '=COUNTIFS(DATA!$I$3:$I$' . max(3, count($data['rows']) + 2) . ',$H' . $summaryRow . ',DATA!$F$3:$F$' . max(3, count($data['rows']) + 2) . ',"Terlambat")');
+            $summary->setCellValue('G' . $summaryRow, '=E' . $summaryRow . '-F' . $summaryRow);
+            $summary->setCellValue('H' . $summaryRow, $employeeId);
+            $summaryRow++;
+        }
+        $summaryLastRow = max(3, $summaryRow - 1);
+        $summary->getColumnDimension('H')->setVisible(false);
+        $summary->getStyle('A1:G' . $summaryLastRow)->getFont()->setName('Arial')->setSize(8);
+        $summary->getStyle('A1:G3')->getFont()->setBold(true);
+        $summary->getStyle('A1:G2')->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+        $summary->getStyle('A3:G' . $summaryLastRow)->getBorders()->getAllBorders()
+            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $summary->getStyle('A3:G' . $summaryLastRow)->getAlignment()
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+        $summary->getStyle('A4:A' . $summaryLastRow)->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        $summary->getStyle('E4:G' . $summaryLastRow)->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        foreach (['A' => 6, 'B' => 27, 'C' => 25, 'D' => 18, 'E' => 13, 'F' => 13, 'G' => 15] as $column => $width) {
+            $summary->getColumnDimension($column)->setWidth($width);
+        }
+        $summary->getRowDimension(1)->setRowHeight(15);
+        $summary->getRowDimension(2)->setRowHeight(15);
+        $summary->getRowDimension(3)->setRowHeight(15);
+        // Aktifkan filter dan sortir Excel untuk seluruh kolom rekap.
+        // Header tabel berada di baris 3, data pegawai dimulai dari baris 4.
+        $summary->setAutoFilter('A3:G' . $summaryLastRow);
+        $summary->freezePane('A4');
+
+        $detail = $book->createSheet();
+        $detail->setTitle('DATA');
+        $detail->setCellValue('A1', 'Pegawai');
+        $detail->setCellValue('D1', 'Data scanlog');
+        $detail->setCellValue('J1', 'MAX JAM MASUK');
+        $detail->fromArray(['PIN', 'Nama', 'Jabatan', 'Tanggal', 'Scan 1', 'Status', 'Scan 2', 'Scan 3'], null, 'A2');
+
+        // Satu nilai MAX JAM MASUK berdasarkan aturan unit yang dipilih,
+        // berlaku untuk seluruh sheet DATA (bukan nilai per pegawai).
+        $unitForMaxTime = count($units) === 1 ? $units[0] : null;
+        $maxArrivalTime = null;
+        if ($unitForMaxTime !== null) {
+            $unitRule = $db->table('unit_attendance_rules')
+                ->where('unit_code', $unitForMaxTime)
+                ->where('effective_from <=', $startDate)
+                ->groupStart()
+                    ->where('effective_to >=', $startDate)
+                    ->orWhere('effective_to', null)
+                ->groupEnd()
+                ->orderBy('effective_from', 'DESC')
+                ->get(1)->getRowArray();
+            $maxArrivalTime = $unitRule['late_after'] ?? null;
+            if ($maxArrivalTime === null) {
+                $maxArrivalTime = [
+                    'KBIT' => '07:45:59',
+                    'RAIT' => '07:15:59',
+                    'SDIT' => '07:00:59',
+                    'SMPIT' => '07:00:59',
+                    'YAYASAN' => '07:45:59',
+                    'LAZIS' => '07:45:59',
+                ][$unitForMaxTime] ?? null;
+            }
+        }
+        if ($maxArrivalTime !== null && preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$/', $maxArrivalTime)) {
+            [$hours, $minutes, $seconds] = array_map('intval', explode(':', $maxArrivalTime));
+            $detail->setCellValue('J2', ($hours * 3600 + $minutes * 60 + $seconds) / 86400);
+            $detail->getStyle('J2')->getNumberFormat()->setFormatCode('hh:mm');
+        } else {
+            $detail->setCellValue('J2', 'Pilih satu unit');
+        }
+        $toExcelTime = static function ($value) {
+            $value = trim((string) $value);
+            if (preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$/', $value)) {
+                $parts = array_map('intval', explode(':', $value));
+                $seconds = ($parts[0] * 3600) + ($parts[1] * 60) + ($parts[2] ?? 0);
+                return $seconds / 86400;
+            }
+            return $value;
+        };
+
+        $detailRow = 3;
+        foreach ($data['rows'] as $item) {
+            $scans = $item['scans'] ?? [];
+            $detail->fromArray([
+                $item['fingerprint_pin'] ?? ($pinByEmployee[(int) $item['employee_id']] ?? ''),
+                $item['full_name'],
+                $item['position'] ?? '',
+                date('d-m-Y', strtotime($item['date'])),
+                $toExcelTime($scans[0] ?? ''),
+                // Status merupakan hasil aturan jadwal/kalendar NEURO, bukan ambang tunggal Excel.
+                $item['status'] ?? ((int) ($item['late_minutes'] ?? 0) > 0 ? 'Terlambat' : 'Tepat Waktu'),
+                $toExcelTime($scans[1] ?? ''),
+                $toExcelTime($scans[2] ?? ''),
+                (int) $item['employee_id'],
+            ], null, 'A' . $detailRow);
+            $detailRow++;
+        }
+        $detailLastRow = max(2, $detailRow - 1);
+        $detail->getColumnDimension('I')->setVisible(false);
+        $detail->getDefaultRowDimension()->setRowHeight(12);
+        $detail->getStyle('A1:H' . $detailLastRow)->getFont()->setName('Arial')->setSize(8);
+        $detail->getStyle('A1:H2')->getFont()->setBold(true);
+        $detail->getStyle('A1:H' . $detailLastRow)->getBorders()->getAllBorders()
+            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $detail->getStyle('A1:H2')->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
+        $detail->getStyle('E3:E' . $detailLastRow)->getNumberFormat()->setFormatCode('hh:mm');
+        $detail->getStyle('G3:H' . $detailLastRow)->getNumberFormat()->setFormatCode('hh:mm');
+        $detail->getStyle('J1')->getFont()->setName('Calibri')->setSize(11);
+        $detail->getStyle('J1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->getStartColor()->setARGB('FFFFFF00');
+        $detail->getStyle('J1:J2')->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
+        foreach (['A' => 9.18, 'B' => 19.18, 'C' => 15, 'D' => 11.91, 'E' => 9.18, 'F' => 12, 'G' => 9.18, 'H' => 9.18, 'I' => 3, 'J' => 24] as $column => $width) {
+            $detail->getColumnDimension($column)->setWidth($width);
+        }
+        $detail->freezePane('A3');
+        $book->setActiveSheetIndex(0);
+
+        $filename = 'rekap-pegawai-' . $startDate . '-sampai-' . $endDate . ($units ? '-' . strtolower(implode('-', $units)) : '-semua-unit') . '.xlsx';
+        $response = service('response');
+        $response->setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $response->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"');
+        $response->setHeader('Cache-Control', 'max-age=0');
+        ob_start();
+        (new Xlsx($book))->save('php://output');
+        $output = ob_get_clean();
+        $book->disconnectWorksheets();
+        return $response->setBody($output);
+    }
+
+    private function getDateRange(): array
+    {
+        $defaultStart = date('Y-m-01');
+        $defaultEnd = date('Y-m-t');
+        $startDate = (string) ($this->request->getGet('start_date') ?? $defaultStart);
+        $endDate = (string) ($this->request->getGet('end_date') ?? $defaultEnd);
+
+        if (! $this->isValidDate($startDate) || ! $this->isValidDate($endDate) || $endDate < $startDate) {
+            return [$defaultStart, $defaultEnd];
+        }
+
+        return [$startDate, $endDate];
+    }
+
+    private function getUnits(): array
+    {
+        $input = $this->request->getGet('unit');
+        $values = is_array($input) ? $input : [$input];
+        $units = [];
+        foreach ($values as $value) {
+            $unit = strtoupper(trim((string) $value));
+            if (in_array($unit, self::ALLOWED_UNITS, true) && ! in_array($unit, $units, true)) {
+                $units[] = $unit;
+            }
+        }
+        return $units;
+    }
+
+    private function isValidDate(string $date): bool
+    {
+        $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+        return $parsed !== false && $parsed->format('Y-m-d') === $date;
+    }
+}
+ . max(3, count($data['rows']) + 2) . ',"<>Libur Mingguan (ada scan)")');
+            $summary->setCellValue('F' . $summaryRow, '=COUNTIFS(DATA!$I$3:$I$' . max(3, count($data['rows']) + 2) . ',$H' . $summaryRow . ',DATA!$F$3:$F$' . max(3, count($data['rows']) + 2) . ',"Terlambat")');
+            $summary->setCellValue('G' . $summaryRow, '=E' . $summaryRow . '-F' . $summaryRow);
+            $summary->setCellValue('H' . $summaryRow, $employeeId);
+            $summaryRow++;
+        }
+        $summaryLastRow = max(3, $summaryRow - 1);
+        $summary->getColumnDimension('H')->setVisible(false);
+        $summary->getStyle('A1:G' . $summaryLastRow)->getFont()->setName('Arial')->setSize(8);
+        $summary->getStyle('A1:G3')->getFont()->setBold(true);
+        $summary->getStyle('A1:G2')->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+        $summary->getStyle('A3:G' . $summaryLastRow)->getBorders()->getAllBorders()
+            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $summary->getStyle('A3:G' . $summaryLastRow)->getAlignment()
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+        $summary->getStyle('A4:A' . $summaryLastRow)->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        $summary->getStyle('E4:G' . $summaryLastRow)->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        foreach (['A' => 6, 'B' => 27, 'C' => 25, 'D' => 18, 'E' => 13, 'F' => 13, 'G' => 15] as $column => $width) {
+            $summary->getColumnDimension($column)->setWidth($width);
+        }
+        $summary->getRowDimension(1)->setRowHeight(15);
+        $summary->getRowDimension(2)->setRowHeight(15);
+        $summary->getRowDimension(3)->setRowHeight(15);
+        // Aktifkan filter dan sortir Excel untuk seluruh kolom rekap.
+        // Header tabel berada di baris 3, data pegawai dimulai dari baris 4.
+        $summary->setAutoFilter('A3:G' . $summaryLastRow);
+        $summary->freezePane('A4');
+
+        $detail = $book->createSheet();
+        $detail->setTitle('DATA');
+        $detail->setCellValue('A1', 'Pegawai');
+        $detail->setCellValue('D1', 'Data scanlog');
+        $detail->setCellValue('J1', 'MAX JAM MASUK');
+        $detail->fromArray(['PIN', 'Nama', 'Jabatan', 'Tanggal', 'Scan 1', 'Status', 'Scan 2', 'Scan 3'], null, 'A2');
+
+        // Satu nilai MAX JAM MASUK berdasarkan aturan unit yang dipilih,
+        // berlaku untuk seluruh sheet DATA (bukan nilai per pegawai).
+        $unitForMaxTime = count($units) === 1 ? $units[0] : null;
+        $maxArrivalTime = null;
+        if ($unitForMaxTime !== null) {
+            $unitRule = $db->table('unit_attendance_rules')
+                ->where('unit_code', $unitForMaxTime)
+                ->where('effective_from <=', $startDate)
+                ->groupStart()
+                    ->where('effective_to >=', $startDate)
+                    ->orWhere('effective_to', null)
+                ->groupEnd()
+                ->orderBy('effective_from', 'DESC')
+                ->get(1)->getRowArray();
+            $maxArrivalTime = $unitRule['late_after'] ?? null;
+            if ($maxArrivalTime === null) {
+                $maxArrivalTime = [
+                    'KBIT' => '07:45:59',
+                    'RAIT' => '07:15:59',
+                    'SDIT' => '07:00:59',
+                    'SMPIT' => '07:00:59',
+                    'YAYASAN' => '07:45:59',
+                    'LAZIS' => '07:45:59',
+                ][$unitForMaxTime] ?? null;
+            }
+        }
+        if ($maxArrivalTime !== null && preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$/', $maxArrivalTime)) {
+            [$hours, $minutes, $seconds] = array_map('intval', explode(':', $maxArrivalTime));
+            $detail->setCellValue('J2', ($hours * 3600 + $minutes * 60 + $seconds) / 86400);
+            $detail->getStyle('J2')->getNumberFormat()->setFormatCode('hh:mm');
+        } else {
+            $detail->setCellValue('J2', 'Pilih satu unit');
+        }
+        $toExcelTime = static function ($value) {
+            $value = trim((string) $value);
+            if (preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$/', $value)) {
+                $parts = array_map('intval', explode(':', $value));
+                $seconds = ($parts[0] * 3600) + ($parts[1] * 60) + ($parts[2] ?? 0);
+                return $seconds / 86400;
+            }
+            return $value;
+        };
+
+        $detailRow = 3;
+        foreach ($data['rows'] as $item) {
+            $scans = $item['scans'] ?? [];
+            $detail->fromArray([
+                $item['fingerprint_pin'] ?? ($pinByEmployee[(int) $item['employee_id']] ?? ''),
+                $item['full_name'],
+                $item['position'] ?? '',
+                date('d-m-Y', strtotime($item['date'])),
+                $toExcelTime($scans[0] ?? ''),
+                // Status merupakan hasil aturan jadwal/kalendar NEURO, bukan ambang tunggal Excel.
+                $item['status'] ?? ((int) ($item['late_minutes'] ?? 0) > 0 ? 'Terlambat' : 'Tepat Waktu'),
+                $toExcelTime($scans[1] ?? ''),
+                $toExcelTime($scans[2] ?? ''),
+                (int) $item['employee_id'],
+            ], null, 'A' . $detailRow);
+            $detailRow++;
+        }
+        $detailLastRow = max(2, $detailRow - 1);
+        $detail->getColumnDimension('I')->setVisible(false);
+        $detail->getDefaultRowDimension()->setRowHeight(12);
+        $detail->getStyle('A1:H' . $detailLastRow)->getFont()->setName('Arial')->setSize(8);
+        $detail->getStyle('A1:H2')->getFont()->setBold(true);
+        $detail->getStyle('A1:H' . $detailLastRow)->getBorders()->getAllBorders()
+            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $detail->getStyle('A1:H2')->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
+        $detail->getStyle('E3:E' . $detailLastRow)->getNumberFormat()->setFormatCode('hh:mm');
+        $detail->getStyle('G3:H' . $detailLastRow)->getNumberFormat()->setFormatCode('hh:mm');
+        $detail->getStyle('J1')->getFont()->setName('Calibri')->setSize(11);
+        $detail->getStyle('J1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->getStartColor()->setARGB('FFFFFF00');
+        $detail->getStyle('J1:J2')->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
+        foreach (['A' => 9.18, 'B' => 19.18, 'C' => 15, 'D' => 11.91, 'E' => 9.18, 'F' => 12, 'G' => 9.18, 'H' => 9.18, 'I' => 3, 'J' => 24] as $column => $width) {
+            $detail->getColumnDimension($column)->setWidth($width);
+        }
+        $detail->freezePane('A3');
+        $book->setActiveSheetIndex(0);
+
+        $filename = 'rekap-pegawai-' . $startDate . '-sampai-' . $endDate . ($units ? '-' . strtolower(implode('-', $units)) : '-semua-unit') . '.xlsx';
+        $response = service('response');
+        $response->setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $response->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"');
+        $response->setHeader('Cache-Control', 'max-age=0');
+        ob_start();
+        (new Xlsx($book))->save('php://output');
+        $output = ob_get_clean();
+        $book->disconnectWorksheets();
+        return $response->setBody($output);
+    }
+
+    private function getDateRange(): array
+    {
+        $defaultStart = date('Y-m-01');
+        $defaultEnd = date('Y-m-t');
+        $startDate = (string) ($this->request->getGet('start_date') ?? $defaultStart);
+        $endDate = (string) ($this->request->getGet('end_date') ?? $defaultEnd);
+
+        if (! $this->isValidDate($startDate) || ! $this->isValidDate($endDate) || $endDate < $startDate) {
+            return [$defaultStart, $defaultEnd];
+        }
+
+        return [$startDate, $endDate];
+    }
+
+    private function getUnits(): array
+    {
+        $input = $this->request->getGet('unit');
+        $values = is_array($input) ? $input : [$input];
+        $units = [];
+        foreach ($values as $value) {
+            $unit = strtoupper(trim((string) $value));
+            if (in_array($unit, self::ALLOWED_UNITS, true) && ! in_array($unit, $units, true)) {
+                $units[] = $unit;
+            }
+        }
+        return $units;
+    }
+
+    private function isValidDate(string $date): bool
+    {
+        $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+        return $parsed !== false && $parsed->format('Y-m-d') === $date;
+    }
+}
+ . max(3, count($data['rows']) + 2) . ',$H' . $summaryRow . ',DATA!$F$3:$F            $summary->setCellValue('F' . $summaryRow, '=COUNTIFS(DATA!$I$3:$I$' . max(3, count($data['rows']) + 2) . ',$H' . $summaryRow . ',DATA!$F$3:$F$' . max(3, count($data['rows']) + 2) . ',"Terlambat")');
+            $summary->setCellValue('G' . $summaryRow, '=E' . $summaryRow . '-F' . $summaryRow);
+            $summary->setCellValue('H' . $summaryRow, $employeeId);
+            $summaryRow++;
+        }
+        $summaryLastRow = max(3, $summaryRow - 1);
+        $summary->getColumnDimension('H')->setVisible(false);
+        $summary->getStyle('A1:G' . $summaryLastRow)->getFont()->setName('Arial')->setSize(8);
+        $summary->getStyle('A1:G3')->getFont()->setBold(true);
+        $summary->getStyle('A1:G2')->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+        $summary->getStyle('A3:G' . $summaryLastRow)->getBorders()->getAllBorders()
+            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $summary->getStyle('A3:G' . $summaryLastRow)->getAlignment()
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+        $summary->getStyle('A4:A' . $summaryLastRow)->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        $summary->getStyle('E4:G' . $summaryLastRow)->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        foreach (['A' => 6, 'B' => 27, 'C' => 25, 'D' => 18, 'E' => 13, 'F' => 13, 'G' => 15] as $column => $width) {
+            $summary->getColumnDimension($column)->setWidth($width);
+        }
+        $summary->getRowDimension(1)->setRowHeight(15);
+        $summary->getRowDimension(2)->setRowHeight(15);
+        $summary->getRowDimension(3)->setRowHeight(15);
+        // Aktifkan filter dan sortir Excel untuk seluruh kolom rekap.
+        // Header tabel berada di baris 3, data pegawai dimulai dari baris 4.
+        $summary->setAutoFilter('A3:G' . $summaryLastRow);
+        $summary->freezePane('A4');
+
+        $detail = $book->createSheet();
+        $detail->setTitle('DATA');
+        $detail->setCellValue('A1', 'Pegawai');
+        $detail->setCellValue('D1', 'Data scanlog');
+        $detail->setCellValue('J1', 'MAX JAM MASUK');
+        $detail->fromArray(['PIN', 'Nama', 'Jabatan', 'Tanggal', 'Scan 1', 'Status', 'Scan 2', 'Scan 3'], null, 'A2');
+
+        // Satu nilai MAX JAM MASUK berdasarkan aturan unit yang dipilih,
+        // berlaku untuk seluruh sheet DATA (bukan nilai per pegawai).
+        $unitForMaxTime = count($units) === 1 ? $units[0] : null;
+        $maxArrivalTime = null;
+        if ($unitForMaxTime !== null) {
+            $unitRule = $db->table('unit_attendance_rules')
+                ->where('unit_code', $unitForMaxTime)
+                ->where('effective_from <=', $startDate)
+                ->groupStart()
+                    ->where('effective_to >=', $startDate)
+                    ->orWhere('effective_to', null)
+                ->groupEnd()
+                ->orderBy('effective_from', 'DESC')
+                ->get(1)->getRowArray();
+            $maxArrivalTime = $unitRule['late_after'] ?? null;
+            if ($maxArrivalTime === null) {
+                $maxArrivalTime = [
+                    'KBIT' => '07:45:59',
+                    'RAIT' => '07:15:59',
+                    'SDIT' => '07:00:59',
+                    'SMPIT' => '07:00:59',
+                    'YAYASAN' => '07:45:59',
+                    'LAZIS' => '07:45:59',
+                ][$unitForMaxTime] ?? null;
+            }
+        }
+        if ($maxArrivalTime !== null && preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$/', $maxArrivalTime)) {
+            [$hours, $minutes, $seconds] = array_map('intval', explode(':', $maxArrivalTime));
+            $detail->setCellValue('J2', ($hours * 3600 + $minutes * 60 + $seconds) / 86400);
+            $detail->getStyle('J2')->getNumberFormat()->setFormatCode('hh:mm');
+        } else {
+            $detail->setCellValue('J2', 'Pilih satu unit');
+        }
+        $toExcelTime = static function ($value) {
+            $value = trim((string) $value);
+            if (preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$/', $value)) {
+                $parts = array_map('intval', explode(':', $value));
+                $seconds = ($parts[0] * 3600) + ($parts[1] * 60) + ($parts[2] ?? 0);
+                return $seconds / 86400;
+            }
+            return $value;
+        };
+
+        $detailRow = 3;
+        foreach ($data['rows'] as $item) {
+            $scans = $item['scans'] ?? [];
+            $detail->fromArray([
+                $item['fingerprint_pin'] ?? ($pinByEmployee[(int) $item['employee_id']] ?? ''),
+                $item['full_name'],
+                $item['position'] ?? '',
+                date('d-m-Y', strtotime($item['date'])),
+                $toExcelTime($scans[0] ?? ''),
+                // Status merupakan hasil aturan jadwal/kalendar NEURO, bukan ambang tunggal Excel.
+                $item['status'] ?? ((int) ($item['late_minutes'] ?? 0) > 0 ? 'Terlambat' : 'Tepat Waktu'),
+                $toExcelTime($scans[1] ?? ''),
+                $toExcelTime($scans[2] ?? ''),
+                (int) $item['employee_id'],
+            ], null, 'A' . $detailRow);
+            $detailRow++;
+        }
+        $detailLastRow = max(2, $detailRow - 1);
+        $detail->getColumnDimension('I')->setVisible(false);
+        $detail->getDefaultRowDimension()->setRowHeight(12);
+        $detail->getStyle('A1:H' . $detailLastRow)->getFont()->setName('Arial')->setSize(8);
+        $detail->getStyle('A1:H2')->getFont()->setBold(true);
+        $detail->getStyle('A1:H' . $detailLastRow)->getBorders()->getAllBorders()
+            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $detail->getStyle('A1:H2')->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
+        $detail->getStyle('E3:E' . $detailLastRow)->getNumberFormat()->setFormatCode('hh:mm');
+        $detail->getStyle('G3:H' . $detailLastRow)->getNumberFormat()->setFormatCode('hh:mm');
+        $detail->getStyle('J1')->getFont()->setName('Calibri')->setSize(11);
+        $detail->getStyle('J1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->getStartColor()->setARGB('FFFFFF00');
+        $detail->getStyle('J1:J2')->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
+        foreach (['A' => 9.18, 'B' => 19.18, 'C' => 15, 'D' => 11.91, 'E' => 9.18, 'F' => 12, 'G' => 9.18, 'H' => 9.18, 'I' => 3, 'J' => 24] as $column => $width) {
+            $detail->getColumnDimension($column)->setWidth($width);
+        }
+        $detail->freezePane('A3');
+        $book->setActiveSheetIndex(0);
+
+        $filename = 'rekap-pegawai-' . $startDate . '-sampai-' . $endDate . ($units ? '-' . strtolower(implode('-', $units)) : '-semua-unit') . '.xlsx';
+        $response = service('response');
+        $response->setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $response->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"');
+        $response->setHeader('Cache-Control', 'max-age=0');
+        ob_start();
+        (new Xlsx($book))->save('php://output');
+        $output = ob_get_clean();
+        $book->disconnectWorksheets();
+        return $response->setBody($output);
+    }
+
+    private function getDateRange(): array
+    {
+        $defaultStart = date('Y-m-01');
+        $defaultEnd = date('Y-m-t');
+        $startDate = (string) ($this->request->getGet('start_date') ?? $defaultStart);
+        $endDate = (string) ($this->request->getGet('end_date') ?? $defaultEnd);
+
+        if (! $this->isValidDate($startDate) || ! $this->isValidDate($endDate) || $endDate < $startDate) {
+            return [$defaultStart, $defaultEnd];
+        }
+
+        return [$startDate, $endDate];
+    }
+
+    private function getUnits(): array
+    {
+        $input = $this->request->getGet('unit');
+        $values = is_array($input) ? $input : [$input];
+        $units = [];
+        foreach ($values as $value) {
+            $unit = strtoupper(trim((string) $value));
+            if (in_array($unit, self::ALLOWED_UNITS, true) && ! in_array($unit, $units, true)) {
+                $units[] = $unit;
+            }
+        }
+        return $units;
+    }
+
+    private function isValidDate(string $date): bool
+    {
+        $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+        return $parsed !== false && $parsed->format('Y-m-d') === $date;
+    }
+}
+ . max(3, count($data['rows']) + 2) . ',$H' . $summaryRow . ',DATA!$F$3:$F
+            $summary->setCellValue('F' . $summaryRow, '=COUNTIFS(DATA!$I$3:$I$' . max(3, count($data['rows']) + 2) . ',$H' . $summaryRow . ',DATA!$F$3:$F$' . max(3, count($data['rows']) + 2) . ',"Terlambat")');
+            $summary->setCellValue('G' . $summaryRow, '=E' . $summaryRow . '-F' . $summaryRow);
+            $summary->setCellValue('H' . $summaryRow, $employeeId);
+            $summaryRow++;
+        }
+        $summaryLastRow = max(3, $summaryRow - 1);
+        $summary->getColumnDimension('H')->setVisible(false);
+        $summary->getStyle('A1:G' . $summaryLastRow)->getFont()->setName('Arial')->setSize(8);
+        $summary->getStyle('A1:G3')->getFont()->setBold(true);
+        $summary->getStyle('A1:G2')->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+        $summary->getStyle('A3:G' . $summaryLastRow)->getBorders()->getAllBorders()
+            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $summary->getStyle('A3:G' . $summaryLastRow)->getAlignment()
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+        $summary->getStyle('A4:A' . $summaryLastRow)->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        $summary->getStyle('E4:G' . $summaryLastRow)->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        foreach (['A' => 6, 'B' => 27, 'C' => 25, 'D' => 18, 'E' => 13, 'F' => 13, 'G' => 15] as $column => $width) {
+            $summary->getColumnDimension($column)->setWidth($width);
+        }
+        $summary->getRowDimension(1)->setRowHeight(15);
+        $summary->getRowDimension(2)->setRowHeight(15);
+        $summary->getRowDimension(3)->setRowHeight(15);
+        // Aktifkan filter dan sortir Excel untuk seluruh kolom rekap.
+        // Header tabel berada di baris 3, data pegawai dimulai dari baris 4.
+        $summary->setAutoFilter('A3:G' . $summaryLastRow);
+        $summary->freezePane('A4');
+
+        $detail = $book->createSheet();
+        $detail->setTitle('DATA');
+        $detail->setCellValue('A1', 'Pegawai');
+        $detail->setCellValue('D1', 'Data scanlog');
+        $detail->setCellValue('J1', 'MAX JAM MASUK');
+        $detail->fromArray(['PIN', 'Nama', 'Jabatan', 'Tanggal', 'Scan 1', 'Status', 'Scan 2', 'Scan 3'], null, 'A2');
+
+        // Satu nilai MAX JAM MASUK berdasarkan aturan unit yang dipilih,
+        // berlaku untuk seluruh sheet DATA (bukan nilai per pegawai).
+        $unitForMaxTime = count($units) === 1 ? $units[0] : null;
+        $maxArrivalTime = null;
+        if ($unitForMaxTime !== null) {
+            $unitRule = $db->table('unit_attendance_rules')
+                ->where('unit_code', $unitForMaxTime)
+                ->where('effective_from <=', $startDate)
+                ->groupStart()
+                    ->where('effective_to >=', $startDate)
+                    ->orWhere('effective_to', null)
+                ->groupEnd()
+                ->orderBy('effective_from', 'DESC')
+                ->get(1)->getRowArray();
+            $maxArrivalTime = $unitRule['late_after'] ?? null;
+            if ($maxArrivalTime === null) {
+                $maxArrivalTime = [
+                    'KBIT' => '07:45:59',
+                    'RAIT' => '07:15:59',
+                    'SDIT' => '07:00:59',
+                    'SMPIT' => '07:00:59',
+                    'YAYASAN' => '07:45:59',
+                    'LAZIS' => '07:45:59',
+                ][$unitForMaxTime] ?? null;
+            }
+        }
+        if ($maxArrivalTime !== null && preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$/', $maxArrivalTime)) {
+            [$hours, $minutes, $seconds] = array_map('intval', explode(':', $maxArrivalTime));
+            $detail->setCellValue('J2', ($hours * 3600 + $minutes * 60 + $seconds) / 86400);
+            $detail->getStyle('J2')->getNumberFormat()->setFormatCode('hh:mm');
+        } else {
+            $detail->setCellValue('J2', 'Pilih satu unit');
+        }
+        $toExcelTime = static function ($value) {
+            $value = trim((string) $value);
+            if (preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$/', $value)) {
+                $parts = array_map('intval', explode(':', $value));
+                $seconds = ($parts[0] * 3600) + ($parts[1] * 60) + ($parts[2] ?? 0);
+                return $seconds / 86400;
+            }
+            return $value;
+        };
+
+        $detailRow = 3;
+        foreach ($data['rows'] as $item) {
+            $scans = $item['scans'] ?? [];
+            $detail->fromArray([
+                $item['fingerprint_pin'] ?? ($pinByEmployee[(int) $item['employee_id']] ?? ''),
+                $item['full_name'],
+                $item['position'] ?? '',
+                date('d-m-Y', strtotime($item['date'])),
+                $toExcelTime($scans[0] ?? ''),
+                // Status merupakan hasil aturan jadwal/kalendar NEURO, bukan ambang tunggal Excel.
+                $item['status'] ?? ((int) ($item['late_minutes'] ?? 0) > 0 ? 'Terlambat' : 'Tepat Waktu'),
+                $toExcelTime($scans[1] ?? ''),
+                $toExcelTime($scans[2] ?? ''),
+                (int) $item['employee_id'],
+            ], null, 'A' . $detailRow);
+            $detailRow++;
+        }
+        $detailLastRow = max(2, $detailRow - 1);
+        $detail->getColumnDimension('I')->setVisible(false);
+        $detail->getDefaultRowDimension()->setRowHeight(12);
+        $detail->getStyle('A1:H' . $detailLastRow)->getFont()->setName('Arial')->setSize(8);
+        $detail->getStyle('A1:H2')->getFont()->setBold(true);
+        $detail->getStyle('A1:H' . $detailLastRow)->getBorders()->getAllBorders()
+            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $detail->getStyle('A1:H2')->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
+        $detail->getStyle('E3:E' . $detailLastRow)->getNumberFormat()->setFormatCode('hh:mm');
+        $detail->getStyle('G3:H' . $detailLastRow)->getNumberFormat()->setFormatCode('hh:mm');
+        $detail->getStyle('J1')->getFont()->setName('Calibri')->setSize(11);
+        $detail->getStyle('J1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->getStartColor()->setARGB('FFFFFF00');
+        $detail->getStyle('J1:J2')->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
+        foreach (['A' => 9.18, 'B' => 19.18, 'C' => 15, 'D' => 11.91, 'E' => 9.18, 'F' => 12, 'G' => 9.18, 'H' => 9.18, 'I' => 3, 'J' => 24] as $column => $width) {
+            $detail->getColumnDimension($column)->setWidth($width);
+        }
+        $detail->freezePane('A3');
+        $book->setActiveSheetIndex(0);
+
+        $filename = 'rekap-pegawai-' . $startDate . '-sampai-' . $endDate . ($units ? '-' . strtolower(implode('-', $units)) : '-semua-unit') . '.xlsx';
+        $response = service('response');
+        $response->setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $response->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"');
+        $response->setHeader('Cache-Control', 'max-age=0');
+        ob_start();
+        (new Xlsx($book))->save('php://output');
+        $output = ob_get_clean();
+        $book->disconnectWorksheets();
+        return $response->setBody($output);
+    }
+
+    private function getDateRange(): array
+    {
+        $defaultStart = date('Y-m-01');
+        $defaultEnd = date('Y-m-t');
+        $startDate = (string) ($this->request->getGet('start_date') ?? $defaultStart);
+        $endDate = (string) ($this->request->getGet('end_date') ?? $defaultEnd);
+
+        if (! $this->isValidDate($startDate) || ! $this->isValidDate($endDate) || $endDate < $startDate) {
+            return [$defaultStart, $defaultEnd];
+        }
+
+        return [$startDate, $endDate];
+    }
+
+    private function getUnits(): array
+    {
+        $input = $this->request->getGet('unit');
+        $values = is_array($input) ? $input : [$input];
+        $units = [];
+        foreach ($values as $value) {
+            $unit = strtoupper(trim((string) $value));
+            if (in_array($unit, self::ALLOWED_UNITS, true) && ! in_array($unit, $units, true)) {
+                $units[] = $unit;
+            }
+        }
+        return $units;
+    }
+
+    private function isValidDate(string $date): bool
+    {
+        $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+        return $parsed !== false && $parsed->format('Y-m-d') === $date;
+    }
+}
+ . max(3, count($data['rows']) + 2) . ',"<>Hari Libur (ada scan)",DATA!$F$3:$F
+            $summary->setCellValue('F' . $summaryRow, '=COUNTIFS(DATA!$I$3:$I$' . max(3, count($data['rows']) + 2) . ',$H' . $summaryRow . ',DATA!$F$3:$F$' . max(3, count($data['rows']) + 2) . ',"Terlambat")');
+            $summary->setCellValue('G' . $summaryRow, '=E' . $summaryRow . '-F' . $summaryRow);
+            $summary->setCellValue('H' . $summaryRow, $employeeId);
+            $summaryRow++;
+        }
+        $summaryLastRow = max(3, $summaryRow - 1);
+        $summary->getColumnDimension('H')->setVisible(false);
+        $summary->getStyle('A1:G' . $summaryLastRow)->getFont()->setName('Arial')->setSize(8);
+        $summary->getStyle('A1:G3')->getFont()->setBold(true);
+        $summary->getStyle('A1:G2')->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+        $summary->getStyle('A3:G' . $summaryLastRow)->getBorders()->getAllBorders()
+            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $summary->getStyle('A3:G' . $summaryLastRow)->getAlignment()
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+        $summary->getStyle('A4:A' . $summaryLastRow)->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        $summary->getStyle('E4:G' . $summaryLastRow)->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        foreach (['A' => 6, 'B' => 27, 'C' => 25, 'D' => 18, 'E' => 13, 'F' => 13, 'G' => 15] as $column => $width) {
+            $summary->getColumnDimension($column)->setWidth($width);
+        }
+        $summary->getRowDimension(1)->setRowHeight(15);
+        $summary->getRowDimension(2)->setRowHeight(15);
+        $summary->getRowDimension(3)->setRowHeight(15);
+        // Aktifkan filter dan sortir Excel untuk seluruh kolom rekap.
+        // Header tabel berada di baris 3, data pegawai dimulai dari baris 4.
+        $summary->setAutoFilter('A3:G' . $summaryLastRow);
+        $summary->freezePane('A4');
+
+        $detail = $book->createSheet();
+        $detail->setTitle('DATA');
+        $detail->setCellValue('A1', 'Pegawai');
+        $detail->setCellValue('D1', 'Data scanlog');
+        $detail->setCellValue('J1', 'MAX JAM MASUK');
+        $detail->fromArray(['PIN', 'Nama', 'Jabatan', 'Tanggal', 'Scan 1', 'Status', 'Scan 2', 'Scan 3'], null, 'A2');
+
+        // Satu nilai MAX JAM MASUK berdasarkan aturan unit yang dipilih,
+        // berlaku untuk seluruh sheet DATA (bukan nilai per pegawai).
+        $unitForMaxTime = count($units) === 1 ? $units[0] : null;
+        $maxArrivalTime = null;
+        if ($unitForMaxTime !== null) {
+            $unitRule = $db->table('unit_attendance_rules')
+                ->where('unit_code', $unitForMaxTime)
+                ->where('effective_from <=', $startDate)
+                ->groupStart()
+                    ->where('effective_to >=', $startDate)
+                    ->orWhere('effective_to', null)
+                ->groupEnd()
+                ->orderBy('effective_from', 'DESC')
+                ->get(1)->getRowArray();
+            $maxArrivalTime = $unitRule['late_after'] ?? null;
+            if ($maxArrivalTime === null) {
+                $maxArrivalTime = [
+                    'KBIT' => '07:45:59',
+                    'RAIT' => '07:15:59',
+                    'SDIT' => '07:00:59',
+                    'SMPIT' => '07:00:59',
+                    'YAYASAN' => '07:45:59',
+                    'LAZIS' => '07:45:59',
+                ][$unitForMaxTime] ?? null;
+            }
+        }
+        if ($maxArrivalTime !== null && preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$/', $maxArrivalTime)) {
+            [$hours, $minutes, $seconds] = array_map('intval', explode(':', $maxArrivalTime));
+            $detail->setCellValue('J2', ($hours * 3600 + $minutes * 60 + $seconds) / 86400);
+            $detail->getStyle('J2')->getNumberFormat()->setFormatCode('hh:mm');
+        } else {
+            $detail->setCellValue('J2', 'Pilih satu unit');
+        }
+        $toExcelTime = static function ($value) {
+            $value = trim((string) $value);
+            if (preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$/', $value)) {
+                $parts = array_map('intval', explode(':', $value));
+                $seconds = ($parts[0] * 3600) + ($parts[1] * 60) + ($parts[2] ?? 0);
+                return $seconds / 86400;
+            }
+            return $value;
+        };
+
+        $detailRow = 3;
+        foreach ($data['rows'] as $item) {
+            $scans = $item['scans'] ?? [];
+            $detail->fromArray([
+                $item['fingerprint_pin'] ?? ($pinByEmployee[(int) $item['employee_id']] ?? ''),
+                $item['full_name'],
+                $item['position'] ?? '',
+                date('d-m-Y', strtotime($item['date'])),
+                $toExcelTime($scans[0] ?? ''),
+                // Status merupakan hasil aturan jadwal/kalendar NEURO, bukan ambang tunggal Excel.
+                $item['status'] ?? ((int) ($item['late_minutes'] ?? 0) > 0 ? 'Terlambat' : 'Tepat Waktu'),
+                $toExcelTime($scans[1] ?? ''),
+                $toExcelTime($scans[2] ?? ''),
+                (int) $item['employee_id'],
+            ], null, 'A' . $detailRow);
+            $detailRow++;
+        }
+        $detailLastRow = max(2, $detailRow - 1);
+        $detail->getColumnDimension('I')->setVisible(false);
+        $detail->getDefaultRowDimension()->setRowHeight(12);
+        $detail->getStyle('A1:H' . $detailLastRow)->getFont()->setName('Arial')->setSize(8);
+        $detail->getStyle('A1:H2')->getFont()->setBold(true);
+        $detail->getStyle('A1:H' . $detailLastRow)->getBorders()->getAllBorders()
+            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $detail->getStyle('A1:H2')->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
+        $detail->getStyle('E3:E' . $detailLastRow)->getNumberFormat()->setFormatCode('hh:mm');
+        $detail->getStyle('G3:H' . $detailLastRow)->getNumberFormat()->setFormatCode('hh:mm');
+        $detail->getStyle('J1')->getFont()->setName('Calibri')->setSize(11);
+        $detail->getStyle('J1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->getStartColor()->setARGB('FFFFFF00');
+        $detail->getStyle('J1:J2')->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
+        foreach (['A' => 9.18, 'B' => 19.18, 'C' => 15, 'D' => 11.91, 'E' => 9.18, 'F' => 12, 'G' => 9.18, 'H' => 9.18, 'I' => 3, 'J' => 24] as $column => $width) {
+            $detail->getColumnDimension($column)->setWidth($width);
+        }
+        $detail->freezePane('A3');
+        $book->setActiveSheetIndex(0);
+
+        $filename = 'rekap-pegawai-' . $startDate . '-sampai-' . $endDate . ($units ? '-' . strtolower(implode('-', $units)) : '-semua-unit') . '.xlsx';
+        $response = service('response');
+        $response->setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $response->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"');
+        $response->setHeader('Cache-Control', 'max-age=0');
+        ob_start();
+        (new Xlsx($book))->save('php://output');
+        $output = ob_get_clean();
+        $book->disconnectWorksheets();
+        return $response->setBody($output);
+    }
+
+    private function getDateRange(): array
+    {
+        $defaultStart = date('Y-m-01');
+        $defaultEnd = date('Y-m-t');
+        $startDate = (string) ($this->request->getGet('start_date') ?? $defaultStart);
+        $endDate = (string) ($this->request->getGet('end_date') ?? $defaultEnd);
+
+        if (! $this->isValidDate($startDate) || ! $this->isValidDate($endDate) || $endDate < $startDate) {
+            return [$defaultStart, $defaultEnd];
+        }
+
+        return [$startDate, $endDate];
+    }
+
+    private function getUnits(): array
+    {
+        $input = $this->request->getGet('unit');
+        $values = is_array($input) ? $input : [$input];
+        $units = [];
+        foreach ($values as $value) {
+            $unit = strtoupper(trim((string) $value));
+            if (in_array($unit, self::ALLOWED_UNITS, true) && ! in_array($unit, $units, true)) {
+                $units[] = $unit;
+            }
+        }
+        return $units;
+    }
+
+    private function isValidDate(string $date): bool
+    {
+        $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+        return $parsed !== false && $parsed->format('Y-m-d') === $date;
+    }
+}
+ . max(3, count($data['rows']) + 2) . ',"<>Libur Mingguan (ada scan)")');
+            $summary->setCellValue('F' . $summaryRow, '=COUNTIFS(DATA!$I$3:$I$' . max(3, count($data['rows']) + 2) . ',$H' . $summaryRow . ',DATA!$F$3:$F$' . max(3, count($data['rows']) + 2) . ',"Terlambat")');
+            $summary->setCellValue('G' . $summaryRow, '=E' . $summaryRow . '-F' . $summaryRow);
+            $summary->setCellValue('H' . $summaryRow, $employeeId);
+            $summaryRow++;
+        }
+        $summaryLastRow = max(3, $summaryRow - 1);
+        $summary->getColumnDimension('H')->setVisible(false);
+        $summary->getStyle('A1:G' . $summaryLastRow)->getFont()->setName('Arial')->setSize(8);
+        $summary->getStyle('A1:G3')->getFont()->setBold(true);
+        $summary->getStyle('A1:G2')->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+        $summary->getStyle('A3:G' . $summaryLastRow)->getBorders()->getAllBorders()
+            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $summary->getStyle('A3:G' . $summaryLastRow)->getAlignment()
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+        $summary->getStyle('A4:A' . $summaryLastRow)->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        $summary->getStyle('E4:G' . $summaryLastRow)->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        foreach (['A' => 6, 'B' => 27, 'C' => 25, 'D' => 18, 'E' => 13, 'F' => 13, 'G' => 15] as $column => $width) {
+            $summary->getColumnDimension($column)->setWidth($width);
+        }
+        $summary->getRowDimension(1)->setRowHeight(15);
+        $summary->getRowDimension(2)->setRowHeight(15);
+        $summary->getRowDimension(3)->setRowHeight(15);
+        // Aktifkan filter dan sortir Excel untuk seluruh kolom rekap.
+        // Header tabel berada di baris 3, data pegawai dimulai dari baris 4.
+        $summary->setAutoFilter('A3:G' . $summaryLastRow);
+        $summary->freezePane('A4');
+
+        $detail = $book->createSheet();
+        $detail->setTitle('DATA');
+        $detail->setCellValue('A1', 'Pegawai');
+        $detail->setCellValue('D1', 'Data scanlog');
+        $detail->setCellValue('J1', 'MAX JAM MASUK');
+        $detail->fromArray(['PIN', 'Nama', 'Jabatan', 'Tanggal', 'Scan 1', 'Status', 'Scan 2', 'Scan 3'], null, 'A2');
+
+        // Satu nilai MAX JAM MASUK berdasarkan aturan unit yang dipilih,
+        // berlaku untuk seluruh sheet DATA (bukan nilai per pegawai).
+        $unitForMaxTime = count($units) === 1 ? $units[0] : null;
+        $maxArrivalTime = null;
+        if ($unitForMaxTime !== null) {
+            $unitRule = $db->table('unit_attendance_rules')
+                ->where('unit_code', $unitForMaxTime)
+                ->where('effective_from <=', $startDate)
+                ->groupStart()
+                    ->where('effective_to >=', $startDate)
+                    ->orWhere('effective_to', null)
+                ->groupEnd()
+                ->orderBy('effective_from', 'DESC')
+                ->get(1)->getRowArray();
+            $maxArrivalTime = $unitRule['late_after'] ?? null;
+            if ($maxArrivalTime === null) {
+                $maxArrivalTime = [
+                    'KBIT' => '07:45:59',
+                    'RAIT' => '07:15:59',
+                    'SDIT' => '07:00:59',
+                    'SMPIT' => '07:00:59',
+                    'YAYASAN' => '07:45:59',
+                    'LAZIS' => '07:45:59',
+                ][$unitForMaxTime] ?? null;
+            }
+        }
+        if ($maxArrivalTime !== null && preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$/', $maxArrivalTime)) {
+            [$hours, $minutes, $seconds] = array_map('intval', explode(':', $maxArrivalTime));
+            $detail->setCellValue('J2', ($hours * 3600 + $minutes * 60 + $seconds) / 86400);
+            $detail->getStyle('J2')->getNumberFormat()->setFormatCode('hh:mm');
+        } else {
+            $detail->setCellValue('J2', 'Pilih satu unit');
+        }
+        $toExcelTime = static function ($value) {
+            $value = trim((string) $value);
+            if (preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$/', $value)) {
+                $parts = array_map('intval', explode(':', $value));
+                $seconds = ($parts[0] * 3600) + ($parts[1] * 60) + ($parts[2] ?? 0);
+                return $seconds / 86400;
+            }
+            return $value;
+        };
+
+        $detailRow = 3;
+        foreach ($data['rows'] as $item) {
+            $scans = $item['scans'] ?? [];
+            $detail->fromArray([
+                $item['fingerprint_pin'] ?? ($pinByEmployee[(int) $item['employee_id']] ?? ''),
+                $item['full_name'],
+                $item['position'] ?? '',
+                date('d-m-Y', strtotime($item['date'])),
+                $toExcelTime($scans[0] ?? ''),
+                // Status merupakan hasil aturan jadwal/kalendar NEURO, bukan ambang tunggal Excel.
+                $item['status'] ?? ((int) ($item['late_minutes'] ?? 0) > 0 ? 'Terlambat' : 'Tepat Waktu'),
+                $toExcelTime($scans[1] ?? ''),
+                $toExcelTime($scans[2] ?? ''),
+                (int) $item['employee_id'],
+            ], null, 'A' . $detailRow);
+            $detailRow++;
+        }
+        $detailLastRow = max(2, $detailRow - 1);
+        $detail->getColumnDimension('I')->setVisible(false);
+        $detail->getDefaultRowDimension()->setRowHeight(12);
+        $detail->getStyle('A1:H' . $detailLastRow)->getFont()->setName('Arial')->setSize(8);
+        $detail->getStyle('A1:H2')->getFont()->setBold(true);
+        $detail->getStyle('A1:H' . $detailLastRow)->getBorders()->getAllBorders()
+            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $detail->getStyle('A1:H2')->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
+        $detail->getStyle('E3:E' . $detailLastRow)->getNumberFormat()->setFormatCode('hh:mm');
+        $detail->getStyle('G3:H' . $detailLastRow)->getNumberFormat()->setFormatCode('hh:mm');
+        $detail->getStyle('J1')->getFont()->setName('Calibri')->setSize(11);
+        $detail->getStyle('J1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->getStartColor()->setARGB('FFFFFF00');
+        $detail->getStyle('J1:J2')->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
+        foreach (['A' => 9.18, 'B' => 19.18, 'C' => 15, 'D' => 11.91, 'E' => 9.18, 'F' => 12, 'G' => 9.18, 'H' => 9.18, 'I' => 3, 'J' => 24] as $column => $width) {
+            $detail->getColumnDimension($column)->setWidth($width);
+        }
+        $detail->freezePane('A3');
+        $book->setActiveSheetIndex(0);
+
+        $filename = 'rekap-pegawai-' . $startDate . '-sampai-' . $endDate . ($units ? '-' . strtolower(implode('-', $units)) : '-semua-unit') . '.xlsx';
+        $response = service('response');
+        $response->setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $response->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"');
+        $response->setHeader('Cache-Control', 'max-age=0');
+        ob_start();
+        (new Xlsx($book))->save('php://output');
+        $output = ob_get_clean();
+        $book->disconnectWorksheets();
+        return $response->setBody($output);
+    }
+
+    private function getDateRange(): array
+    {
+        $defaultStart = date('Y-m-01');
+        $defaultEnd = date('Y-m-t');
+        $startDate = (string) ($this->request->getGet('start_date') ?? $defaultStart);
+        $endDate = (string) ($this->request->getGet('end_date') ?? $defaultEnd);
+
+        if (! $this->isValidDate($startDate) || ! $this->isValidDate($endDate) || $endDate < $startDate) {
+            return [$defaultStart, $defaultEnd];
+        }
+
+        return [$startDate, $endDate];
+    }
+
+    private function getUnits(): array
+    {
+        $input = $this->request->getGet('unit');
+        $values = is_array($input) ? $input : [$input];
+        $units = [];
+        foreach ($values as $value) {
+            $unit = strtoupper(trim((string) $value));
+            if (in_array($unit, self::ALLOWED_UNITS, true) && ! in_array($unit, $units, true)) {
+                $units[] = $unit;
+            }
+        }
+        return $units;
+    }
+
+    private function isValidDate(string $date): bool
+    {
+        $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+        return $parsed !== false && $parsed->format('Y-m-d') === $date;
+    }
+}
+ . max(3, count($data['rows']) + 2) . ',"<>Hari Libur (ada scan)",DATA!$F$3:$F            $summary->setCellValue('F' . $summaryRow, '=COUNTIFS(DATA!$I$3:$I$' . max(3, count($data['rows']) + 2) . ',$H' . $summaryRow . ',DATA!$F$3:$F$' . max(3, count($data['rows']) + 2) . ',"Terlambat")');
+            $summary->setCellValue('G' . $summaryRow, '=E' . $summaryRow . '-F' . $summaryRow);
+            $summary->setCellValue('H' . $summaryRow, $employeeId);
+            $summaryRow++;
+        }
+        $summaryLastRow = max(3, $summaryRow - 1);
+        $summary->getColumnDimension('H')->setVisible(false);
+        $summary->getStyle('A1:G' . $summaryLastRow)->getFont()->setName('Arial')->setSize(8);
+        $summary->getStyle('A1:G3')->getFont()->setBold(true);
+        $summary->getStyle('A1:G2')->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+        $summary->getStyle('A3:G' . $summaryLastRow)->getBorders()->getAllBorders()
+            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $summary->getStyle('A3:G' . $summaryLastRow)->getAlignment()
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+        $summary->getStyle('A4:A' . $summaryLastRow)->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        $summary->getStyle('E4:G' . $summaryLastRow)->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        foreach (['A' => 6, 'B' => 27, 'C' => 25, 'D' => 18, 'E' => 13, 'F' => 13, 'G' => 15] as $column => $width) {
+            $summary->getColumnDimension($column)->setWidth($width);
+        }
+        $summary->getRowDimension(1)->setRowHeight(15);
+        $summary->getRowDimension(2)->setRowHeight(15);
+        $summary->getRowDimension(3)->setRowHeight(15);
+        // Aktifkan filter dan sortir Excel untuk seluruh kolom rekap.
+        // Header tabel berada di baris 3, data pegawai dimulai dari baris 4.
+        $summary->setAutoFilter('A3:G' . $summaryLastRow);
+        $summary->freezePane('A4');
+
+        $detail = $book->createSheet();
+        $detail->setTitle('DATA');
+        $detail->setCellValue('A1', 'Pegawai');
+        $detail->setCellValue('D1', 'Data scanlog');
+        $detail->setCellValue('J1', 'MAX JAM MASUK');
+        $detail->fromArray(['PIN', 'Nama', 'Jabatan', 'Tanggal', 'Scan 1', 'Status', 'Scan 2', 'Scan 3'], null, 'A2');
+
+        // Satu nilai MAX JAM MASUK berdasarkan aturan unit yang dipilih,
+        // berlaku untuk seluruh sheet DATA (bukan nilai per pegawai).
+        $unitForMaxTime = count($units) === 1 ? $units[0] : null;
+        $maxArrivalTime = null;
+        if ($unitForMaxTime !== null) {
+            $unitRule = $db->table('unit_attendance_rules')
+                ->where('unit_code', $unitForMaxTime)
+                ->where('effective_from <=', $startDate)
+                ->groupStart()
+                    ->where('effective_to >=', $startDate)
+                    ->orWhere('effective_to', null)
+                ->groupEnd()
+                ->orderBy('effective_from', 'DESC')
+                ->get(1)->getRowArray();
+            $maxArrivalTime = $unitRule['late_after'] ?? null;
+            if ($maxArrivalTime === null) {
+                $maxArrivalTime = [
+                    'KBIT' => '07:45:59',
+                    'RAIT' => '07:15:59',
+                    'SDIT' => '07:00:59',
+                    'SMPIT' => '07:00:59',
+                    'YAYASAN' => '07:45:59',
+                    'LAZIS' => '07:45:59',
+                ][$unitForMaxTime] ?? null;
+            }
+        }
+        if ($maxArrivalTime !== null && preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$/', $maxArrivalTime)) {
+            [$hours, $minutes, $seconds] = array_map('intval', explode(':', $maxArrivalTime));
+            $detail->setCellValue('J2', ($hours * 3600 + $minutes * 60 + $seconds) / 86400);
+            $detail->getStyle('J2')->getNumberFormat()->setFormatCode('hh:mm');
+        } else {
+            $detail->setCellValue('J2', 'Pilih satu unit');
+        }
+        $toExcelTime = static function ($value) {
+            $value = trim((string) $value);
+            if (preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$/', $value)) {
+                $parts = array_map('intval', explode(':', $value));
+                $seconds = ($parts[0] * 3600) + ($parts[1] * 60) + ($parts[2] ?? 0);
+                return $seconds / 86400;
+            }
+            return $value;
+        };
+
+        $detailRow = 3;
+        foreach ($data['rows'] as $item) {
+            $scans = $item['scans'] ?? [];
+            $detail->fromArray([
+                $item['fingerprint_pin'] ?? ($pinByEmployee[(int) $item['employee_id']] ?? ''),
+                $item['full_name'],
+                $item['position'] ?? '',
+                date('d-m-Y', strtotime($item['date'])),
+                $toExcelTime($scans[0] ?? ''),
+                // Status merupakan hasil aturan jadwal/kalendar NEURO, bukan ambang tunggal Excel.
+                $item['status'] ?? ((int) ($item['late_minutes'] ?? 0) > 0 ? 'Terlambat' : 'Tepat Waktu'),
+                $toExcelTime($scans[1] ?? ''),
+                $toExcelTime($scans[2] ?? ''),
+                (int) $item['employee_id'],
+            ], null, 'A' . $detailRow);
+            $detailRow++;
+        }
+        $detailLastRow = max(2, $detailRow - 1);
+        $detail->getColumnDimension('I')->setVisible(false);
+        $detail->getDefaultRowDimension()->setRowHeight(12);
+        $detail->getStyle('A1:H' . $detailLastRow)->getFont()->setName('Arial')->setSize(8);
+        $detail->getStyle('A1:H2')->getFont()->setBold(true);
+        $detail->getStyle('A1:H' . $detailLastRow)->getBorders()->getAllBorders()
+            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $detail->getStyle('A1:H2')->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
+        $detail->getStyle('E3:E' . $detailLastRow)->getNumberFormat()->setFormatCode('hh:mm');
+        $detail->getStyle('G3:H' . $detailLastRow)->getNumberFormat()->setFormatCode('hh:mm');
+        $detail->getStyle('J1')->getFont()->setName('Calibri')->setSize(11);
+        $detail->getStyle('J1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->getStartColor()->setARGB('FFFFFF00');
+        $detail->getStyle('J1:J2')->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
+        foreach (['A' => 9.18, 'B' => 19.18, 'C' => 15, 'D' => 11.91, 'E' => 9.18, 'F' => 12, 'G' => 9.18, 'H' => 9.18, 'I' => 3, 'J' => 24] as $column => $width) {
+            $detail->getColumnDimension($column)->setWidth($width);
+        }
+        $detail->freezePane('A3');
+        $book->setActiveSheetIndex(0);
+
+        $filename = 'rekap-pegawai-' . $startDate . '-sampai-' . $endDate . ($units ? '-' . strtolower(implode('-', $units)) : '-semua-unit') . '.xlsx';
+        $response = service('response');
+        $response->setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $response->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"');
+        $response->setHeader('Cache-Control', 'max-age=0');
+        ob_start();
+        (new Xlsx($book))->save('php://output');
+        $output = ob_get_clean();
+        $book->disconnectWorksheets();
+        return $response->setBody($output);
+    }
+
+    private function getDateRange(): array
+    {
+        $defaultStart = date('Y-m-01');
+        $defaultEnd = date('Y-m-t');
+        $startDate = (string) ($this->request->getGet('start_date') ?? $defaultStart);
+        $endDate = (string) ($this->request->getGet('end_date') ?? $defaultEnd);
+
+        if (! $this->isValidDate($startDate) || ! $this->isValidDate($endDate) || $endDate < $startDate) {
+            return [$defaultStart, $defaultEnd];
+        }
+
+        return [$startDate, $endDate];
+    }
+
+    private function getUnits(): array
+    {
+        $input = $this->request->getGet('unit');
+        $values = is_array($input) ? $input : [$input];
+        $units = [];
+        foreach ($values as $value) {
+            $unit = strtoupper(trim((string) $value));
+            if (in_array($unit, self::ALLOWED_UNITS, true) && ! in_array($unit, $units, true)) {
+                $units[] = $unit;
+            }
+        }
+        return $units;
+    }
+
+    private function isValidDate(string $date): bool
+    {
+        $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+        return $parsed !== false && $parsed->format('Y-m-d') === $date;
+    }
+}
+ . max(3, count($data['rows']) + 2) . ',$H' . $summaryRow . ',DATA!$F$3:$F
+            $summary->setCellValue('F' . $summaryRow, '=COUNTIFS(DATA!$I$3:$I$' . max(3, count($data['rows']) + 2) . ',$H' . $summaryRow . ',DATA!$F$3:$F$' . max(3, count($data['rows']) + 2) . ',"Terlambat")');
+            $summary->setCellValue('G' . $summaryRow, '=E' . $summaryRow . '-F' . $summaryRow);
+            $summary->setCellValue('H' . $summaryRow, $employeeId);
+            $summaryRow++;
+        }
+        $summaryLastRow = max(3, $summaryRow - 1);
+        $summary->getColumnDimension('H')->setVisible(false);
+        $summary->getStyle('A1:G' . $summaryLastRow)->getFont()->setName('Arial')->setSize(8);
+        $summary->getStyle('A1:G3')->getFont()->setBold(true);
+        $summary->getStyle('A1:G2')->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+        $summary->getStyle('A3:G' . $summaryLastRow)->getBorders()->getAllBorders()
+            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $summary->getStyle('A3:G' . $summaryLastRow)->getAlignment()
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+        $summary->getStyle('A4:A' . $summaryLastRow)->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        $summary->getStyle('E4:G' . $summaryLastRow)->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        foreach (['A' => 6, 'B' => 27, 'C' => 25, 'D' => 18, 'E' => 13, 'F' => 13, 'G' => 15] as $column => $width) {
+            $summary->getColumnDimension($column)->setWidth($width);
+        }
+        $summary->getRowDimension(1)->setRowHeight(15);
+        $summary->getRowDimension(2)->setRowHeight(15);
+        $summary->getRowDimension(3)->setRowHeight(15);
+        // Aktifkan filter dan sortir Excel untuk seluruh kolom rekap.
+        // Header tabel berada di baris 3, data pegawai dimulai dari baris 4.
+        $summary->setAutoFilter('A3:G' . $summaryLastRow);
+        $summary->freezePane('A4');
+
+        $detail = $book->createSheet();
+        $detail->setTitle('DATA');
+        $detail->setCellValue('A1', 'Pegawai');
+        $detail->setCellValue('D1', 'Data scanlog');
+        $detail->setCellValue('J1', 'MAX JAM MASUK');
+        $detail->fromArray(['PIN', 'Nama', 'Jabatan', 'Tanggal', 'Scan 1', 'Status', 'Scan 2', 'Scan 3'], null, 'A2');
+
+        // Satu nilai MAX JAM MASUK berdasarkan aturan unit yang dipilih,
+        // berlaku untuk seluruh sheet DATA (bukan nilai per pegawai).
+        $unitForMaxTime = count($units) === 1 ? $units[0] : null;
+        $maxArrivalTime = null;
+        if ($unitForMaxTime !== null) {
+            $unitRule = $db->table('unit_attendance_rules')
+                ->where('unit_code', $unitForMaxTime)
+                ->where('effective_from <=', $startDate)
+                ->groupStart()
+                    ->where('effective_to >=', $startDate)
+                    ->orWhere('effective_to', null)
+                ->groupEnd()
+                ->orderBy('effective_from', 'DESC')
+                ->get(1)->getRowArray();
+            $maxArrivalTime = $unitRule['late_after'] ?? null;
+            if ($maxArrivalTime === null) {
+                $maxArrivalTime = [
+                    'KBIT' => '07:45:59',
+                    'RAIT' => '07:15:59',
+                    'SDIT' => '07:00:59',
+                    'SMPIT' => '07:00:59',
+                    'YAYASAN' => '07:45:59',
+                    'LAZIS' => '07:45:59',
+                ][$unitForMaxTime] ?? null;
+            }
+        }
+        if ($maxArrivalTime !== null && preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$/', $maxArrivalTime)) {
+            [$hours, $minutes, $seconds] = array_map('intval', explode(':', $maxArrivalTime));
+            $detail->setCellValue('J2', ($hours * 3600 + $minutes * 60 + $seconds) / 86400);
+            $detail->getStyle('J2')->getNumberFormat()->setFormatCode('hh:mm');
+        } else {
+            $detail->setCellValue('J2', 'Pilih satu unit');
+        }
+        $toExcelTime = static function ($value) {
+            $value = trim((string) $value);
+            if (preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$/', $value)) {
+                $parts = array_map('intval', explode(':', $value));
+                $seconds = ($parts[0] * 3600) + ($parts[1] * 60) + ($parts[2] ?? 0);
+                return $seconds / 86400;
+            }
+            return $value;
+        };
+
+        $detailRow = 3;
+        foreach ($data['rows'] as $item) {
+            $scans = $item['scans'] ?? [];
+            $detail->fromArray([
+                $item['fingerprint_pin'] ?? ($pinByEmployee[(int) $item['employee_id']] ?? ''),
+                $item['full_name'],
+                $item['position'] ?? '',
+                date('d-m-Y', strtotime($item['date'])),
+                $toExcelTime($scans[0] ?? ''),
+                // Status merupakan hasil aturan jadwal/kalendar NEURO, bukan ambang tunggal Excel.
+                $item['status'] ?? ((int) ($item['late_minutes'] ?? 0) > 0 ? 'Terlambat' : 'Tepat Waktu'),
+                $toExcelTime($scans[1] ?? ''),
+                $toExcelTime($scans[2] ?? ''),
+                (int) $item['employee_id'],
+            ], null, 'A' . $detailRow);
+            $detailRow++;
+        }
+        $detailLastRow = max(2, $detailRow - 1);
+        $detail->getColumnDimension('I')->setVisible(false);
+        $detail->getDefaultRowDimension()->setRowHeight(12);
+        $detail->getStyle('A1:H' . $detailLastRow)->getFont()->setName('Arial')->setSize(8);
+        $detail->getStyle('A1:H2')->getFont()->setBold(true);
+        $detail->getStyle('A1:H' . $detailLastRow)->getBorders()->getAllBorders()
+            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $detail->getStyle('A1:H2')->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
+        $detail->getStyle('E3:E' . $detailLastRow)->getNumberFormat()->setFormatCode('hh:mm');
+        $detail->getStyle('G3:H' . $detailLastRow)->getNumberFormat()->setFormatCode('hh:mm');
+        $detail->getStyle('J1')->getFont()->setName('Calibri')->setSize(11);
+        $detail->getStyle('J1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->getStartColor()->setARGB('FFFFFF00');
+        $detail->getStyle('J1:J2')->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
+        foreach (['A' => 9.18, 'B' => 19.18, 'C' => 15, 'D' => 11.91, 'E' => 9.18, 'F' => 12, 'G' => 9.18, 'H' => 9.18, 'I' => 3, 'J' => 24] as $column => $width) {
+            $detail->getColumnDimension($column)->setWidth($width);
+        }
+        $detail->freezePane('A3');
+        $book->setActiveSheetIndex(0);
+
+        $filename = 'rekap-pegawai-' . $startDate . '-sampai-' . $endDate . ($units ? '-' . strtolower(implode('-', $units)) : '-semua-unit') . '.xlsx';
+        $response = service('response');
+        $response->setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $response->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"');
+        $response->setHeader('Cache-Control', 'max-age=0');
+        ob_start();
+        (new Xlsx($book))->save('php://output');
+        $output = ob_get_clean();
+        $book->disconnectWorksheets();
+        return $response->setBody($output);
+    }
+
+    private function getDateRange(): array
+    {
+        $defaultStart = date('Y-m-01');
+        $defaultEnd = date('Y-m-t');
+        $startDate = (string) ($this->request->getGet('start_date') ?? $defaultStart);
+        $endDate = (string) ($this->request->getGet('end_date') ?? $defaultEnd);
+
+        if (! $this->isValidDate($startDate) || ! $this->isValidDate($endDate) || $endDate < $startDate) {
+            return [$defaultStart, $defaultEnd];
+        }
+
+        return [$startDate, $endDate];
+    }
+
+    private function getUnits(): array
+    {
+        $input = $this->request->getGet('unit');
+        $values = is_array($input) ? $input : [$input];
+        $units = [];
+        foreach ($values as $value) {
+            $unit = strtoupper(trim((string) $value));
+            if (in_array($unit, self::ALLOWED_UNITS, true) && ! in_array($unit, $units, true)) {
+                $units[] = $unit;
+            }
+        }
+        return $units;
+    }
+
+    private function isValidDate(string $date): bool
+    {
+        $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+        return $parsed !== false && $parsed->format('Y-m-d') === $date;
+    }
+}
+ . max(3, count($data['rows']) + 2) . ',"<>Hari Libur (ada scan)",DATA!$F$3:$F
+            $summary->setCellValue('F' . $summaryRow, '=COUNTIFS(DATA!$I$3:$I$' . max(3, count($data['rows']) + 2) . ',$H' . $summaryRow . ',DATA!$F$3:$F$' . max(3, count($data['rows']) + 2) . ',"Terlambat")');
+            $summary->setCellValue('G' . $summaryRow, '=E' . $summaryRow . '-F' . $summaryRow);
+            $summary->setCellValue('H' . $summaryRow, $employeeId);
+            $summaryRow++;
+        }
+        $summaryLastRow = max(3, $summaryRow - 1);
+        $summary->getColumnDimension('H')->setVisible(false);
+        $summary->getStyle('A1:G' . $summaryLastRow)->getFont()->setName('Arial')->setSize(8);
+        $summary->getStyle('A1:G3')->getFont()->setBold(true);
+        $summary->getStyle('A1:G2')->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+        $summary->getStyle('A3:G' . $summaryLastRow)->getBorders()->getAllBorders()
+            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $summary->getStyle('A3:G' . $summaryLastRow)->getAlignment()
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+        $summary->getStyle('A4:A' . $summaryLastRow)->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        $summary->getStyle('E4:G' . $summaryLastRow)->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        foreach (['A' => 6, 'B' => 27, 'C' => 25, 'D' => 18, 'E' => 13, 'F' => 13, 'G' => 15] as $column => $width) {
+            $summary->getColumnDimension($column)->setWidth($width);
+        }
+        $summary->getRowDimension(1)->setRowHeight(15);
+        $summary->getRowDimension(2)->setRowHeight(15);
+        $summary->getRowDimension(3)->setRowHeight(15);
+        // Aktifkan filter dan sortir Excel untuk seluruh kolom rekap.
+        // Header tabel berada di baris 3, data pegawai dimulai dari baris 4.
+        $summary->setAutoFilter('A3:G' . $summaryLastRow);
+        $summary->freezePane('A4');
+
+        $detail = $book->createSheet();
+        $detail->setTitle('DATA');
+        $detail->setCellValue('A1', 'Pegawai');
+        $detail->setCellValue('D1', 'Data scanlog');
+        $detail->setCellValue('J1', 'MAX JAM MASUK');
+        $detail->fromArray(['PIN', 'Nama', 'Jabatan', 'Tanggal', 'Scan 1', 'Status', 'Scan 2', 'Scan 3'], null, 'A2');
+
+        // Satu nilai MAX JAM MASUK berdasarkan aturan unit yang dipilih,
+        // berlaku untuk seluruh sheet DATA (bukan nilai per pegawai).
+        $unitForMaxTime = count($units) === 1 ? $units[0] : null;
+        $maxArrivalTime = null;
+        if ($unitForMaxTime !== null) {
+            $unitRule = $db->table('unit_attendance_rules')
+                ->where('unit_code', $unitForMaxTime)
+                ->where('effective_from <=', $startDate)
+                ->groupStart()
+                    ->where('effective_to >=', $startDate)
+                    ->orWhere('effective_to', null)
+                ->groupEnd()
+                ->orderBy('effective_from', 'DESC')
+                ->get(1)->getRowArray();
+            $maxArrivalTime = $unitRule['late_after'] ?? null;
+            if ($maxArrivalTime === null) {
+                $maxArrivalTime = [
+                    'KBIT' => '07:45:59',
+                    'RAIT' => '07:15:59',
+                    'SDIT' => '07:00:59',
+                    'SMPIT' => '07:00:59',
+                    'YAYASAN' => '07:45:59',
+                    'LAZIS' => '07:45:59',
+                ][$unitForMaxTime] ?? null;
+            }
+        }
+        if ($maxArrivalTime !== null && preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$/', $maxArrivalTime)) {
+            [$hours, $minutes, $seconds] = array_map('intval', explode(':', $maxArrivalTime));
+            $detail->setCellValue('J2', ($hours * 3600 + $minutes * 60 + $seconds) / 86400);
+            $detail->getStyle('J2')->getNumberFormat()->setFormatCode('hh:mm');
+        } else {
+            $detail->setCellValue('J2', 'Pilih satu unit');
+        }
+        $toExcelTime = static function ($value) {
+            $value = trim((string) $value);
+            if (preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$/', $value)) {
+                $parts = array_map('intval', explode(':', $value));
+                $seconds = ($parts[0] * 3600) + ($parts[1] * 60) + ($parts[2] ?? 0);
+                return $seconds / 86400;
+            }
+            return $value;
+        };
+
+        $detailRow = 3;
+        foreach ($data['rows'] as $item) {
+            $scans = $item['scans'] ?? [];
+            $detail->fromArray([
+                $item['fingerprint_pin'] ?? ($pinByEmployee[(int) $item['employee_id']] ?? ''),
+                $item['full_name'],
+                $item['position'] ?? '',
+                date('d-m-Y', strtotime($item['date'])),
+                $toExcelTime($scans[0] ?? ''),
+                // Status merupakan hasil aturan jadwal/kalendar NEURO, bukan ambang tunggal Excel.
+                $item['status'] ?? ((int) ($item['late_minutes'] ?? 0) > 0 ? 'Terlambat' : 'Tepat Waktu'),
+                $toExcelTime($scans[1] ?? ''),
+                $toExcelTime($scans[2] ?? ''),
+                (int) $item['employee_id'],
+            ], null, 'A' . $detailRow);
+            $detailRow++;
+        }
+        $detailLastRow = max(2, $detailRow - 1);
+        $detail->getColumnDimension('I')->setVisible(false);
+        $detail->getDefaultRowDimension()->setRowHeight(12);
+        $detail->getStyle('A1:H' . $detailLastRow)->getFont()->setName('Arial')->setSize(8);
+        $detail->getStyle('A1:H2')->getFont()->setBold(true);
+        $detail->getStyle('A1:H' . $detailLastRow)->getBorders()->getAllBorders()
+            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $detail->getStyle('A1:H2')->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
+        $detail->getStyle('E3:E' . $detailLastRow)->getNumberFormat()->setFormatCode('hh:mm');
+        $detail->getStyle('G3:H' . $detailLastRow)->getNumberFormat()->setFormatCode('hh:mm');
+        $detail->getStyle('J1')->getFont()->setName('Calibri')->setSize(11);
+        $detail->getStyle('J1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->getStartColor()->setARGB('FFFFFF00');
+        $detail->getStyle('J1:J2')->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
+        foreach (['A' => 9.18, 'B' => 19.18, 'C' => 15, 'D' => 11.91, 'E' => 9.18, 'F' => 12, 'G' => 9.18, 'H' => 9.18, 'I' => 3, 'J' => 24] as $column => $width) {
+            $detail->getColumnDimension($column)->setWidth($width);
+        }
+        $detail->freezePane('A3');
+        $book->setActiveSheetIndex(0);
+
+        $filename = 'rekap-pegawai-' . $startDate . '-sampai-' . $endDate . ($units ? '-' . strtolower(implode('-', $units)) : '-semua-unit') . '.xlsx';
+        $response = service('response');
+        $response->setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $response->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"');
+        $response->setHeader('Cache-Control', 'max-age=0');
+        ob_start();
+        (new Xlsx($book))->save('php://output');
+        $output = ob_get_clean();
+        $book->disconnectWorksheets();
+        return $response->setBody($output);
+    }
+
+    private function getDateRange(): array
+    {
+        $defaultStart = date('Y-m-01');
+        $defaultEnd = date('Y-m-t');
+        $startDate = (string) ($this->request->getGet('start_date') ?? $defaultStart);
+        $endDate = (string) ($this->request->getGet('end_date') ?? $defaultEnd);
+
+        if (! $this->isValidDate($startDate) || ! $this->isValidDate($endDate) || $endDate < $startDate) {
+            return [$defaultStart, $defaultEnd];
+        }
+
+        return [$startDate, $endDate];
+    }
+
+    private function getUnits(): array
+    {
+        $input = $this->request->getGet('unit');
+        $values = is_array($input) ? $input : [$input];
+        $units = [];
+        foreach ($values as $value) {
+            $unit = strtoupper(trim((string) $value));
+            if (in_array($unit, self::ALLOWED_UNITS, true) && ! in_array($unit, $units, true)) {
+                $units[] = $unit;
+            }
+        }
+        return $units;
+    }
+
+    private function isValidDate(string $date): bool
+    {
+        $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+        return $parsed !== false && $parsed->format('Y-m-d') === $date;
+    }
+}
+ . max(3, count($data['rows']) + 2) . ',"<>Libur Mingguan (ada scan)")');
+            $summary->setCellValue('F' . $summaryRow, '=COUNTIFS(DATA!$I$3:$I$' . max(3, count($data['rows']) + 2) . ',$H' . $summaryRow . ',DATA!$F$3:$F$' . max(3, count($data['rows']) + 2) . ',"Terlambat")');
+            $summary->setCellValue('G' . $summaryRow, '=E' . $summaryRow . '-F' . $summaryRow);
+            $summary->setCellValue('H' . $summaryRow, $employeeId);
+            $summaryRow++;
+        }
+        $summaryLastRow = max(3, $summaryRow - 1);
+        $summary->getColumnDimension('H')->setVisible(false);
+        $summary->getStyle('A1:G' . $summaryLastRow)->getFont()->setName('Arial')->setSize(8);
+        $summary->getStyle('A1:G3')->getFont()->setBold(true);
+        $summary->getStyle('A1:G2')->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+        $summary->getStyle('A3:G' . $summaryLastRow)->getBorders()->getAllBorders()
+            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $summary->getStyle('A3:G' . $summaryLastRow)->getAlignment()
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+        $summary->getStyle('A4:A' . $summaryLastRow)->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        $summary->getStyle('E4:G' . $summaryLastRow)->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        foreach (['A' => 6, 'B' => 27, 'C' => 25, 'D' => 18, 'E' => 13, 'F' => 13, 'G' => 15] as $column => $width) {
+            $summary->getColumnDimension($column)->setWidth($width);
+        }
+        $summary->getRowDimension(1)->setRowHeight(15);
+        $summary->getRowDimension(2)->setRowHeight(15);
+        $summary->getRowDimension(3)->setRowHeight(15);
+        // Aktifkan filter dan sortir Excel untuk seluruh kolom rekap.
+        // Header tabel berada di baris 3, data pegawai dimulai dari baris 4.
+        $summary->setAutoFilter('A3:G' . $summaryLastRow);
+        $summary->freezePane('A4');
+
+        $detail = $book->createSheet();
+        $detail->setTitle('DATA');
+        $detail->setCellValue('A1', 'Pegawai');
+        $detail->setCellValue('D1', 'Data scanlog');
+        $detail->setCellValue('J1', 'MAX JAM MASUK');
+        $detail->fromArray(['PIN', 'Nama', 'Jabatan', 'Tanggal', 'Scan 1', 'Status', 'Scan 2', 'Scan 3'], null, 'A2');
+
+        // Satu nilai MAX JAM MASUK berdasarkan aturan unit yang dipilih,
+        // berlaku untuk seluruh sheet DATA (bukan nilai per pegawai).
+        $unitForMaxTime = count($units) === 1 ? $units[0] : null;
+        $maxArrivalTime = null;
+        if ($unitForMaxTime !== null) {
+            $unitRule = $db->table('unit_attendance_rules')
+                ->where('unit_code', $unitForMaxTime)
+                ->where('effective_from <=', $startDate)
+                ->groupStart()
+                    ->where('effective_to >=', $startDate)
+                    ->orWhere('effective_to', null)
+                ->groupEnd()
+                ->orderBy('effective_from', 'DESC')
+                ->get(1)->getRowArray();
+            $maxArrivalTime = $unitRule['late_after'] ?? null;
+            if ($maxArrivalTime === null) {
+                $maxArrivalTime = [
+                    'KBIT' => '07:45:59',
+                    'RAIT' => '07:15:59',
+                    'SDIT' => '07:00:59',
+                    'SMPIT' => '07:00:59',
+                    'YAYASAN' => '07:45:59',
+                    'LAZIS' => '07:45:59',
+                ][$unitForMaxTime] ?? null;
+            }
+        }
+        if ($maxArrivalTime !== null && preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$/', $maxArrivalTime)) {
+            [$hours, $minutes, $seconds] = array_map('intval', explode(':', $maxArrivalTime));
+            $detail->setCellValue('J2', ($hours * 3600 + $minutes * 60 + $seconds) / 86400);
+            $detail->getStyle('J2')->getNumberFormat()->setFormatCode('hh:mm');
+        } else {
+            $detail->setCellValue('J2', 'Pilih satu unit');
+        }
+        $toExcelTime = static function ($value) {
+            $value = trim((string) $value);
+            if (preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$/', $value)) {
+                $parts = array_map('intval', explode(':', $value));
+                $seconds = ($parts[0] * 3600) + ($parts[1] * 60) + ($parts[2] ?? 0);
+                return $seconds / 86400;
+            }
+            return $value;
+        };
+
+        $detailRow = 3;
+        foreach ($data['rows'] as $item) {
+            $scans = $item['scans'] ?? [];
+            $detail->fromArray([
+                $item['fingerprint_pin'] ?? ($pinByEmployee[(int) $item['employee_id']] ?? ''),
+                $item['full_name'],
+                $item['position'] ?? '',
+                date('d-m-Y', strtotime($item['date'])),
+                $toExcelTime($scans[0] ?? ''),
+                // Status merupakan hasil aturan jadwal/kalendar NEURO, bukan ambang tunggal Excel.
+                $item['status'] ?? ((int) ($item['late_minutes'] ?? 0) > 0 ? 'Terlambat' : 'Tepat Waktu'),
+                $toExcelTime($scans[1] ?? ''),
+                $toExcelTime($scans[2] ?? ''),
+                (int) $item['employee_id'],
+            ], null, 'A' . $detailRow);
+            $detailRow++;
+        }
+        $detailLastRow = max(2, $detailRow - 1);
+        $detail->getColumnDimension('I')->setVisible(false);
+        $detail->getDefaultRowDimension()->setRowHeight(12);
+        $detail->getStyle('A1:H' . $detailLastRow)->getFont()->setName('Arial')->setSize(8);
+        $detail->getStyle('A1:H2')->getFont()->setBold(true);
+        $detail->getStyle('A1:H' . $detailLastRow)->getBorders()->getAllBorders()
+            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $detail->getStyle('A1:H2')->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
+        $detail->getStyle('E3:E' . $detailLastRow)->getNumberFormat()->setFormatCode('hh:mm');
+        $detail->getStyle('G3:H' . $detailLastRow)->getNumberFormat()->setFormatCode('hh:mm');
+        $detail->getStyle('J1')->getFont()->setName('Calibri')->setSize(11);
+        $detail->getStyle('J1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->getStartColor()->setARGB('FFFFFF00');
+        $detail->getStyle('J1:J2')->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
+        foreach (['A' => 9.18, 'B' => 19.18, 'C' => 15, 'D' => 11.91, 'E' => 9.18, 'F' => 12, 'G' => 9.18, 'H' => 9.18, 'I' => 3, 'J' => 24] as $column => $width) {
+            $detail->getColumnDimension($column)->setWidth($width);
+        }
+        $detail->freezePane('A3');
+        $book->setActiveSheetIndex(0);
+
+        $filename = 'rekap-pegawai-' . $startDate . '-sampai-' . $endDate . ($units ? '-' . strtolower(implode('-', $units)) : '-semua-unit') . '.xlsx';
+        $response = service('response');
+        $response->setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $response->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"');
+        $response->setHeader('Cache-Control', 'max-age=0');
+        ob_start();
+        (new Xlsx($book))->save('php://output');
+        $output = ob_get_clean();
+        $book->disconnectWorksheets();
+        return $response->setBody($output);
+    }
+
+    private function getDateRange(): array
+    {
+        $defaultStart = date('Y-m-01');
+        $defaultEnd = date('Y-m-t');
+        $startDate = (string) ($this->request->getGet('start_date') ?? $defaultStart);
+        $endDate = (string) ($this->request->getGet('end_date') ?? $defaultEnd);
+
+        if (! $this->isValidDate($startDate) || ! $this->isValidDate($endDate) || $endDate < $startDate) {
+            return [$defaultStart, $defaultEnd];
+        }
+
+        return [$startDate, $endDate];
+    }
+
+    private function getUnits(): array
+    {
+        $input = $this->request->getGet('unit');
+        $values = is_array($input) ? $input : [$input];
+        $units = [];
+        foreach ($values as $value) {
+            $unit = strtoupper(trim((string) $value));
+            if (in_array($unit, self::ALLOWED_UNITS, true) && ! in_array($unit, $units, true)) {
+                $units[] = $unit;
+            }
+        }
+        return $units;
+    }
+
+    private function isValidDate(string $date): bool
+    {
+        $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+        return $parsed !== false && $parsed->format('Y-m-d') === $date;
+    }
+}
+ . max(3, count($data['rows']) + 2) . ',"<>Libur Mingguan (ada scan)")');
             $summary->setCellValue('F' . $summaryRow, '=COUNTIFS(DATA!$I$3:$I$' . max(3, count($data['rows']) + 2) . ',$H' . $summaryRow . ',DATA!$F$3:$F$' . max(3, count($data['rows']) + 2) . ',"Terlambat")');
             $summary->setCellValue('G' . $summaryRow, '=E' . $summaryRow . '-F' . $summaryRow);
             $summary->setCellValue('H' . $summaryRow, $employeeId);
