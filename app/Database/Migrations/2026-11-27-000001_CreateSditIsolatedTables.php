@@ -9,7 +9,7 @@ class CreateSditIsolatedTables extends Migration
     public function up()
     {
         $this->forge->addField([
-            'id' => ['type' => 'BIGINT', 'unsigned' => true, 'auto_increment' => true],
+            'id' => 'BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY',
             'source_employee_id' => ['type' => 'VARCHAR', 'constraint' => 32, 'null' => true],
             'pin' => ['type' => 'VARCHAR', 'constraint' => 32],
             'employee_code' => ['type' => 'VARCHAR', 'constraint' => 50, 'null' => true],
@@ -25,12 +25,11 @@ class CreateSditIsolatedTables extends Migration
             'created_at' => ['type' => 'DATETIME', 'null' => true],
             'updated_at' => ['type' => 'DATETIME', 'null' => true],
         ]);
-        $this->forge->addKey('id', true);
         $this->forge->addUniqueKey('pin', 'uq_sdit_employees_pin');
         $this->forge->createTable('sdit_employees', true);
 
         $this->forge->addField([
-            'id' => ['type' => 'BIGINT', 'unsigned' => true, 'auto_increment' => true],
+            'id' => 'BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY',
             'import_batch_id' => ['type' => 'BIGINT', 'unsigned' => true, 'null' => true],
             'machine_serial' => ['type' => 'VARCHAR', 'constraint' => 40, 'default' => 'FS2010195000514'],
             'pin' => ['type' => 'VARCHAR', 'constraint' => 32],
@@ -41,13 +40,12 @@ class CreateSditIsolatedTables extends Migration
             'source_row' => ['type' => 'INT', 'null' => true],
             'created_at' => ['type' => 'DATETIME', 'null' => true],
         ]);
-        $this->forge->addKey('id', true);
         $this->forge->addUniqueKey(['machine_serial', 'pin', 'scanned_at'], 'uq_sdit_scan_identity');
         $this->forge->addKey(['pin', 'scanned_at'], false, false, 'idx_sdit_pin_time');
         $this->forge->createTable('sdit_attendance_logs', true);
 
         $this->forge->addField([
-            'id' => ['type' => 'BIGINT', 'unsigned' => true, 'auto_increment' => true],
+            'id' => 'BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY',
             'import_batch_id' => ['type' => 'BIGINT', 'unsigned' => true, 'null' => true],
             'machine_serial' => ['type' => 'VARCHAR', 'constraint' => 40, 'default' => 'FS2010195000514'],
             'pin' => ['type' => 'VARCHAR', 'constraint' => 32],
@@ -57,12 +55,11 @@ class CreateSditIsolatedTables extends Migration
             'source_row' => ['type' => 'INT', 'null' => true],
             'created_at' => ['type' => 'DATETIME', 'null' => true],
         ]);
-        $this->forge->addKey('id', true);
         $this->forge->addKey(['pin', 'original_scanned_at'], false, false, 'idx_sdit_invalid_pin_time');
         $this->forge->createTable('sdit_invalid_scans', true);
 
         $this->forge->addField([
-            'id' => ['type' => 'BIGINT', 'unsigned' => true, 'auto_increment' => true],
+            'id' => 'BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY',
             'source_format' => ['type' => 'VARCHAR', 'constraint' => 10],
             'original_filename' => ['type' => 'VARCHAR', 'constraint' => 255],
             'file_sha256' => ['type' => 'CHAR', 'constraint' => 64],
@@ -73,7 +70,6 @@ class CreateSditIsolatedTables extends Migration
             'status' => ['type' => 'VARCHAR', 'constraint' => 20, 'default' => 'completed'],
             'created_at' => ['type' => 'DATETIME', 'null' => true],
         ]);
-        $this->forge->addKey('id', true);
         $this->forge->createTable('sdit_import_batches', true);
     }
 
