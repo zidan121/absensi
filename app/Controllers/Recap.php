@@ -70,6 +70,16 @@ class Recap extends BaseController
         // mengikuti late_after yang benar-benar dipakai NEURO untuk pegawai/tanggal tersebut.
         $sheet->setCellValue('J2', 'MAX JAM MASUK');
 
+        $toExcelTime = static function ($value) {
+            $value = trim((string) $value);
+            if (preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$/', $value)) {
+                $parts = array_map('intval', explode(':', $value));
+                $seconds = ($parts[0] * 3600) + ($parts[1] * 60) + ($parts[2] ?? 0);
+                return $seconds / 86400;
+            }
+            return $value;
+        };
+
         $row = 3;
         foreach ($data['rows'] as $item) {
             $scans = $item['scans'] ?? [];
@@ -78,12 +88,12 @@ class Recap extends BaseController
                 $item['full_name'],
                 $item['position'] ?? '',
                 date('d-m-Y', strtotime($item['date'])),
-                $scans[0] ?? '',
+                $toExcelTime($scans[0] ?? ''),
                 $item['status'] ?? ((int) ($item['late_minutes'] ?? 0) > 0
                     ? 'Terlambat'
                     : 'Tepat Waktu'),
-                $scans[1] ?? '',
-                $scans[2] ?? '',
+                $toExcelTime($scans[1] ?? ''),
+                $toExcelTime($scans[2] ?? ''),
             ];
             $sheet->fromArray($values, null, 'A' . $row);
             $lateAfter = (string) ($item['late_after'] ?? '');
@@ -447,6 +457,16 @@ class Recap extends BaseController
         } else {
             $detail->setCellValue('J2', 'Pilih satu unit');
         }
+        $toExcelTime = static function ($value) {
+            $value = trim((string) $value);
+            if (preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$/', $value)) {
+                $parts = array_map('intval', explode(':', $value));
+                $seconds = ($parts[0] * 3600) + ($parts[1] * 60) + ($parts[2] ?? 0);
+                return $seconds / 86400;
+            }
+            return $value;
+        };
+
         $detailRow = 3;
         foreach ($data['rows'] as $item) {
             $scans = $item['scans'] ?? [];
@@ -455,11 +475,11 @@ class Recap extends BaseController
                 $item['full_name'],
                 $item['position'] ?? '',
                 date('d-m-Y', strtotime($item['date'])),
-                $scans[0] ?? '',
+                $toExcelTime($scans[0] ?? ''),
                 // Status merupakan hasil aturan jadwal/kalendar NEURO, bukan ambang tunggal Excel.
                 $item['status'] ?? ((int) ($item['late_minutes'] ?? 0) > 0 ? 'Terlambat' : 'Tepat Waktu'),
-                $scans[1] ?? '',
-                $scans[2] ?? '',
+                $toExcelTime($scans[1] ?? ''),
+                $toExcelTime($scans[2] ?? ''),
                 (int) $item['employee_id'],
             ], null, 'A' . $detailRow);
             $detailRow++;
