@@ -411,6 +411,50 @@ class Sdit extends BaseController
     }
 
 
+    public function exportRecap()
+    {
+        $month = (string) $this->request->getGet('bulan');
+        if (!preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $month)) $month = date('Y-m');
+        $start = $month . '-01 00:00:00';
+        $end = date('Y-m-d H:i:s', strtotime($start . ' +1 month'));
+        $rows = db_connect()->table('sdit_attendance_logs')
+            ->select("pin, DATE(scanned_at) AS work_date, MIN(TIME(scanned_at)) AS first_scan, MAX(TIME(scanned_at)) AS last_scan, COUNT(*) AS scan_count", false)
+            ->where('scanned_at >=', $start)->where('scanned_at <', $end)
+            ->groupBy('pin, DATE(scanned_at)')->orderBy('pin','ASC')->orderBy('work_date','ASC')
+            ->get()->getResultArray();
+        $pins = array_values(array_unique(array_column($rows, 'pin')));
+        $masters = $pins ? db_connect()->table('sdit_employees')->whereIn('pin',$pins)->get()->getResultArray() : [];
+        $map = [];
+        foreach ($masters as $employee) $map[(string)$employee['pin']] = $employee;
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Rekap SDIT');
+        $sheet->fromArray(['No','Kode Pegawai','Nama Pegawai','PIN','Tanggal','Datang','Pulang','Jumlah Scan'],null,'A1');
+        $line = 2;
+        foreach ($rows as $i=>$row) {
+            $employee = $map[(string)$row['pin']] ?? [];
+            $sheet->fromArray([
+                $i+1, $employee['employee_code'] ?? $row['pin'],
+                $employee['full_name'] ?? 'Belum dipetakan', $row['pin'],
+                $row['work_date'], substr($row['first_scan'],0,5),
+                (int)$row['scan_count'] > 1 ? substr($row['last_scan'],0,5) : '',
+                (int)$row['scan_count']
+            ],null,'A'.$line++);
+        }
+        $sheet->getStyle('A1:H1')->getFont()->setBold(true);
+        foreach (range('A','H') as $column) $sheet->getColumnDimension($column)->setAutoSize(true);
+        $sheet->freezePane('A2');
+        $sheet->setAutoFilter('A1:H'.max(1,$line-1));
+        $dir = WRITEPATH . 'exports';
+        if (!is_dir($dir) && !mkdir($dir,0775,true) && !is_dir($dir)) {
+            throw new \RuntimeException('Folder ekspor SDIT tidak dapat dibuat.');
+        }
+        $path = $dir . DIRECTORY_SEPARATOR . 'rekap-sdit-'.$month.'-'.date('YmdHis').'.xlsx';
+        (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet))->save($path);
+        $spreadsheet->disconnectWorksheets();
+        return $this->response->download($path,null)->setFileName('Rekap-Absensi-SDIT-'.$month.'.xlsx');
+    }
+
     public function timeCheck()
     {
         $rows = db_connect()->table('sdit_invalid_scans')->orderBy('id', 'DESC')->limit(500)->get()->getResultArray();
