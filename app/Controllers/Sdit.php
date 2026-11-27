@@ -427,6 +427,7 @@ class Sdit extends BaseController
                 $status = 'Jadwal Belum Diatur';
                 if ($isHoliday) $status = 'Hari Libur (ada scan)';
                 elseif (!$isWorkday) $status = 'Libur Mingguan (ada scan)';
+                elseif (!empty($calendar['allow_afternoon_entry'])) $status = 'Izin Masuk Siang';
                 elseif ($startTime !== null && $lateAfter !== null) {
                     $cutoff = date('H:i:s', strtotime($startTime . ' +' . (int)$lateAfter . ' minutes'));
                     $late = $scanTimes[0] > $cutoff;
