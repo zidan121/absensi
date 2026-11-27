@@ -278,6 +278,20 @@ class Recap extends BaseController
                     if ($manualA !== $manualB) return $manualA <=> $manualB;
                 }
             }
+
+            // Urutan manual terakhir yang disimpan harus mengalahkan preset/default.
+            $unitA = (string) $a['unit_code'];
+            $unitB = (string) $b['unit_code'];
+            $unitCompare = ($unitRank[$unitA] ?? PHP_INT_MAX) <=> ($unitRank[$unitB] ?? PHP_INT_MAX);
+            if ($unitCompare !== 0) return $unitCompare;
+            $manualA = $employeeOrder[$unitA][$idA] ?? null;
+            $manualB = $employeeOrder[$unitB][$idB] ?? null;
+            if ($manualA !== null || $manualB !== null) {
+                if ($manualA === null) return 1;
+                if ($manualB === null) return -1;
+                if ($manualA !== $manualB) return $manualA <=> $manualB;
+            }
+
             if ($isRaitOnly) {
                 $nameA = mb_strtolower(trim((string) $a['full_name']));
                 $nameB = mb_strtolower(trim((string) $b['full_name']));
@@ -299,17 +313,6 @@ class Recap extends BaseController
                     if (str_contains($nameB, $needle)) $rankB = $rank;
                 }
                 if ($rankA !== $rankB) return $rankA <=> $rankB;
-            }
-            $unitA = (string) $a['unit_code'];
-            $unitB = (string) $b['unit_code'];
-            $unitCompare = ($unitRank[$unitA] ?? PHP_INT_MAX) <=> ($unitRank[$unitB] ?? PHP_INT_MAX);
-            if ($unitCompare !== 0) return $unitCompare;
-            $manualA = $employeeOrder[$unitA][$idA] ?? null;
-            $manualB = $employeeOrder[$unitB][$idB] ?? null;
-            if ($manualA !== null || $manualB !== null) {
-                if ($manualA === null) return 1;
-                if ($manualB === null) return -1;
-                if ($manualA !== $manualB) return $manualA <=> $manualB;
             }
             $positionA = trim((string) ($a['position'] ?? ''));
             $positionB = trim((string) ($b['position'] ?? ''));
