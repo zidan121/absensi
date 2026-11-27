@@ -659,6 +659,17 @@ class Sdit extends BaseController
             || ($from !== '' && $until !== '' && $until < $from)) {
             return redirect()->to('/sdit/jadwal-pegawai')->with('error', 'Data jadwal khusus tidak valid.');
         }
+        $newFrom = $from !== '' ? $from : '0001-01-01';
+        $newUntil = $until !== '' ? $until : '9999-12-31';
+        $existingRules = $db->table('sdit_employee_schedules')
+            ->where('pin', $pin)->where('day_of_week', $day)->get()->getResultArray();
+        foreach ($existingRules as $existing) {
+            $oldFrom = $existing['effective_from'] ?: '0001-01-01';
+            $oldUntil = $existing['effective_until'] ?: '9999-12-31';
+            if ($newFrom <= $oldUntil && $oldFrom <= $newUntil) {
+                return redirect()->to('/sdit/jadwal-pegawai')->with('error', 'Periode jadwal bertabrakan dengan jadwal pegawai yang sudah ada untuk hari tersebut. Hapus atau ubah jadwal lama terlebih dahulu.');
+            }
+        }
         $payload = [
             'pin'=>$pin,'day_of_week'=>$day,'start_time'=>$start.':00','end_time'=>$end.':00',
             'late_after_minutes'=>max(0,(int)$this->request->getPost('late_after_minutes')),
