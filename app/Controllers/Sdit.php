@@ -605,8 +605,18 @@ class Sdit extends BaseController
                 $employee['full_name'],
                 $employee['position'] ?? '',
             ], null, 'A' . $summaryRow);
-            $summary->setCellValue('E' . $summaryRow, '=COUNTIFS(DATA!$I$3:$I
-            $summary->setCellValue('F' . $summaryRow, '=COUNTIFS(DATA!$I$3:$I
+            $pin = (string) $employee['pin'];
+            $presentCount = 0;
+            $lateCount = 0;
+            foreach ($logsByPin[$pin] ?? [] as $daily) {
+                [$dailyStatus, $isCounted, $isLate] = $resolveStatus($pin, $daily['date'], $daily['scans']);
+                if ($isCounted) {
+                    $presentCount++;
+                    if ($isLate) $lateCount++;
+                }
+            }
+            $summary->setCellValue('E' . $summaryRow, $presentCount);
+            $summary->setCellValue('F' . $summaryRow, $lateCount);
             $summary->setCellValue('G' . $summaryRow, '=E' . $summaryRow . '-F' . $summaryRow);
             $summary->setCellValue('H' . $summaryRow, (string) $employee['pin']);
             $summaryRow++;
