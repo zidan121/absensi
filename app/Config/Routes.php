@@ -102,6 +102,7 @@ $routes->group('sdit', ['filter' => 'auth'], static function ($routes) {
     $routes->get('scan', 'Sdit::scans');
     $routes->get('rekap', 'Sdit::recap');
     $routes->get('rekap/export', 'Sdit::exportRecap');
+    $routes->get('rekap/export-rekap-pegawai', 'Sdit::exportRecap');
     $routes->get('pemeriksaan-waktu', 'Sdit::timeCheck');
     $routes->get('pemetaan-pin', 'Sdit::pinMapping');
 });
