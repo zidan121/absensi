@@ -1,10 +1,14 @@
 <?= $this->extend('layout') ?>
 <?= $this->section('content') ?>
 <?php if (session()->getFlashdata('success')): ?><div class="alert alert-success"><?= esc(session()->getFlashdata('success')) ?></div><?php endif ?>
-<div class="page-heading"><h1>Pemetaan PIN SDIT</h1><p class="text-secondary">Master pegawai dan PIN yang khusus untuk unit SDIT.</p></div>
-
-<div class="card"><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>No.</th><th>PIN</th><th>Kode Pegawai</th><th>Nama</th><th>Jabatan</th><th>Status</th></tr></thead><tbody>
+<div class="page-heading"><h1>Pemetaan PIN SDIT</h1><p class="text-secondary">Master pegawai dan PIN khusus SDIT. PIN yang memiliki scan tetapi belum terdaftar ditampilkan terpisah.</p></div>
+<div class="row g-3 mb-3"><div class="col-md-4"><div class="card"><div class="card-body"><div class="small text-secondary">Master pegawai SDIT</div><div class="fs-3 fw-bold"><?= number_format(count($rows)) ?></div></div></div></div><div class="col-md-4"><div class="card"><div class="card-body"><div class="small text-secondary">PIN belum terpetakan</div><div class="fs-3 fw-bold <?= $unmapped ? 'text-danger' : 'text-success' ?>"><?= number_format(count($unmapped)) ?></div></div></div></div></div>
+<div class="card mb-3"><div class="card-header"><strong>Master pegawai SDIT</strong></div><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>No.</th><th>PIN</th><th>Kode Pegawai</th><th>Nama</th><th>Jabatan</th><th>Status</th></tr></thead><tbody>
 <?php foreach ($rows as $i => $row): ?><tr><td><?= $i + 1 ?></td><td class="fw-bold"><?= esc($row['pin']) ?></td><td><?= esc($row['employee_code'] ?? '-') ?></td><td><?= esc($row['full_name']) ?></td><td><?= esc($row['position'] ?? '-') ?></td><td><?= $row['is_active'] ? '<span class="badge text-bg-success">Aktif</span>' : '<span class="badge text-bg-secondary">Nonaktif</span>' ?></td></tr><?php endforeach ?>
 <?php if (!$rows): ?><tr><td colspan="6" class="text-center text-secondary py-4">Master pegawai SDIT belum tersedia.</td></tr><?php endif ?>
 </tbody></table></div></div>
+<div class="card"><div class="card-header"><strong class="text-danger">PIN dari scan yang belum terpetakan</strong></div><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>PIN</th><th>Jumlah scan</th><th>Scan pertama</th><th>Scan terakhir</th></tr></thead><tbody>
+<?php foreach($unmapped as $item): ?><tr><td class="fw-bold"><?= esc($item['pin']) ?></td><td><?= number_format($item['scan_count']) ?></td><td><?= esc($item['first_scan']) ?></td><td><?= esc($item['last_scan']) ?></td></tr><?php endforeach ?>
+<?php if(!$unmapped): ?><tr><td colspan="4" class="text-center text-success py-4">Semua PIN yang memiliki scan sudah ditemukan pada master pegawai SDIT.</td></tr><?php endif ?>
+</tbody></table></div><div class="card-footer small text-secondary">Daftar ini hanya mendeteksi PIN yang belum cocok. Tidak ada data pegawai yang diubah otomatis.</div></div>
 <?= $this->endSection() ?>
