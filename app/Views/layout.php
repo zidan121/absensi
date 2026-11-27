@@ -24,6 +24,21 @@
         .sidebar nav a:hover{background:rgba(255,255,255,.09);color:#fff;transform:translateX(2px)}
         .sidebar nav a.active{background:linear-gradient(100deg,#2563eb,#3479ed);color:#fff;box-shadow:0 7px 18px rgba(0,0,0,.16)}
         .sidebar nav a.active i{color:#fff}
+        .sidebar nav details{margin:4px 0}
+        .sidebar nav summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 11px;border-radius:10px;color:#9fb5d3;font-size:10px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;cursor:pointer;user-select:none}
+        .sidebar nav summary::-webkit-details-marker{display:none}
+        .sidebar nav summary:after{content:'+';font-size:15px;line-height:1;color:#8da8cb}
+        .sidebar nav details[open] summary:after{content:'−'}
+        .sidebar nav summary:hover{background:rgba(255,255,255,.06);color:#fff}
+        .sidebar nav details .nav-sub{padding:1px 0 4px 7px}
+        .sidebar nav details .nav-sub a{padding:8px 10px;margin:2px 0;font-size:11px}
+        .sidebar nav details .nav-sub a i{font-size:15px}
+        .sidebar nav .nav-main{margin-bottom:5px}
+        .sidebar nav .nav-main a{padding:9px 11px}
+        .sidebar{padding:17px 13px}
+        .brand-wrap{padding:0 8px 14px;margin-bottom:10px}
+        .sidebar-bottom{padding:11px 8px 0}
+
         .sidebar-bottom{margin-top:auto;padding:18px 10px 0;border-top:1px solid rgba(255,255,255,.12)}
         .sidebar-bottom a{display:flex;align-items:center;gap:10px;color:#c9d7eb;text-decoration:none;font-size:12px;font-weight:600;padding:9px 4px}
         .sidebar-bottom a:hover{color:#fff}
@@ -65,23 +80,52 @@
 <div class="app-shell">
     <aside class="sidebar">
         <div class="brand-wrap"><div class="brand-mark"><i class="bi bi-fingerprint"></i></div><div><div class="brand-name">NEURO ABSENSI</div><div class="brand-caption">ATTENDANCE MANAGEMENT</div></div></div>
+        <?php $currentPath = uri_string(); ?>
         <nav>
-            <div class="nav-caption">Menu utama</div>
-            <a class="<?= uri_string() === '' ? 'active' : '' ?>" href="/"><i class="bi bi-grid-1x2-fill"></i>Dashboard</a>
-            <a class="<?= str_starts_with(uri_string(), 'pegawai') ? 'active' : '' ?>" href="/pegawai"><i class="bi bi-people-fill"></i>Data Pegawai</a>
-            <a class="<?= str_starts_with(uri_string(), 'rekap') ? 'active' : '' ?>" href="/rekap"><i class="bi bi-calendar2-check-fill"></i>Rekap Absensi</a>
-            <div class="nav-caption mt-4">Pengaturan</div>
-            <a class="<?= str_starts_with(uri_string(), 'pengaturan-absensi') ? 'active' : '' ?>" href="/pengaturan-absensi"><i class="bi bi-sliders"></i>Pengaturan Absensi</a>
-            <a class="<?= str_starts_with(uri_string(), 'pengaturan-urutan-pegawai') ? 'active' : '' ?>" href="/pengaturan-urutan-pegawai"><i class="bi bi-list-ol"></i>Urutan Pegawai REKAB</a>
-            <a class="<?= str_starts_with(uri_string(), 'kalender-kerja') ? 'active' : '' ?>" href="/kalender-kerja"><i class="bi bi-calendar-event-fill"></i>Kalender Kerja</a>
-            <a class="<?= str_starts_with(uri_string(), 'jadwal-hari-kerja') ? 'active' : '' ?>" href="/jadwal-hari-kerja"><i class="bi bi-calendar-week-fill"></i>Jadwal Hari Kerja</a>
-            <div class="nav-caption mt-4">Akun</div>
-            <a class="<?= str_starts_with(uri_string(), 'akun') ? 'active' : '' ?>" href="/akun"><i class="bi bi-person-gear"></i>Pengaturan Akun</a>
-            <div class="nav-caption mt-4">Data fingerprint</div>
-            <a class="<?= str_starts_with(uri_string(), 'impor') && !str_starts_with(uri_string(), 'impor-backup') ? 'active' : '' ?>" href="/impor"><i class="bi bi-file-earmark-arrow-up-fill"></i>Impor Log TXT</a>
-            <a class="<?= str_starts_with(uri_string(), 'impor-backup') ? 'active' : '' ?>" href="/impor-backup"><i class="bi bi-database-fill-up"></i>Impor Backup SQL</a>
-            <div class="nav-caption mt-4">Pemeliharaan</div>
-            <a class="<?= str_starts_with(uri_string(), 'backup') ? 'active' : '' ?>" href="/backup"><i class="bi bi-database-fill-down"></i>Backup & Pemulihan</a>
+            <div class="nav-main">
+                <a class="<?= $currentPath === '' ? 'active' : '' ?>" href="/"><i class="bi bi-grid-1x2-fill"></i>Dashboard</a>
+            </div>
+            <details <?= (str_starts_with($currentPath, 'pegawai') || str_starts_with($currentPath, 'rekap')) ? 'open' : '' ?>>
+                <summary>Manajemen</summary>
+                <div class="nav-sub">
+                    <a class="<?= str_starts_with($currentPath, 'pegawai') ? 'active' : '' ?>" href="/pegawai"><i class="bi bi-people-fill"></i>Data Pegawai</a>
+                    <a class="<?= str_starts_with($currentPath, 'rekap') ? 'active' : '' ?>" href="/rekap"><i class="bi bi-calendar2-check-fill"></i>Rekap Absensi</a>
+                </div>
+            </details>
+            <details <?= (str_starts_with($currentPath, 'pengaturan-absensi') || str_starts_with($currentPath, 'pengaturan-urutan-pegawai') || str_starts_with($currentPath, 'kalender-kerja') || str_starts_with($currentPath, 'jadwal-hari-kerja')) ? 'open' : '' ?>>
+                <summary>Pengaturan</summary>
+                <div class="nav-sub">
+                    <a class="<?= str_starts_with($currentPath, 'pengaturan-absensi') ? 'active' : '' ?>" href="/pengaturan-absensi"><i class="bi bi-sliders"></i>Pengaturan Absensi</a>
+                    <a class="<?= str_starts_with($currentPath, 'pengaturan-urutan-pegawai') ? 'active' : '' ?>" href="/pengaturan-urutan-pegawai"><i class="bi bi-list-ol"></i>Urutan Pegawai REKAB</a>
+                    <a class="<?= str_starts_with($currentPath, 'kalender-kerja') ? 'active' : '' ?>" href="/kalender-kerja"><i class="bi bi-calendar-event-fill"></i>Kalender Kerja</a>
+                    <a class="<?= str_starts_with($currentPath, 'jadwal-hari-kerja') ? 'active' : '' ?>" href="/jadwal-hari-kerja"><i class="bi bi-calendar-week-fill"></i>Jadwal Hari Kerja</a>
+                </div>
+            </details>
+            <details <?= str_starts_with($currentPath, 'akun') ? 'open' : '' ?>>
+                <summary>Akun</summary>
+                <div class="nav-sub">
+                    <a class="<?= str_starts_with($currentPath, 'akun') ? 'active' : '' ?>" href="/akun"><i class="bi bi-person-gear"></i>Pengaturan Akun</a>
+                </div>
+            </details>
+            <details <?= (str_starts_with($currentPath, 'impor') || str_starts_with($currentPath, 'impor-backup')) ? 'open' : '' ?>>
+                <summary>Data Fingerprint</summary>
+                <div class="nav-sub">
+                    <a class="<?= str_starts_with($currentPath, 'impor') && !str_starts_with($currentPath, 'impor-backup') ? 'active' : '' ?>" href="/impor"><i class="bi bi-file-earmark-arrow-up-fill"></i>Impor Log TXT</a>
+                    <a class="<?= str_starts_with($currentPath, 'impor-backup') ? 'active' : '' ?>" href="/impor-backup"><i class="bi bi-database-fill-up"></i>Impor Backup SQL</a>
+                </div>
+            </details>
+            <details <?= str_starts_with($currentPath, 'sdit') ? 'open' : '' ?>>
+                <summary>Modul SDIT</summary>
+                <div class="nav-sub">
+                    <a class="<?= str_starts_with($currentPath, 'sdit') ? 'active' : '' ?>" href="/sdit"><i class="bi bi-building"></i>Menu Khusus SDIT</a>
+                </div>
+            </details>
+            <details <?= str_starts_with($currentPath, 'backup') ? 'open' : '' ?>>
+                <summary>Pemeliharaan</summary>
+                <div class="nav-sub">
+                    <a class="<?= str_starts_with($currentPath, 'backup') ? 'active' : '' ?>" href="/backup"><i class="bi bi-database-fill-down"></i>Backup & Pemulihan</a>
+                </div>
+            </details>
         </nav>
         <div class="sidebar-bottom"><a href="/logout"><i class="bi bi-box-arrow-left"></i>Keluar dari aplikasi</a></div>
     </aside>
