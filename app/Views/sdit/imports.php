@@ -31,4 +31,13 @@
         <button class="btn btn-outline-primary"><i class="bi bi-search me-2"></i>Pratinjau Master Pegawai</button>
     </form>
 </div></div>
+<div class="card mt-4"><div class="card-body p-4">
+    <h5 class="mb-2">Impor Riwayat Scan dari Backup SQL</h5>
+    <p class="text-secondary">Ambil tabel <code>att_log</code> dari backup SDIT. Semua tanggal dibaca apa adanya; tanggal tahun 2000 tidak otomatis dibuang.</p>
+    <form method="post" action="/sdit/impor/sql-scan/preview" enctype="multipart/form-data">
+        <?= csrf_field() ?>
+        <div class="mb-3"><label class="form-label">File backup SQL</label><input type="file" class="form-control" name="sql_file" accept=".sql,text/plain" required></div>
+        <button class="btn btn-outline-primary"><i class="bi bi-search me-2"></i>Pratinjau Riwayat Scan</button>
+    </form>
+</div></div>
 <?= $this->endSection() ?>
