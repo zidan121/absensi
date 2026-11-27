@@ -22,4 +22,13 @@
         </form>
     </div>
 </div>
+<div class="card mt-4"><div class="card-body p-4">
+    <h5 class="mb-2">Impor Master Pegawai dari Backup SQL</h5>
+    <p class="text-secondary">Ambil tabel <code>pegawai</code> dari backup Fingerspot SDIT. Hanya master pegawai yang dibaca; SQL tidak dieksekusi.</p>
+    <form method="post" action="/sdit/impor/sql/preview" enctype="multipart/form-data">
+        <?= csrf_field() ?>
+        <div class="mb-3"><label class="form-label">File backup SQL</label><input type="file" class="form-control" name="sql_file" accept=".sql,text/plain" required></div>
+        <button class="btn btn-outline-primary"><i class="bi bi-search me-2"></i>Pratinjau Master Pegawai</button>
+    </form>
+</div></div>
 <?= $this->endSection() ?>
