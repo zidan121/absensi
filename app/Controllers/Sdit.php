@@ -437,7 +437,7 @@ class Sdit extends BaseController
         $map = [];
         foreach ($masters as $employee) $map[(string) $employee['pin']] = $employee;
 
-        $book = new \\PhpOffice\\PhpSpreadsheet\\Spreadsheet();
+        $book = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $book->getActiveSheet();
         $sheet->setTitle('Rekap SDIT');
         $sheet->fromArray(['No.','Kode Pegawai','Nama Pegawai','PIN','Tanggal','Scan Pertama / Datang','Scan Terakhir / Pulang','Jumlah Scan'], null, 'A1');
@@ -460,10 +460,10 @@ class Sdit extends BaseController
         $sheet->setAutoFilter('A1:H' . max(1, $line - 1));
         $directory = WRITEPATH . 'exports';
         if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
-            throw new \\RuntimeException('Folder ekspor SDIT tidak dapat dibuat.');
+            throw new \RuntimeException('Folder ekspor SDIT tidak dapat dibuat.');
         }
         $path = $directory . DIRECTORY_SEPARATOR . 'rekap-sdit-' . $month . '.xlsx';
-        (new \\PhpOffice\\PhpSpreadsheet\\Writer\\Xlsx($book))->save($path);
+        (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($book))->save($path);
         $book->disconnectWorksheets();
         return $this->response->download($path, null)->setFileName('Rekap-Absensi-SDIT-' . $month . '.xlsx');
     }
