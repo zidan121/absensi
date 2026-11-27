@@ -114,40 +114,48 @@ class EmployeeRecapOrders extends BaseController
             unset($employee);
         }
 
-        // Terapkan preset SMPIT satu kali ke data tersimpan yang masih memakai nama master.
-        // Setelah preset tersimpan, pengguna bebas mengubah urutan/nama melalui halaman ini.
+        // Terapkan preset SMPIT tepat satu kali. Marker mencegah pengaturan manual
+        // pengguna tertimpa kembali pada kunjungan halaman berikutnya.
         if ($unit === 'SMPIT') {
-            $needsPreset = false;
-            foreach ($employees as $employee) {
-                $savedRow = $saved[(int) $employee['id']] ?? null;
-                if (isset($employee['_default_rank'])
-                    && ($savedRow === null || ($savedRow['display_name'] ?? '') === $employee['full_name'])) {
-                    $needsPreset = true;
-                    break;
-                }
-            }
-            if ($needsPreset) {
+            $marker = $db->table('employee_recap_orders')
+                ->where('unit_code', 'SMPIT')
+                ->where('employee_id', 0)
+                ->where('display_name', '__PRESET_SMPIT_V1__')
+                ->countAllResults() > 0;
+
+            if (! $marker) {
                 $now = date('Y-m-d H:i:s');
                 foreach ($employees as $employee) {
                     if (! isset($employee['_default_rank'])) continue;
                     $id = (int) $employee['id'];
                     $existing = $saved[$id] ?? null;
-                    $displayName = $employee['_default_display_name'];
                     $row = [
                         'unit_code' => 'SMPIT',
                         'employee_id' => $id,
                         'sort_order' => (int) $employee['_default_rank'],
-                        'display_name' => $displayName,
+                        'display_name' => $employee['_default_display_name'],
                         'updated_at' => $now,
                     ];
                     if ($existing) {
-                        $db->table('employee_recap_orders')->where('unit_code', 'SMPIT')->where('employee_id', $id)->update($row);
+                        $db->table('employee_recap_orders')
+                            ->where('unit_code', 'SMPIT')
+                            ->where('employee_id', $id)
+                            ->update($row);
                     } else {
                         $row['created_at'] = $now;
                         $db->table('employee_recap_orders')->insert($row);
                     }
                     $saved[$id] = $row;
                 }
+
+                $db->table('employee_recap_orders')->insert([
+                    'unit_code' => 'SMPIT',
+                    'employee_id' => 0,
+                    'sort_order' => 0,
+                    'display_name' => '__PRESET_SMPIT_V1__',
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]);
             }
         }
 
