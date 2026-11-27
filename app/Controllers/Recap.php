@@ -66,6 +66,9 @@ class Recap extends BaseController
             null,
             'A2'
         );
+        // Batas jam masuk ditampilkan sebagai nilai waktu Excel per baris,
+        // mengikuti late_after yang benar-benar dipakai NEURO untuk pegawai/tanggal tersebut.
+        $sheet->setCellValue('J2', 'MAX JAM MASUK');
 
         $row = 3;
         foreach ($data['rows'] as $item) {
@@ -82,15 +85,25 @@ class Recap extends BaseController
                 $scans[1] ?? '',
                 $scans[2] ?? '',
             ];
-            $sheet->fromArray($values, null, 'A' . $row++);
+            $sheet->fromArray($values, null, 'A' . $row);
+            $lateAfter = (string) ($item['late_after'] ?? '');
+            if (preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$/', $lateAfter)) {
+                [$hours, $minutes, $seconds] = array_map('intval', explode(':', $lateAfter));
+                $excelTime = ($hours * 3600 + $minutes * 60 + $seconds) / 86400;
+                $sheet->setCellValue('J' . $row, $excelTime);
+                $sheet->getStyle('J' . $row)->getNumberFormat()->setFormatCode('hh:mm:ss');
+            } else {
+                $sheet->setCellValue('J' . $row, '');
+            }
+            $row++;
         }
 
         $lastRow = max(2, $row - 1);
         $sheet->getDefaultRowDimension()->setRowHeight(12);
-        $sheet->getStyle('A1:H' . $lastRow)->getFont()->setName('Arial')->setSize(8);
+        $sheet->getStyle('A1:J' . $lastRow)->getFont()->setName('Arial')->setSize(8);
         $sheet->getStyle('A1:C1')->getFont()->setBold(true);
         $sheet->getStyle('D1:H1')->getFont()->setBold(true);
-        $sheet->getStyle('A1:H' . $lastRow)->getBorders()->getAllBorders()
+        $sheet->getStyle('A1:J' . $lastRow)->getBorders()->getAllBorders()
             ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
         $sheet->getStyle('A1:H2')->getAlignment()
             ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
@@ -99,7 +112,7 @@ class Recap extends BaseController
             ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_LEFT);
         $sheet->getStyle('F3:F' . $lastRow)->getAlignment()
             ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle('A1:H2')->getAlignment()->setWrapText(true);
+        $sheet->getStyle('A1:J2')->getAlignment()->setWrapText(true);
         $sheet->getStyle('J1')->getFont()->setName('Calibri')->setSize(11);
         $sheet->getStyle('J1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
             ->getStartColor()->setARGB('FFFFFF00');
@@ -116,6 +129,8 @@ class Recap extends BaseController
         $sheet->getColumnDimension('H')->setWidth(9.18);
         $sheet->getColumnDimension('I')->setWidth(3);
         $sheet->getColumnDimension('J')->setWidth(14.54);
+        $sheet->getStyle('J2')->getFont()->setBold(true);
+        $sheet->getStyle('J2:J' . $lastRow)->getAlignment()->setHorizontal(\\PhpOffice\\PhpSpreadsheet\\Style\\Alignment::HORIZONTAL_CENTER);
         $sheet->freezePane('A3');
         $filename = 'rekap-absensi-' . $startDate . '-sampai-' . $endDate . ($units ? '-' . strtolower(implode('-', $units)) : '-semua-unit') . '.xlsx';
         $response = service('response');
