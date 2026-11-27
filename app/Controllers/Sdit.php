@@ -21,8 +21,15 @@ class Sdit extends BaseController
     public function previewImport()
     {
         $file = $this->request->getFile('bin_file');
-        if (! $file || ! $file->isValid() || strtolower($file->getExtension()) !== 'bin') {
-            return redirect()->back()->with('error', 'Pilih file BIN SDIT yang valid.');
+        if (! $file) {
+            return redirect()->to('/sdit/impor')->with('error', 'File tidak diterima server. Periksa nama field unggahan bin_file.');
+        }
+        if ($file->getError() !== UPLOAD_ERR_OK || ! $file->isValid()) {
+            return redirect()->to('/sdit/impor')->with('error', 'Unggahan BIN gagal: ' . $file->getErrorString() . ' (kode ' . $file->getError() . '). Periksa batas upload_max_filesize dan post_max_size di PHP.');
+        }
+        $clientExtension = strtolower($file->getClientExtension());
+        if ($clientExtension !== 'bin') {
+            return redirect()->to('/sdit/impor')->with('error', 'Format file harus .bin. Ekstensi yang diterima server: .' . $clientExtension);
         }
 
         try {
