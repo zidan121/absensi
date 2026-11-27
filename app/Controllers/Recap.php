@@ -130,7 +130,7 @@ class Recap extends BaseController
         $sheet->getColumnDimension('I')->setWidth(3);
         $sheet->getColumnDimension('J')->setWidth(14.54);
         $sheet->getStyle('J2')->getFont()->setBold(true);
-        $sheet->getStyle('J2:J' . $lastRow)->getAlignment()->setHorizontal(\\PhpOffice\\PhpSpreadsheet\\Style\\Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('J2:J' . $lastRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
         $sheet->freezePane('A3');
         $filename = 'rekap-absensi-' . $startDate . '-sampai-' . $endDate . ($units ? '-' . strtolower(implode('-', $units)) : '-semua-unit') . '.xlsx';
         $response = service('response');
