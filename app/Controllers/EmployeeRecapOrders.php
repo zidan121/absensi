@@ -84,14 +84,19 @@ class EmployeeRecapOrders extends BaseController
             'fathienahas' => ['FathienahAS SPd', 9],
             'fathienah as' => ['FathienahAS SPd', 9],
             'zainul arifin' => ['Zainul Arifin', 10],
+            'zainal a' => ['Zainul Arifin', 10],
             'mujiono' => ['Mujiono', 11],
+            'mujion' => ['Mujiono', 11],
             "imam safi'i" => ["Imam Safi'i", 12],
             'imam safi' => ["Imam Safi'i", 12],
+            'imam safii' => ["Imam Safi'i", 12],
             'nunung megawati' => ['Nunung Megawati', 13],
             'm solikin' => ['M solikin', 14],
+            'm soliki' => ['M solikin', 14],
             'nur indah nila khoiriyah' => ['Nur Indah Nila Khoiriyah', 15],
+            'bu indah' => ['Nur Indah Nila Khoiriyah', 15],
             'laila yurin nabila' => ['Laila Yurin Nabila', 16],
-            'laila yurin nabila' => ['Laila Yurin Nabila', 16],
+            'laela' => ['Laila Yurin Nabila', 16],
         ];
         $defaultForUnit = $unit === 'KBIT_LAZIS' ? $defaultCombined
             : ($unit === 'RAIT' ? $defaultRait : ($unit === 'SMPIT' ? $defaultSmp : []));
