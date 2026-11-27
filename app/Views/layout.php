@@ -79,6 +79,8 @@
             <div class="nav-caption mt-4">Data fingerprint</div>
             <a class="<?= str_starts_with(uri_string(), 'impor') && !str_starts_with(uri_string(), 'impor-backup') ? 'active' : '' ?>" href="/impor"><i class="bi bi-file-earmark-arrow-up-fill"></i>Impor Log TXT</a>
             <a class="<?= str_starts_with(uri_string(), 'impor-backup') ? 'active' : '' ?>" href="/impor-backup"><i class="bi bi-database-fill-up"></i>Impor Backup SQL</a>
+            <div class="nav-caption mt-4">Modul SDIT</div>
+            <a class="<?= str_starts_with(uri_string(), 'sdit') ? 'active' : '' ?>" href="/sdit"><i class="bi bi-building"></i>SDIT · Menu Khusus</a>
             <div class="nav-caption mt-4">Pemeliharaan</div>
             <a class="<?= str_starts_with(uri_string(), 'backup') ? 'active' : '' ?>" href="/backup"><i class="bi bi-database-fill-down"></i>Backup & Pemulihan</a>
         </nav>
