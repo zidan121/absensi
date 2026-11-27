@@ -91,7 +91,7 @@ class Recap extends BaseController
                 [$hours, $minutes, $seconds] = array_map('intval', explode(':', $lateAfter));
                 $excelTime = ($hours * 3600 + $minutes * 60 + $seconds) / 86400;
                 $sheet->setCellValue('J' . $row, $excelTime);
-                $sheet->getStyle('J' . $row)->getNumberFormat()->setFormatCode('hh:mm:ss');
+                $sheet->getStyle('J' . $row)->getNumberFormat()->setFormatCode('hh:mm');
             } else {
                 $sheet->setCellValue('J' . $row, '');
             }
@@ -443,7 +443,7 @@ class Recap extends BaseController
         if ($maxArrivalTime !== null && preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$/', $maxArrivalTime)) {
             [$hours, $minutes, $seconds] = array_map('intval', explode(':', $maxArrivalTime));
             $detail->setCellValue('J2', ($hours * 3600 + $minutes * 60 + $seconds) / 86400);
-            $detail->getStyle('J2')->getNumberFormat()->setFormatCode('hh:mm:ss');
+            $detail->getStyle('J2')->getNumberFormat()->setFormatCode('hh:mm');
         } else {
             $detail->setCellValue('J2', 'Pilih satu unit');
         }
@@ -475,8 +475,8 @@ class Recap extends BaseController
             ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
             ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
             ->setWrapText(true);
-        $detail->getStyle('E3:E' . $detailLastRow)->getNumberFormat()->setFormatCode('hh:mm:ss');
-        $detail->getStyle('G3:H' . $detailLastRow)->getNumberFormat()->setFormatCode('hh:mm:ss');
+        $detail->getStyle('E3:E' . $detailLastRow)->getNumberFormat()->setFormatCode('hh:mm');
+        $detail->getStyle('G3:H' . $detailLastRow)->getNumberFormat()->setFormatCode('hh:mm');
         $detail->getStyle('J1')->getFont()->setName('Calibri')->setSize(11);
         $detail->getStyle('J1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
             ->getStartColor()->setARGB('FFFFFF00');
