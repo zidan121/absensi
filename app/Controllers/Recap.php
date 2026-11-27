@@ -413,7 +413,40 @@ class Recap extends BaseController
         $detail->setCellValue('D1', 'Data scanlog');
         $detail->setCellValue('J1', 'MAX JAM MASUK');
         $detail->fromArray(['PIN', 'Nama', 'Jabatan', 'Tanggal', 'Scan 1', 'Status', 'Scan 2', 'Scan 3'], null, 'A2');
-        $detail->setCellValue('J2', 'Mengikuti aturan jadwal NEURO');
+
+        // Satu nilai MAX JAM MASUK berdasarkan aturan unit yang dipilih,
+        // berlaku untuk seluruh sheet DATA (bukan nilai per pegawai).
+        $unitForMaxTime = count($units) === 1 ? $units[0] : null;
+        $maxArrivalTime = null;
+        if ($unitForMaxTime !== null) {
+            $unitRule = $db->table('unit_attendance_rules')
+                ->where('unit_code', $unitForMaxTime)
+                ->where('effective_from <=', $startDate)
+                ->groupStart()
+                    ->where('effective_to >=', $startDate)
+                    ->orWhere('effective_to', null)
+                ->groupEnd()
+                ->orderBy('effective_from', 'DESC')
+                ->get(1)->getRowArray();
+            $maxArrivalTime = $unitRule['late_after'] ?? null;
+            if ($maxArrivalTime === null) {
+                $maxArrivalTime = [
+                    'KBIT' => '07:45:59',
+                    'RAIT' => '07:15:59',
+                    'SDIT' => '07:00:59',
+                    'SMPIT' => '07:00:59',
+                    'YAYASAN' => '07:45:59',
+                    'LAZIS' => '07:45:59',
+                ][$unitForMaxTime] ?? null;
+            }
+        }
+        if ($maxArrivalTime !== null && preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$/', $maxArrivalTime)) {
+            [$hours, $minutes, $seconds] = array_map('intval', explode(':', $maxArrivalTime));
+            $detail->setCellValue('J2', ($hours * 3600 + $minutes * 60 + $seconds) / 86400);
+            $detail->getStyle('J2')->getNumberFormat()->setFormatCode('hh:mm:ss');
+        } else {
+            $detail->setCellValue('J2', 'Pilih satu unit');
+        }
         $detailRow = 3;
         foreach ($data['rows'] as $item) {
             $scans = $item['scans'] ?? [];
