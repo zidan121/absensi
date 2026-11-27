@@ -25,7 +25,7 @@ class CreateSditIsolatedTables extends Migration
             'created_at' => ['type' => 'DATETIME', 'null' => true],
             'updated_at' => ['type' => 'DATETIME', 'null' => true],
         ]);
-        $this->forge->addKey('id', true);
+        $this->forge->addPrimaryKey('id');
         $this->forge->addUniqueKey('pin', 'uq_sdit_employees_pin');
         $this->forge->createTable('sdit_employees', true);
 
@@ -41,7 +41,7 @@ class CreateSditIsolatedTables extends Migration
             'source_row' => ['type' => 'INT', 'null' => true],
             'created_at' => ['type' => 'DATETIME', 'null' => true],
         ]);
-        $this->forge->addKey('id', true);
+        $this->forge->addPrimaryKey('id');
         $this->forge->addUniqueKey(['machine_serial', 'pin', 'scanned_at'], 'uq_sdit_scan_identity');
         $this->forge->addKey(['pin', 'scanned_at'], false, false, 'idx_sdit_pin_time');
         $this->forge->createTable('sdit_attendance_logs', true);
@@ -57,7 +57,7 @@ class CreateSditIsolatedTables extends Migration
             'source_row' => ['type' => 'INT', 'null' => true],
             'created_at' => ['type' => 'DATETIME', 'null' => true],
         ]);
-        $this->forge->addKey('id', true);
+        $this->forge->addPrimaryKey('id');
         $this->forge->addKey(['pin', 'original_scanned_at'], false, false, 'idx_sdit_invalid_pin_time');
         $this->forge->createTable('sdit_invalid_scans', true);
 
@@ -73,7 +73,7 @@ class CreateSditIsolatedTables extends Migration
             'status' => ['type' => 'VARCHAR', 'constraint' => 20, 'default' => 'completed'],
             'created_at' => ['type' => 'DATETIME', 'null' => true],
         ]);
-        $this->forge->addKey('id', true);
+        $this->forge->addPrimaryKey('id');
         $this->forge->createTable('sdit_import_batches', true);
     }
 
