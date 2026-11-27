@@ -219,6 +219,24 @@ class Recap extends BaseController
             'darwanto' => 'Darwanto',
             'ariana' => 'Ariana Irawati, S.Pd',
             'deska sofiana' => 'Deska Sofiana',
+            'fitri anggraeni' => 'Fitri Anggraeni, SPd',
+            'ruchayati r sd' => 'Ruchayati R Sd',
+            'ahmad tukul' => 'Ahmad Tukul SPd',
+            'ari wahono' => 'Ari Wahono SPd',
+            'endang r' => 'Endang R SPd',
+            'eko s shum' => 'Eko S Shum',
+            'tri widagdo' => 'Tri Widagdo Spd',
+            'nita l' => 'Nita L Spd',
+            'fathienahas' => 'FathienahAS SPd',
+            'fathienah as' => 'FathienahAS SPd',
+            'zainul arifin' => 'Zainul Arifin',
+            'mujiono' => 'Mujiono',
+            "imam safi'i" => "Imam Safi'i",
+            'imam safi' => "Imam Safi'i",
+            'nunung megawati' => 'Nunung Megawati',
+            'm solikin' => 'M solikin',
+            'nur indah nila khoiriyah' => 'Nur Indah Nila Khoiriyah',
+            'laila yurin nabila' => 'Laila Yurin Nabila',
         ];
         $defaultRaitOrder = [
             'tri m spd' => 1, 'yuni w a' => 2, 'fitri dwi a' => 3,
@@ -228,11 +246,21 @@ class Recap extends BaseController
             'darwanto' => 13, 'ariana' => 14, 'deska sofiana' => 15,
         ];
         $isRaitOnly = $units === ['RAIT'];
+        $isSmpOnly = $units === ['SMPIT'];
+        $defaultSmpOrder = [
+            'fitri anggraeni' => 1, 'ruchayati r sd' => 2, 'ahmad tukul' => 3,
+            'ari wahono' => 4, 'endang r' => 5, 'eko s shum' => 6,
+            'tri widagdo' => 7, 'nita l' => 8, 'fathienahas' => 9,
+            'fathienah as' => 9, 'zainul arifin' => 10, 'mujiono' => 11,
+            "imam safi'i" => 12, 'imam safi' => 12, 'nunung megawati' => 13,
+            'm solikin' => 14, 'nur indah nila khoiriyah' => 15,
+            'laila yurin nabila' => 16,
+        ];
         $unitRank = [];
         foreach ($units as $index => $unitCode) {
             $unitRank[$unitCode] = $index;
         }
-        usort($employees, static function ($a, $b) use ($positionRank, $employeeOrder, $unitRank, $isKbitLazisCombined, $combinedOrder, $isRaitOnly, $defaultRaitOrder) {
+        usort($employees, static function ($a, $b) use ($positionRank, $employeeOrder, $unitRank, $isKbitLazisCombined, $combinedOrder, $isRaitOnly, $defaultRaitOrder, $isSmpOnly, $defaultSmpOrder) {
             $idA = (int) $a['id'];
             $idB = (int) $b['id'];
             if ($isKbitLazisCombined && $combinedOrder !== []) {
@@ -250,6 +278,17 @@ class Recap extends BaseController
                 $rankA = PHP_INT_MAX;
                 $rankB = PHP_INT_MAX;
                 foreach ($defaultRaitOrder as $needle => $rank) {
+                    if (str_contains($nameA, $needle)) $rankA = $rank;
+                    if (str_contains($nameB, $needle)) $rankB = $rank;
+                }
+                if ($rankA !== $rankB) return $rankA <=> $rankB;
+            }
+            if ($isSmpOnly) {
+                $nameA = mb_strtolower(trim((string) $a['full_name']));
+                $nameB = mb_strtolower(trim((string) $b['full_name']));
+                $rankA = PHP_INT_MAX;
+                $rankB = PHP_INT_MAX;
+                foreach ($defaultSmpOrder as $needle => $rank) {
                     if (str_contains($nameA, $needle)) $rankA = $rank;
                     if (str_contains($nameB, $needle)) $rankB = $rank;
                 }
@@ -307,7 +346,7 @@ class Recap extends BaseController
                     ?? (($employeeDisplayNames[$employee['unit_code']][(int) $employee['id']] ?? null) !== null
                         && ($employeeDisplayNames[$employee['unit_code']][(int) $employee['id']] ?? null) !== $employee['full_name']
                             ? $employeeDisplayNames[$employee['unit_code']][(int) $employee['id']]
-                            : ((($isKbitLazisCombined || $isRaitOnly) ? ($defaultRecapNames[mb_strtolower(trim((string) $employee['full_name']))] ?? null) : null) ?? $employee['full_name']))),
+                            : ((($isKbitLazisCombined || $isRaitOnly || $isSmpOnly) ? ($defaultRecapNames[mb_strtolower(trim((string) $employee['full_name']))] ?? null) : null) ?? $employee['full_name']))),
                 // Nama master NEURO tetap ditampilkan sebagai referensi di kolom NAMA di Fringer.
                 $employee['full_name'],
                 $employee['position'] ?? '',
