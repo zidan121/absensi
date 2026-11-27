@@ -580,7 +580,7 @@ class Sdit extends BaseController
             if (!empty($calendar['allow_afternoon_entry'])) return ['Izin Masuk Siang', true, false];
             if (!$rule || empty($rule['start_time'])) return ['Jadwal Belum Diatur', true, false];
             $cutoff = date('H:i:s', strtotime($rule['start_time'] . ' +' . (int) ($rule['late_after_minutes'] ?? 0) . ' minutes'));
-            $late = substr($scans[0], 11, 8) > $cutoff;
+            $late = substr($scans[0], 0, 8) > $cutoff;
             return [$late ? 'Terlambat' : 'Tepat Waktu', true, $late];
         };
 
@@ -649,16 +649,20 @@ class Sdit extends BaseController
                 $date = $daily['date'];
                 $scans = $daily['scans'];
                 [$status] = $resolveStatus((string) $pin, $date, $scans);
+                $excelTimes = array_map(static function ($time) {
+                    $parts = array_map('intval', explode(':', (string) $time));
+                    return (($parts[0] ?? 0) * 3600 + ($parts[1] ?? 0) * 60 + ($parts[2] ?? 0)) / 86400;
+                }, $scans);
                 $employee = $employeeMap[(string) $pin] ?? [];
                 $detail->fromArray([
                     (string) $pin,
                     $employee['full_name'] ?? 'Belum dipetakan',
                     $employee['position'] ?? '',
                     date('d-m-Y', strtotime($date)),
-                    $scans[0] ?? '',
+                    $excelTimes[0] ?? '',
                     $status,
-                    $scans[1] ?? '',
-                    $scans[2] ?? '',
+                    $excelTimes[1] ?? '',
+                    $excelTimes[2] ?? '',
                     (string) $pin,
                 ], null, 'A' . $detailRow);
                 $detailRow++;
