@@ -543,7 +543,6 @@ class Sdit extends BaseController
                 $present++;
                 if($rule && $rule['start_time']){$cutoff=date('H:i:s',strtotime($rule['start_time'].' +'.(int)$rule['late_after_minutes'].' minutes'));if(substr($scans[0],11,8)>$cutoff)$late++;}
             }
-            }
             $summary->fromArray([$no++,$employee['full_name'],$employee['full_name'],$employee['position']??'',$present,$late,$present-$late],null,'A'.$row++);
         }
         $summary->getStyle('A3:G3')->getFont()->setBold(true); foreach(range('A','G') as $col)$summary->getColumnDimension($col)->setAutoSize(true);
