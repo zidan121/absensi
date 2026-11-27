@@ -534,13 +534,15 @@ class Sdit extends BaseController
             $pin=(string)$employee['pin']; $dates=[];
             foreach($logsByPin[$pin]??[] as $scan)$dates[substr($scan,0,10)][]= $scan;
             $present=0;$late=0;
-            foreach($dates as $date=>$scans){sort($scans);$present++;$weekday=(int)(new \DateTimeImmutable($date))->format('N');
+            foreach($dates as $date=>$scans){sort($scans);$weekday=(int)(new \\DateTimeImmutable($date))->format('N');
                 $rule=$db->table('sdit_employee_schedules')->where('pin',$pin)->where('day_of_week',$weekday)->groupStart()->where('effective_from <=',$date)->orWhere('effective_from',null)->groupEnd()->groupStart()->where('effective_until >=',$date)->orWhere('effective_until',null)->groupEnd()->orderBy('effective_from','DESC')->get(1)->getRowArray();
                 $rule=$rule?:$db->table('sdit_work_schedules')->where('schedule_name','Jadwal SDIT')->where('day_of_week',$weekday)->get(1)->getRowArray();
                 $calendar=$db->table('sdit_work_calendar')->where('work_date',$date)->get(1)->getRowArray();
                 $isWorkday=$calendar ? ($calendar['day_type']!=='holiday') : (bool)($rule['is_workday']??true);
-                if($isWorkday && $rule && $rule['start_time'] && $scans[0] > $date.' '.$rule['start_time'].':00' && (int)$rule['late_after_minutes']===0)$late++;
-                elseif($isWorkday && $rule && $rule['start_time']){$cutoff=date('H:i:s',strtotime($rule['start_time'].' +'.(int)$rule['late_after_minutes'].' minutes'));if(substr($scans[0],11,8)>$cutoff)$late++;}
+                if(!$isWorkday) continue;
+                $present++;
+                if($rule && $rule['start_time']){$cutoff=date('H:i:s',strtotime($rule['start_time'].' +'.(int)$rule['late_after_minutes'].' minutes'));if(substr($scans[0],11,8)>$cutoff)$late++;}
+            }
             }
             $summary->fromArray([$no++,$employee['full_name'],$employee['full_name'],$employee['position']??'',$present,$late,$present-$late],null,'A'.$row++);
         }
