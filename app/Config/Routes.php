@@ -94,6 +94,8 @@ $routes->group('sdit', ['filter' => 'auth'], static function ($routes) {
     $routes->get('impor', 'Sdit::imports');
     $routes->post('impor/preview', 'Sdit::previewImport');
     $routes->post('impor/proses-bin', 'Sdit::processBinImport');
+    $routes->post('impor/sql/preview', 'Sdit::previewSqlEmployees');
+    $routes->post('impor/sql/proses', 'Sdit::processSqlEmployees');
     $routes->get('impor/preview', 'Sdit::showPreview');
     $routes->get('scan', 'Sdit::scans');
     $routes->get('rekap', 'Sdit::recap');
