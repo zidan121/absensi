@@ -175,14 +175,27 @@ class EmployeeRecapOrders extends BaseController
                     $saved[$id] = $row;
                 }
 
-                $db->table('employee_recap_orders')->insert([
-                    'unit_code' => 'SMPIT',
-                    'employee_id' => 0,
+                $markerQuery = $db->table('employee_recap_orders')
+                    ->where('unit_code', 'SMPIT')
+                    ->where('employee_id', 0);
+                $existingMarker = $markerQuery->get()->getRowArray();
+                $markerData = [
                     'sort_order' => 0,
                     'display_name' => '__PRESET_SMPIT_V2__',
-                    'created_at' => $now,
                     'updated_at' => $now,
-                ]);
+                ];
+                if ($existingMarker) {
+                    $db->table('employee_recap_orders')
+                        ->where('unit_code', 'SMPIT')
+                        ->where('employee_id', 0)
+                        ->update($markerData);
+                } else {
+                    $db->table('employee_recap_orders')->insert(array_merge($markerData, [
+                        'unit_code' => 'SMPIT',
+                        'employee_id' => 0,
+                        'created_at' => $now,
+                    ]));
+                }
             }
         }
 
