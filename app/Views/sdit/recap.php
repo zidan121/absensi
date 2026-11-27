@@ -5,6 +5,7 @@
     <form method="get" class="d-flex align-items-center gap-2">
         <input type="month" name="bulan" class="form-control" value="<?= esc($month) ?>">
         <button class="btn btn-primary">Tampilkan</button>
+        <a class="btn btn-success" href="/sdit/rekap/export?bulan=<?= esc($month) ?>"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
     </form>
 </div>
 <div class="row g-3 mb-4">
