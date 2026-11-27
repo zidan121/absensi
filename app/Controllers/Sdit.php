@@ -540,10 +540,15 @@ class Sdit extends BaseController
                 $rule=$db->table('sdit_employee_schedules')->where('pin',$pin)->where('day_of_week',$weekday)->groupStart()->where('effective_from <=',$date)->orWhere('effective_from',null)->groupEnd()->groupStart()->where('effective_until >=',$date)->orWhere('effective_until',null)->groupEnd()->orderBy('effective_from','DESC')->get(1)->getRowArray();
                 $rule=$rule?:$db->table('sdit_work_schedules')->where('schedule_name','Jadwal SDIT')->where('day_of_week',$weekday)->get(1)->getRowArray();
                 $calendar=$db->table('sdit_work_calendar')->where('work_date',$date)->get(1)->getRowArray();
-                $isWorkday=$calendar ? ($calendar['day_type']!=='holiday') : (bool)($rule['is_workday']??true);
-                if(!$isWorkday) continue;
+                $isHoliday = ($calendar['day_type'] ?? '') === 'holiday';
+                $isWorkday = $calendar ? !$isHoliday : (bool)($rule['is_workday'] ?? true);
+                if (!$isWorkday) continue;
                 $present++;
-                if($rule && $rule['start_time']){$cutoff=date('H:i:s',strtotime($rule['start_time'].' +'.(int)$rule['late_after_minutes'].' minutes'));if(substr($scans[0],11,8)>$cutoff)$late++;}
+                // Izin masuk siang tetap dihitung hadir, tetapi tidak dihitung terlambat.
+                if (empty($calendar['allow_afternoon_entry']) && $rule && $rule['start_time']) {
+                    $cutoff = date('H:i:s', strtotime($rule['start_time'] . ' +' . (int)$rule['late_after_minutes'] . ' minutes'));
+                    if (substr($scans[0], 11, 8) > $cutoff) $late++;
+                }
             }
             $summary->fromArray([$no++,$employee['full_name'],$employee['full_name'],$employee['position']??'',$present,$late,$present-$late],null,'A'.$row++);
         }
