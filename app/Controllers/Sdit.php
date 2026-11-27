@@ -712,14 +712,39 @@ class Sdit extends BaseController
 
     public function timeCheck()
     {
-        $rows = db_connect()->table('sdit_invalid_scans')->orderBy('id', 'DESC')->limit(500)->get()->getResultArray();
-        return view('sdit/time_check', ['title' => 'Pemeriksaan Waktu Mesin SDIT', 'rows' => $rows]);
+        $db = db_connect();
+        $startDate = trim((string)$this->request->getGet('start_date'));
+        $endDate = trim((string)$this->request->getGet('end_date'));
+        $pin = trim((string)$this->request->getGet('pin'));
+        if ($startDate !== '' && !preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $startDate)) $startDate = '';
+        if ($endDate !== '' && !preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $endDate)) $endDate = '';
+        if ($startDate !== '' && $endDate !== '' && $endDate < $startDate) [$startDate, $endDate] = [$endDate, $startDate];
+        $builder = $db->table('sdit_invalid_scans')->orderBy('id', 'DESC');
+        if ($startDate !== '') $builder->where('original_scanned_at >=', $startDate . ' 00:00:00');
+        if ($endDate !== '') $builder->where('original_scanned_at <', date('Y-m-d', strtotime($endDate . ' +1 day')) . ' 00:00:00');
+        if ($pin !== '') $builder->where('pin', $pin);
+        $rows = $builder->limit(1000)->get()->getResultArray();
+        return view('sdit/time_check', [
+            'title' => 'Pemeriksaan Waktu Mesin SDIT',
+            'rows' => $rows, 'startDate' => $startDate, 'endDate' => $endDate,
+            'pin' => $pin, 'totalInvalid' => $db->table('sdit_invalid_scans')->countAllResults(),
+        ]);
     }
 
     public function pinMapping()
     {
-        $rows = db_connect()->table('sdit_employees')->orderBy('CAST(pin AS UNSIGNED)', 'ASC')->get()->getResultArray();
-        return view('sdit/pin_mapping', ['title' => 'Pemetaan PIN SDIT', 'rows' => $rows]);
+        $db = db_connect();
+        $employees = $db->table('sdit_employees')->orderBy('CAST(pin AS UNSIGNED)', 'ASC')->get()->getResultArray();
+        $known = [];
+        foreach ($employees as $employee) $known[(string)$employee['pin']] = true;
+        $scanPins = $db->table('sdit_attendance_logs')
+            ->select('pin, COUNT(*) AS scan_count, MIN(scanned_at) AS first_scan, MAX(scanned_at) AS last_scan', false)
+            ->groupBy('pin')->orderBy('CAST(pin AS UNSIGNED)', 'ASC')->get()->getResultArray();
+        $unmapped = [];
+        foreach ($scanPins as $item) if (!isset($known[(string)$item['pin']])) $unmapped[] = $item;
+        return view('sdit/pin_mapping', [
+            'title' => 'Pemetaan PIN SDIT', 'rows' => $employees, 'unmapped' => $unmapped,
+        ]);
     }
 
     private function page(string $title, string $active)
