@@ -9,7 +9,7 @@ class CreateSditWorkRules extends Migration
     public function up()
     {
         $this->forge->addField([
-            'id'=>['type'=>'BIGINT','unsigned'=>true,'auto_increment'=>true],
+            'id'=>'BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY',
             'schedule_name'=>['type'=>'VARCHAR','constraint'=>100,'default'=>'Jadwal SDIT'],
             'day_of_week'=>['type'=>'TINYINT','constraint'=>1],
             'start_time'=>['type'=>'TIME'],
@@ -19,12 +19,11 @@ class CreateSditWorkRules extends Migration
             'created_at'=>['type'=>'DATETIME','null'=>true],
             'updated_at'=>['type'=>'DATETIME','null'=>true],
         ]);
-        $this->forge->addKey('id', true);
         $this->forge->addUniqueKey(['schedule_name','day_of_week'],'uq_sdit_schedule_day');
         $this->forge->createTable('sdit_work_schedules',true);
 
         $this->forge->addField([
-            'id'=>['type'=>'BIGINT','unsigned'=>true,'auto_increment'=>true],
+            'id'=>'BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY',
             'pin'=>['type'=>'VARCHAR','constraint'=>32],
             'day_of_week'=>['type'=>'TINYINT','constraint'=>1],
             'start_time'=>['type'=>'TIME'],
@@ -36,12 +35,11 @@ class CreateSditWorkRules extends Migration
             'created_at'=>['type'=>'DATETIME','null'=>true],
             'updated_at'=>['type'=>'DATETIME','null'=>true],
         ]);
-        $this->forge->addKey('id', true);
         $this->forge->addKey(['pin','day_of_week','effective_from'],'idx_sdit_employee_schedule');
         $this->forge->createTable('sdit_employee_schedules',true);
 
         $this->forge->addField([
-            'id'=>['type'=>'BIGINT','unsigned'=>true,'auto_increment'=>true],
+            'id'=>'BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY',
             'work_date'=>['type'=>'DATE'],
             'day_type'=>['type'=>'VARCHAR','constraint'=>30,'default'=>'holiday'],
             'description'=>['type'=>'VARCHAR','constraint'=>255,'null'=>true],
@@ -49,7 +47,6 @@ class CreateSditWorkRules extends Migration
             'created_at'=>['type'=>'DATETIME','null'=>true],
             'updated_at'=>['type'=>'DATETIME','null'=>true],
         ]);
-        $this->forge->addKey('id', true);
         $this->forge->addUniqueKey('work_date','uq_sdit_calendar_date');
         $this->forge->createTable('sdit_work_calendar',true);
     }
