@@ -359,8 +359,57 @@ class Sdit extends BaseController
 
     public function recap()
     {
-        return $this->page('Rekap Absensi SDIT', 'Rekap');
+        $month = (string) $this->request->getGet('bulan');
+        if (!preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $month)) {
+            $month = date('Y-m');
+        }
+        $start = $month . '-01 00:00:00';
+        $end = date('Y-m-d H:i:s', strtotime($start . ' +1 month'));
+        $db = db_connect();
+        $daily = $db->table('sdit_attendance_logs l')
+            ->select("l.pin, DATE(l.scanned_at) AS work_date, MIN(TIME(l.scanned_at)) AS first_scan, MAX(TIME(l.scanned_at)) AS last_scan, COUNT(*) AS scan_count", false)
+            ->where('l.scanned_at >=', $start)
+            ->where('l.scanned_at <', $end)
+            ->groupBy('l.pin, DATE(l.scanned_at)')
+            ->orderBy('l.pin', 'ASC')
+            ->orderBy('work_date', 'ASC')
+            ->get()->getResultArray();
+
+        $employees = [];
+        foreach ($daily as $row) {
+            $pin = (string) $row['pin'];
+            if (!isset($employees[$pin])) {
+                $employees[$pin] = [
+                    'pin'=>$pin, 'employee_code'=>$pin, 'full_name'=>'Belum dipetakan',
+                    'days'=>0, 'total_scans'=>0, 'details'=>[]
+                ];
+            }
+            $employees[$pin]['days']++;
+            $employees[$pin]['total_scans'] += (int) $row['scan_count'];
+            $employees[$pin]['details'][] = $row;
+        }
+        if ($employees) {
+            $pins = array_keys($employees);
+            $masters = $db->table('sdit_employees')->whereIn('pin', $pins)->get()->getResultArray();
+            foreach ($masters as $employee) {
+                $pin = (string) $employee['pin'];
+                if (isset($employees[$pin])) {
+                    $employees[$pin]['employee_code'] = $employee['employee_code'] ?: $pin;
+                    $employees[$pin]['full_name'] = $employee['full_name'];
+                }
+            }
+        }
+        uasort($employees, static function ($a, $b) {
+            return strnatcasecmp($a['employee_code'], $b['employee_code']);
+        });
+        return view('sdit/recap', [
+            'title'=>'Rekap Absensi SDIT', 'month'=>$month,
+            'employees'=>array_values($employees),
+            'totalDays'=>count($daily),
+            'totalScans'=>array_sum(array_column($daily, 'scan_count')),
+        ]);
     }
+
 
     public function timeCheck()
     {
