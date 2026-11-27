@@ -39,6 +39,16 @@
         </a>
     </div>
     <div class="col-12 col-md-6 col-xl-4">
+        <a href="/sdit/jadwal" class="card h-100 text-decoration-none text-reset">
+            <div class="card-body p-4"><div class="rounded-3 bg-primary-subtle text-primary d-inline-flex p-3 mb-3"><i class="bi bi-calendar-week fs-4"></i></div><h5>Jadwal Kerja SDIT</h5><p class="text-secondary mb-0">Atur jam masuk, jam pulang, hari kerja, dan toleransi keterlambatan SDIT.</p></div>
+        </a>
+    </div>
+    <div class="col-12 col-md-6 col-xl-4">
+        <a href="/sdit/kalender" class="card h-100 text-decoration-none text-reset">
+            <div class="card-body p-4"><div class="rounded-3 bg-warning-subtle text-warning d-inline-flex p-3 mb-3"><i class="bi bi-calendar2-event fs-4"></i></div><h5>Kalender Kerja SDIT</h5><p class="text-secondary mb-0">Atur hari libur, hari kerja pengganti, dan izin masuk siang.</p></div>
+        </a>
+    </div>
+    <div class="col-12 col-md-6 col-xl-4">
         <a href="/sdit/pemeriksaan-waktu" class="card h-100 text-decoration-none text-reset">
             <div class="card-body p-4">
                 <div class="rounded-3 bg-warning-subtle text-warning d-inline-flex p-3 mb-3"><i class="bi bi-clock-history fs-4"></i></div>
