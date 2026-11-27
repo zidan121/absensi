@@ -109,50 +109,102 @@
         .sidebar-bottom a{padding:10px 11px;border-radius:10px;color:#b8cbe2;font-size:11px;transition:.18s ease}
         .sidebar-bottom a:hover{background:rgba(248,113,113,.1);color:#fecaca}
 
-        /* Subtle 3D depth for the sidebar */
+        /* Stronger 3D sidebar: layered surfaces, raised controls and depth */
         .sidebar{
             background:
-                radial-gradient(ellipse at 18% 0%,rgba(96,165,250,.24),transparent 34%),
-                radial-gradient(ellipse at 100% 80%,rgba(14,165,233,.16),transparent 38%),
-                linear-gradient(145deg,#10294f 0%,#0b1e3b 48%,#173f70 100%);
-            box-shadow:inset -1px 0 0 rgba(255,255,255,.12), inset 0 1px 0 rgba(255,255,255,.08), 10px 0 28px rgba(8,24,49,.18);
+                radial-gradient(ellipse at 12% 0%,rgba(96,165,250,.28),transparent 35%),
+                radial-gradient(ellipse at 95% 85%,rgba(14,165,233,.2),transparent 38%),
+                linear-gradient(145deg,#183c70 0%,#0b1e3b 48%,#164779 100%);
+            box-shadow:inset -2px 0 0 rgba(255,255,255,.12),inset 0 2px 0 rgba(255,255,255,.1),12px 0 32px rgba(5,20,45,.28);
+        }
+        .brand-wrap{
+            padding:12px 10px 17px;
+            margin:0 0 15px;
+            border:1px solid rgba(255,255,255,.11);
+            border-radius:16px;
+            background:linear-gradient(145deg,rgba(255,255,255,.13),rgba(255,255,255,.025));
+            box-shadow:inset 0 1px 0 rgba(255,255,255,.17),0 7px 16px rgba(2,12,35,.2);
         }
         .brand-mark{
-            transform:translateY(-1px);
-            box-shadow:0 9px 0 rgba(13,48,105,.35),0 13px 22px rgba(2,12,35,.3),inset 0 2px 2px rgba(255,255,255,.48),inset 0 -3px 5px rgba(14,52,125,.28);
+            transform:translateY(-2px);
+            border:1px solid rgba(255,255,255,.38);
+            box-shadow:0 4px 0 #16428e,0 8px 0 rgba(7,24,57,.55),0 14px 20px rgba(0,0,0,.32),inset 0 2px 3px rgba(255,255,255,.6),inset 0 -4px 6px rgba(14,52,125,.35);
+        }
+        .sidebar nav{padding:4px 2px 12px}
+        .sidebar nav .nav-caption{
+            color:#91b1d8;
+            padding-left:12px;
+            margin:13px 0 7px;
+            text-shadow:0 1px 2px rgba(0,0,0,.4);
+        }
+        .sidebar nav details{
+            margin:7px 0;
+            padding:3px 5px 5px;
+            border:1px solid rgba(255,255,255,.075);
+            border-radius:13px;
+            background:linear-gradient(145deg,rgba(255,255,255,.075),rgba(255,255,255,.018));
+            box-shadow:inset 0 1px 0 rgba(255,255,255,.09),0 5px 12px rgba(1,10,28,.16);
         }
         .sidebar nav summary{
-            text-shadow:0 1px 1px rgba(0,0,0,.28);
-            transition:background .18s ease,color .18s ease,transform .18s ease;
+            padding:10px 10px;
+            color:#b4c9e4;
+            text-shadow:0 1px 2px rgba(0,0,0,.35);
         }
-        .sidebar nav details[open] summary{color:#d6e6fb}
+        .sidebar nav details[open] summary{color:#fff}
+        .sidebar nav details .nav-sub{
+            margin:3px 4px 2px 8px;
+            padding:5px 0 4px 9px;
+            border-left:1px solid rgba(174,204,240,.3);
+        }
         .sidebar nav a{
-            text-shadow:0 1px 1px rgba(0,0,0,.16);
-            transition:transform .18s ease,background .18s ease,box-shadow .18s ease,border-color .18s ease;
+            margin:4px 0;
+            padding:10px 12px;
+            border:1px solid rgba(255,255,255,.035);
+            background:linear-gradient(145deg,rgba(255,255,255,.045),rgba(255,255,255,.012));
+            box-shadow:inset 0 1px 0 rgba(255,255,255,.055),0 3px 6px rgba(0,0,0,.12);
+            text-shadow:0 1px 2px rgba(0,0,0,.25);
         }
         .sidebar nav a:hover{
-            box-shadow:inset 0 1px 0 rgba(255,255,255,.09),0 5px 12px rgba(2,12,35,.16);
+            transform:translateY(-2px);
+            background:linear-gradient(145deg,rgba(255,255,255,.13),rgba(255,255,255,.045));
+            border-color:rgba(255,255,255,.12);
+            box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 7px 12px rgba(0,0,0,.22);
         }
         .sidebar nav a.active{
-            transform:translateY(-1px);
-            background:linear-gradient(180deg,#4389fb 0%,#2869df 58%,#1e56bf 100%);
-            box-shadow:0 3px 0 #17469e,0 8px 15px rgba(2,12,35,.28),inset 0 1px 0 rgba(255,255,255,.38),inset 0 -2px 3px rgba(12,48,115,.22);
+            transform:translateY(-2px);
+            border:1px solid rgba(191,219,254,.38);
+            background:linear-gradient(160deg,#65a5ff 0%,#347df0 42%,#1d55bf 100%);
+            box-shadow:0 3px 0 #17418e,0 8px 0 rgba(5,22,55,.45),0 13px 18px rgba(0,0,0,.28),inset 0 2px 2px rgba(255,255,255,.48),inset 0 -4px 6px rgba(8,42,108,.32);
         }
         .sidebar nav a.active:before{
-            box-shadow:0 0 9px rgba(147,197,253,.85),0 1px 2px rgba(0,0,0,.22);
+            left:-8px;
+            top:7px;
+            bottom:7px;
+            box-shadow:0 0 12px rgba(147,197,253,.95);
         }
-        .sidebar nav details .nav-sub{
-            border-left-color:rgba(165,195,235,.28);
+        .sidebar nav a.active i{color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.3)}
+        .sidebar nav .nav-main a{
+            border:1px solid rgba(255,255,255,.13);
+            background:linear-gradient(145deg,rgba(255,255,255,.15),rgba(255,255,255,.045));
+            box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 6px 12px rgba(0,0,0,.2);
+        }
+        .sidebar-bottom{
+            margin-top:auto;
+            padding:13px 7px 3px;
+            border-top:1px solid rgba(255,255,255,.14);
         }
         .sidebar-bottom a{
-            background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.018));
-            border:1px solid rgba(255,255,255,.055);
-            box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 3px 8px rgba(2,12,35,.12);
+            padding:11px 12px;
+            border:1px solid rgba(255,255,255,.12);
+            border-radius:12px;
+            background:linear-gradient(145deg,rgba(255,255,255,.11),rgba(255,255,255,.025));
+            box-shadow:inset 0 1px 0 rgba(255,255,255,.13),0 5px 10px rgba(0,0,0,.18);
         }
-        @media(prefers-reduced-motion:reduce){
-            .sidebar nav a,.sidebar nav summary{transition:none}
+        .sidebar-bottom a:hover{
+            transform:translateY(-2px);
+            background:linear-gradient(145deg,rgba(248,113,113,.2),rgba(248,113,113,.06));
+            box-shadow:0 7px 13px rgba(0,0,0,.22);
         }
-        .main-area{margin-left:var(--sidebar)}
         @media(max-width:991.98px){:root{--sidebar:220px}.sidebar{width:var(--sidebar)}.topbar{padding:0 22px}.content-wrap{padding:24px 22px}}
         @media(max-width:767.98px){.sidebar{position:relative;width:100%;height:auto;min-height:0;padding:13px 14px}.brand-wrap{padding:0 5px 12px;margin-bottom:12px}.brand-mark{width:35px;height:35px;border-radius:11px}.brand-name{font-size:14px}.brand-caption{font-size:9px}.sidebar nav{display:flex;gap:5px;overflow-x:auto;padding-bottom:4px}.nav-caption{display:none}.sidebar nav a{white-space:nowrap;padding:9px 11px;margin:0;font-size:11px}.sidebar nav a i{font-size:15px}.sidebar-bottom{display:none}.main-area{margin-left:0}.topbar{height:58px;padding:0 16px;position:relative}.content-wrap{padding:21px 14px 32px}.content-wrap h2,.page-heading h1{font-size:21px}.admin-chip{padding:5px 8px}.admin-chip span{display:none}}
         @media(max-width:575.98px){.card{border-radius:14px!important}.content-wrap .row{--bs-gutter-x:.7rem}.btn{padding:8px 11px}.table-responsive{border-radius:10px}}
