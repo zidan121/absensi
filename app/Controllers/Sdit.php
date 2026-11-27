@@ -534,7 +534,7 @@ class Sdit extends BaseController
             $pin=(string)$employee['pin']; $dates=[];
             foreach($logsByPin[$pin]??[] as $scan)$dates[substr($scan,0,10)][]= $scan;
             $present=0;$late=0;
-            foreach($dates as $date=>$scans){sort($scans);$weekday=(int)(new \\DateTimeImmutable($date))->format('N');
+            foreach($dates as $date=>$scans){sort($scans);$weekday=(int)(new \DateTimeImmutable($date))->format('N');
                 $rule=$db->table('sdit_employee_schedules')->where('pin',$pin)->where('day_of_week',$weekday)->groupStart()->where('effective_from <=',$date)->orWhere('effective_from',null)->groupEnd()->groupStart()->where('effective_until >=',$date)->orWhere('effective_until',null)->groupEnd()->orderBy('effective_from','DESC')->get(1)->getRowArray();
                 $rule=$rule?:$db->table('sdit_work_schedules')->where('schedule_name','Jadwal SDIT')->where('day_of_week',$weekday)->get(1)->getRowArray();
                 $calendar=$db->table('sdit_work_calendar')->where('work_date',$date)->get(1)->getRowArray();
