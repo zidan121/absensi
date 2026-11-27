@@ -281,7 +281,13 @@ class EmployeeRecapOrders extends BaseController
 
         $now = date('Y-m-d H:i:s');
         $db->transStart();
-        $db->table('employee_recap_orders')->where('unit_code', $unit)->delete();
+        // Hapus hanya baris urutan pegawai. Baris penanda preset (employee_id = 0)
+        // harus dipertahankan agar preset awal tidak menimpa hasil edit manual
+        // saat halaman dibuka kembali.
+        $db->table('employee_recap_orders')
+            ->where('unit_code', $unit)
+            ->where('employee_id >', 0)
+            ->delete();
         foreach ($orderedIds as $index => $id) {
             $db->table('employee_recap_orders')->insert([
                 'unit_code' => $unit,
