@@ -50,10 +50,12 @@ foreach ($employees as $employee) {
 <?php else: ?>
 <div class="alert alert-secondary py-2">Periode rekap: <strong><?= esc(date('d-m-Y',strtotime($startDate))) ?></strong> sampai <strong><?= esc(date('d-m-Y',strtotime($endDate))) ?></strong> (termasuk kedua tanggal).</div>
 <div class="row g-3 mb-3">
-    <div class="col-md-3"><div class="card p-3"><div class="text-secondary small">Hari kehadiran</div><div class="fs-3 fw-bold"><?= (int)$summary['attendance_days'] ?></div></div></div>
-    <div class="col-md-3"><div class="card p-3"><div class="text-secondary small">Hari terlambat</div><div class="fs-3 fw-bold"><?= (int)$summary['late_days'] ?></div></div></div>
-    <div class="col-md-3"><div class="card p-3"><div class="text-secondary small">Hanya satu scan</div><div class="fs-3 fw-bold"><?= (int)$summary['one_scan_days'] ?></div></div></div>
-    <div class="col-md-3"><div class="card p-3"><div class="text-secondary small">Identitas belum cocok</div><div class="fs-3 fw-bold <?= $summary['unmatched_identities'] ? 'text-danger' : 'text-success' ?>"><?= (int)$summary['unmatched_identities'] ?></div></div></div>
+    <div class="col-md-2"><div class="card p-3 h-100"><div class="text-secondary small">Hari kehadiran</div><div class="fs-3 fw-bold"><?= (int)$summary['attendance_days'] ?></div></div></div>
+    <div class="col-md-2"><div class="card p-3 h-100"><div class="text-secondary small">Hari terlambat</div><div class="fs-3 fw-bold"><?= (int)$summary['late_days'] ?></div></div></div>
+    <div class="col-md-2"><div class="card p-3 h-100"><div class="text-secondary small">Izin masuk siang</div><div class="fs-3 fw-bold"><?= (int)$summary['afternoon_entry_days'] ?></div></div></div>
+    <div class="col-md-2"><div class="card p-3 h-100"><div class="text-secondary small">Scan pada hari libur</div><div class="fs-3 fw-bold"><?= (int)$summary['holiday_scan_days'] ?></div></div></div>
+    <div class="col-md-2"><div class="card p-3 h-100"><div class="text-secondary small">Hanya satu scan</div><div class="fs-3 fw-bold"><?= (int)$summary['one_scan_days'] ?></div></div></div>
+    <div class="col-md-2"><div class="card p-3 h-100"><div class="text-secondary small">PIN belum cocok</div><div class="fs-3 fw-bold <?= $summary['unmatched_identities'] ? 'text-danger' : 'text-success' ?>"><?= (int)$summary['unmatched_identities'] ?></div></div></div>
 </div>
 <div class="alert alert-info small">Setiap baris mewakili satu pegawai pada satu tanggal. Scan ditampilkan berurutan dari yang paling awal. Timestamp duplikat pada waktu yang sama dihitung satu kali; jumlah kolom scan menyesuaikan scan terbanyak dalam hasil filter.</div>
 <div class="card p-3">
