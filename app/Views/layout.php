@@ -71,6 +71,44 @@
         .alert{border:0;border-radius:12px;font-size:12px;line-height:1.7;padding:13px 16px}
         .alert-info{background:#edf6ff;color:#24527e}.alert-warning{background:#fff8e8;color:#795514}.alert-success{background:#ecfdf3;color:#17633b}.alert-danger{background:#fff0f0;color:#9b2929}
         .text-secondary{color:var(--muted)!important}
+        /* Sidebar refinement */
+        :root{--sidebar:252px}
+        .sidebar{
+            background:
+                radial-gradient(circle at 12% 4%,rgba(59,130,246,.22),transparent 27%),
+                radial-gradient(circle at 100% 72%,rgba(14,165,233,.12),transparent 30%),
+                linear-gradient(160deg,#0b1d3a 0%,#102b52 52%,#153b68 100%);
+            padding:20px 14px 14px;
+            border-right:1px solid rgba(255,255,255,.07);
+            box-shadow:8px 0 28px rgba(10,30,60,.08);
+            scrollbar-width:thin;
+            scrollbar-color:rgba(163,190,225,.28) transparent;
+        }
+        .sidebar::-webkit-scrollbar{width:5px}
+        .sidebar::-webkit-scrollbar-thumb{background:rgba(163,190,225,.28);border-radius:20px}
+        .brand-wrap{position:relative;padding:2px 7px 17px;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,.1)}
+        .brand-mark{width:43px;height:43px;flex:0 0 43px;border:1px solid rgba(255,255,255,.24);background:linear-gradient(145deg,#60a5fa,#2563eb 65%,#1d4ed8);box-shadow:0 8px 22px rgba(37,99,235,.32),inset 0 1px rgba(255,255,255,.35)}
+        .brand-name{font-size:15px;letter-spacing:.055em}
+        .brand-caption{font-size:9px;letter-spacing:.15em;color:#9db7d9}
+        .sidebar nav{padding:2px 1px 10px}
+        .sidebar nav details{margin:5px 0;padding:2px 0}
+        .sidebar nav summary{padding:9px 11px;color:#8fa9ca;font-size:9px;letter-spacing:.15em;border-radius:9px}
+        .sidebar nav summary:after{content:'';width:7px;height:7px;border-right:1.5px solid #8fa9ca;border-bottom:1.5px solid #8fa9ca;transform:rotate(45deg);margin:0 3px 4px 0;transition:transform .18s ease}
+        .sidebar nav details[open] summary:after{content:'';transform:rotate(225deg);margin-bottom:0}
+        .sidebar nav summary:hover{background:rgba(255,255,255,.055);color:#dceaff}
+        .sidebar nav details .nav-sub{margin:2px 0 4px 8px;padding:2px 0 2px 9px;border-left:1px solid rgba(148,178,216,.2)}
+        .sidebar nav a{position:relative;gap:11px;padding:10px 12px;margin:3px 0;border:1px solid transparent;border-radius:10px;color:#c0d0e5;font-size:11px;font-weight:600}
+        .sidebar nav a i{width:19px;font-size:16px;color:#91acd0;transition:color .18s ease}
+        .sidebar nav a:hover{background:rgba(255,255,255,.075);color:#fff;transform:translateX(2px)}
+        .sidebar nav a.active{background:linear-gradient(100deg,#2563eb,#3982f6);border-color:rgba(191,219,254,.18);color:#fff;box-shadow:0 6px 16px rgba(2,12,35,.22),inset 0 1px rgba(255,255,255,.16)}
+        .sidebar nav a.active:before{content:'';position:absolute;left:-10px;top:8px;bottom:8px;width:3px;border-radius:5px;background:#93c5fd}
+        .sidebar nav a.active i{color:#fff}
+        .sidebar nav .nav-main a{padding:11px 12px;margin-bottom:8px;background:rgba(255,255,255,.055);border-color:rgba(255,255,255,.06)}
+        .sidebar nav .nav-main a.active{background:linear-gradient(100deg,#2563eb,#3982f6)}
+        .sidebar-bottom{margin-top:auto;padding:12px 5px 2px;border-top:1px solid rgba(255,255,255,.11)}
+        .sidebar-bottom a{padding:10px 11px;border-radius:10px;color:#b8cbe2;font-size:11px;transition:.18s ease}
+        .sidebar-bottom a:hover{background:rgba(248,113,113,.1);color:#fecaca}
+        .main-area{margin-left:var(--sidebar)}
         @media(max-width:991.98px){:root{--sidebar:220px}.sidebar{width:var(--sidebar)}.topbar{padding:0 22px}.content-wrap{padding:24px 22px}}
         @media(max-width:767.98px){.sidebar{position:relative;width:100%;height:auto;min-height:0;padding:13px 14px}.brand-wrap{padding:0 5px 12px;margin-bottom:12px}.brand-mark{width:35px;height:35px;border-radius:11px}.brand-name{font-size:14px}.brand-caption{font-size:9px}.sidebar nav{display:flex;gap:5px;overflow-x:auto;padding-bottom:4px}.nav-caption{display:none}.sidebar nav a{white-space:nowrap;padding:9px 11px;margin:0;font-size:11px}.sidebar nav a i{font-size:15px}.sidebar-bottom{display:none}.main-area{margin-left:0}.topbar{height:58px;padding:0 16px;position:relative}.content-wrap{padding:21px 14px 32px}.content-wrap h2,.page-heading h1{font-size:21px}.admin-chip{padding:5px 8px}.admin-chip span{display:none}}
         @media(max-width:575.98px){.card{border-radius:14px!important}.content-wrap .row{--bs-gutter-x:.7rem}.btn{padding:8px 11px}.table-responsive{border-radius:10px}}
