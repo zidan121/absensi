@@ -424,6 +424,7 @@ class Sdit extends BaseController
                 $lateAfter = $schedule['late_after_minutes'] ?? null;
                 $startTime = $schedule['start_time'] ?? null;
                 $late = false;
+                $cutoff = '';
                 $status = 'Jadwal Belum Diatur';
                 if ($isHoliday) $status = 'Hari Libur (ada scan)';
                 elseif (!$isWorkday) $status = 'Libur Mingguan (ada scan)';
