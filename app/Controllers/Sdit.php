@@ -366,57 +366,67 @@ class Sdit extends BaseController
 
     public function recap()
     {
-        $month = (string) $this->request->getGet('bulan');
-        if (!preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $month)) {
-            $month = date('Y-m');
-        }
-        $start = $month . '-01 00:00:00';
-        $end = date('Y-m-d H:i:s', strtotime($start . ' +1 month'));
-        $db = db_connect();
-        $daily = $db->table('sdit_attendance_logs l')
-            ->select("l.pin, DATE(l.scanned_at) AS work_date, MIN(TIME(l.scanned_at)) AS first_scan, MAX(TIME(l.scanned_at)) AS last_scan, COUNT(*) AS scan_count", false)
-            ->where('l.scanned_at >=', $start)
-            ->where('l.scanned_at <', $end)
-            ->groupBy('l.pin, DATE(l.scanned_at)')
-            ->orderBy('l.pin', 'ASC')
-            ->orderBy('work_date', 'ASC')
-            ->get()->getResultArray();
+        $startDate = (string) $this->request->getGet('start_date');
+        $endDate = (string) $this->request->getGet('end_date');
+        $hasSearched = $this->request->getGet('show') === '1';
+        if (!preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $startDate)) $startDate = date('Y-m-01');
+        if (!preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $endDate)) $endDate = date('Y-m-d');
+        if ($endDate < $startDate) { [$startDate, $endDate] = [$endDate, $startDate]; }
 
-        $employees = [];
-        foreach ($daily as $row) {
-            $pin = (string) $row['pin'];
-            if (!isset($employees[$pin])) {
-                $employees[$pin] = [
-                    'pin'=>$pin, 'employee_code'=>$pin, 'full_name'=>'Belum dipetakan',
-                    'days'=>0, 'total_scans'=>0, 'details'=>[]
+        $rows = [];
+        $summary = ['attendance_days'=>0, 'late_days'=>0, 'one_scan_days'=>0, 'unmatched_identities'=>0];
+        if ($hasSearched) {
+            $db = db_connect();
+            $endExclusive = date('Y-m-d', strtotime($endDate . ' +1 day')) . ' 00:00:00';
+            $logs = $db->table('sdit_attendance_logs')
+                ->select('pin, scanned_at')
+                ->where('scanned_at >=', $startDate . ' 00:00:00')
+                ->where('scanned_at <', $endExclusive)
+                ->orderBy('scanned_at', 'ASC')
+                ->get()->getResultArray();
+
+            $groups = [];
+            foreach ($logs as $log) {
+                $pin = (string) $log['pin'];
+                $date = substr($log['scanned_at'], 0, 10);
+                $key = $pin . '|' . $date;
+                $groups[$key]['pin'] = $pin;
+                $groups[$key]['date'] = $date;
+                $groups[$key]['scans'][] = $log['scanned_at'];
+            }
+            $pins = array_values(array_unique(array_column(array_values($groups), 'pin')));
+            $masters = $pins ? $db->table('sdit_employees')->whereIn('pin', $pins)->get()->getResultArray() : [];
+            $employeeMap = [];
+            foreach ($masters as $employee) $employeeMap[(string) $employee['pin']] = $employee;
+
+            foreach ($groups as $group) {
+                $scans = array_values(array_unique($group['scans'], SORT_STRING));
+                sort($scans);
+                $employee = $employeeMap[$group['pin']] ?? [];
+                $rows[] = [
+                    'fingerprint_pin' => $group['pin'],
+                    'full_name' => $employee['full_name'] ?? 'Belum dipetakan',
+                    'position' => $employee['position'] ?? '',
+                    'date' => $group['date'],
+                    'scans' => array_map(static fn ($scan) => substr($scan, 11, 8), $scans),
+                    'scan_count' => count($scans),
+                    'status' => 'Belum dihitung',
+                    'late_minutes' => 0,
                 ];
             }
-            $employees[$pin]['days']++;
-            $employees[$pin]['total_scans'] += (int) $row['scan_count'];
-            $employees[$pin]['details'][] = $row;
+            usort($rows, static fn ($a, $b) => strnatcasecmp($a['fingerprint_pin'], $b['fingerprint_pin']) ?: strcmp($a['date'], $b['date']));
+            $summary['attendance_days'] = count($rows);
+            $summary['one_scan_days'] = count(array_filter($rows, static fn ($row) => $row['scan_count'] === 1));
+            $summary['unmatched_identities'] = count(array_filter($rows, static fn ($row) => $row['full_name'] === 'Belum dipetakan'));
         }
-        if ($employees) {
-            $pins = array_keys($employees);
-            $masters = $db->table('sdit_employees')->whereIn('pin', $pins)->get()->getResultArray();
-            foreach ($masters as $employee) {
-                $pin = (string) $employee['pin'];
-                if (isset($employees[$pin])) {
-                    $employees[$pin]['employee_code'] = $employee['employee_code'] ?: $pin;
-                    $employees[$pin]['full_name'] = $employee['full_name'];
-                }
-            }
-        }
-        uasort($employees, static function ($a, $b) {
-            return strnatcasecmp($a['employee_code'], $b['employee_code']);
-        });
+
+        $maxScans = 1;
+        foreach ($rows as $row) $maxScans = max($maxScans, count($row['scans']));
         return view('sdit/recap', [
-            'title'=>'Rekap Absensi SDIT', 'month'=>$month,
-            'employees'=>array_values($employees),
-            'totalDays'=>count($daily),
-            'totalScans'=>array_sum(array_column($daily, 'scan_count')),
+            'title'=>'Rekap Absensi SDIT', 'startDate'=>$startDate, 'endDate'=>$endDate,
+            'hasSearched'=>$hasSearched, 'rows'=>$rows, 'summary'=>$summary, 'maxScans'=>$maxScans,
         ]);
     }
-
 
     public function exportRecap()
     {
