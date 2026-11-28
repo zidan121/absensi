@@ -350,6 +350,97 @@ class Sdit extends BaseController
         }
     }
 
+    public function employees()
+    {
+        $db = db_connect();
+        $q = trim((string) $this->request->getGet('q'));
+        $status = (string) $this->request->getGet('status');
+        $builder = $db->table('sdit_employees')->orderBy('CAST(employee_code AS UNSIGNED)', 'ASC')->orderBy('employee_code', 'ASC');
+        if ($q !== '') {
+            $builder->groupStart()->like('full_name', $q)->orLike('employee_code', $q)->orLike('pin', $q)->orLike('fingerprint_name', $q)->groupEnd();
+        }
+        if ($status === 'active') $builder->where('is_active', 1);
+        elseif ($status === 'inactive') $builder->where('is_active', 0);
+        $rows = $builder->get()->getResultArray();
+        return view('sdit/employees', [
+            'title' => 'Master Pegawai SDIT', 'employees' => $rows, 'q' => $q, 'status' => $status,
+            'activeCount' => $db->table('sdit_employees')->where('is_active', 1)->countAllResults(),
+            'inactiveCount' => $db->table('sdit_employees')->where('is_active', 0)->countAllResults(),
+        ]);
+    }
+
+    public function employeeCreate()
+    {
+        return view('sdit/employee_form', ['title' => 'Tambah Pegawai SDIT', 'employee' => null]);
+    }
+
+    public function employeeStore()
+    {
+        $data = $this->employeePayload();
+        if ($data instanceof \\CodeIgniter\\HTTP\\RedirectResponse) return $data;
+        $db = db_connect();
+        if ($db->table('sdit_employees')->where('pin', $data['pin'])->countAllResults() > 0) {
+            return redirect()->back()->withInput()->with('error', 'PIN tersebut sudah digunakan pegawai lain.');
+        }
+        $data['created_at'] = date('Y-m-d H:i:s');
+        $data['updated_at'] = $data['created_at'];
+        $db->table('sdit_employees')->insert($data);
+        return redirect()->to('/sdit/pegawai')->with('success', 'Pegawai SDIT berhasil ditambahkan.');
+    }
+
+    public function employeeEdit(int $id)
+    {
+        $employee = db_connect()->table('sdit_employees')->where('id', $id)->get()->getRowArray();
+        if (!$employee) return redirect()->to('/sdit/pegawai')->with('error', 'Data pegawai tidak ditemukan.');
+        return view('sdit/employee_form', ['title' => 'Edit Pegawai SDIT', 'employee' => $employee]);
+    }
+
+    public function employeeUpdate(int $id)
+    {
+        $data = $this->employeePayload();
+        if ($data instanceof \\CodeIgniter\\HTTP\\RedirectResponse) return $data;
+        $db = db_connect();
+        $employee = $db->table('sdit_employees')->where('id', $id)->get()->getRowArray();
+        if (!$employee) return redirect()->to('/sdit/pegawai')->with('error', 'Data pegawai tidak ditemukan.');
+        if ($db->table('sdit_employees')->where('pin', $data['pin'])->where('id !=', $id)->countAllResults() > 0) {
+            return redirect()->back()->withInput()->with('error', 'PIN tersebut sudah digunakan pegawai lain.');
+        }
+        $data['updated_at'] = date('Y-m-d H:i:s');
+        $db->table('sdit_employees')->where('id', $id)->update($data);
+        return redirect()->to('/sdit/pegawai')->with('success', 'Data pegawai SDIT berhasil diperbarui.');
+    }
+
+    public function employeeStatus(int $id)
+    {
+        $db = db_connect();
+        $employee = $db->table('sdit_employees')->where('id', $id)->get()->getRowArray();
+        if (!$employee) return redirect()->to('/sdit/pegawai')->with('error', 'Data pegawai tidak ditemukan.');
+        $db->table('sdit_employees')->where('id', $id)->update([
+            'is_active' => (int) !$employee['is_active'], 'updated_at' => date('Y-m-d H:i:s')
+        ]);
+        return redirect()->to('/sdit/pegawai')->with('success', 'Status pegawai berhasil diubah. Riwayat scan tetap tersimpan.');
+    }
+
+    private function employeePayload()
+    {
+        $pin = trim((string) $this->request->getPost('pin'));
+        $name = trim((string) $this->request->getPost('full_name'));
+        $code = trim((string) $this->request->getPost('employee_code'));
+        if ($pin === '' || $name === '') {
+            return redirect()->back()->withInput()->with('error', 'PIN dan nama pegawai wajib diisi.');
+        }
+        return [
+            'pin' => $pin, 'employee_code' => $code !== '' ? $code : $pin,
+            'full_name' => $name,
+            'fingerprint_name' => trim((string) $this->request->getPost('fingerprint_name')) ?: $name,
+            'position' => trim((string) $this->request->getPost('position')) ?: null,
+            'phone' => trim((string) $this->request->getPost('phone')) ?: null,
+            'employment_start' => $this->request->getPost('employment_start') ?: null,
+            'employment_end' => $this->request->getPost('employment_end') ?: null,
+            'is_active' => $this->request->getPost('is_active') === '0' ? 0 : 1,
+        ];
+    }
+
     public function scans()
     {
         $db = db_connect();
