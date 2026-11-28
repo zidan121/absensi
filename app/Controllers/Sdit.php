@@ -839,7 +839,24 @@ class Sdit extends BaseController
         $detail->setCellValue('D1', 'Data scanlog');
         $detail->setCellValue('J1', 'MAX JAM MASUK');
         $detail->fromArray(['PIN', 'Nama', 'Jabatan', 'Tanggal', 'Scan 1', 'Status', 'Scan 2', 'Scan 3'], null, 'A2');
-        $detail->setCellValue('J2', 'Batas masuk unit SDIT');
+
+        // Satu nilai batas masuk unit SDIT ditampilkan sekali di bagian atas,
+        // bukan diulang pada setiap baris pegawai/scan.
+        $unitMaxEntrySeconds = null;
+        foreach ($weeklyMap as $unitDaySchedule) {
+            if (empty($unitDaySchedule['is_workday']) || empty($unitDaySchedule['start_time'])) {
+                continue;
+            }
+            $unitCutoff = strtotime($unitDaySchedule['start_time'] . ' +' . (int) ($unitDaySchedule['late_after_minutes'] ?? 0) . ' minutes');
+            $unitTime = (int) date('H', $unitCutoff) * 3600 + (int) date('i', $unitCutoff) * 60 + (int) date('s', $unitCutoff);
+            $unitMaxEntrySeconds = $unitMaxEntrySeconds === null ? $unitTime : max($unitMaxEntrySeconds, $unitTime);
+        }
+        if ($unitMaxEntrySeconds !== null) {
+            $detail->setCellValue('J2', $unitMaxEntrySeconds / 86400);
+            $detail->getStyle('J2')->getNumberFormat()->setFormatCode('hh:mm');
+        } else {
+            $detail->setCellValue('J2', '');
+        }
 
         $detailRow = 3;
         $orderedLogsByPin = [];
@@ -876,24 +893,6 @@ class Sdit extends BaseController
                     (string) $pin,
                 ], null, 'A' . $detailRow);
 
-                // MAX JAM MASUK selalu memakai jadwal mingguan unit SDIT,
-                // bukan jadwal khusus masing-masing pegawai.
-                $weekday = (int) (new \DateTimeImmutable($date))->format('N');
-                $unitSchedule = $weeklyMap[$weekday] ?? null;
-                $calendar = $calendarMap[$date] ?? null;
-                $isUnitWorkday = $calendar !== null
-                    ? (($calendar['day_type'] ?? '') === 'workday')
-                    : (bool) ($unitSchedule['is_workday'] ?? ($weekday <= 5));
-                if ($isUnitWorkday && $unitSchedule && !empty($unitSchedule['start_time'])) {
-                    $maxEntry = date(
-                        'H:i:s',
-                        strtotime($unitSchedule['start_time'] . ' +' . (int) ($unitSchedule['late_after_minutes'] ?? 0) . ' minutes')
-                    );
-                    $detail->setCellValue('J' . $detailRow, ((int) substr($maxEntry, 0, 2) * 3600
-                        + (int) substr($maxEntry, 3, 2) * 60 + (int) substr($maxEntry, 6, 2)) / 86400);
-                } else {
-                    $detail->setCellValue('J' . $detailRow, '');
-                }
                 $detailRow++;
             }
         }
@@ -910,7 +909,6 @@ class Sdit extends BaseController
             ->setWrapText(true);
         $detail->getStyle('E3:E' . $detailLastRow)->getNumberFormat()->setFormatCode('hh:mm');
         $detail->getStyle('G3:H' . $detailLastRow)->getNumberFormat()->setFormatCode('hh:mm');
-        $detail->getStyle('J3:J' . $detailLastRow)->getNumberFormat()->setFormatCode('hh:mm');
         $detail->getStyle('J1')->getFont()->setName('Calibri')->setSize(11);
         $detail->getStyle('J1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
             ->getStartColor()->setARGB('FFFFFF00');
