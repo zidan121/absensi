@@ -658,7 +658,7 @@ class Sdit extends BaseController
         }
 
         $db = db_connect();
-        $employees = $db->table('sdit_employees')->where('is_active', 1)->orderBy('employee_code', 'ASC')->get()->getResultArray();
+        $employees = $db->table('sdit_employees')->orderBy('CAST(employee_code AS UNSIGNED)', 'ASC')->orderBy('employee_code', 'ASC')->get()->getResultArray();
         $endExclusive = date('Y-m-d', strtotime($endDate . ' +1 day')) . ' 00:00:00';
         // Ringkas scan di database per PIN dan tanggal agar ekspor tidak menampung
         // puluhan ribu baris scan mentah sekaligus di memori PHP.
