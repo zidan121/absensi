@@ -288,7 +288,7 @@ class Sdit extends BaseController
                     $row = [
                         'source_employee_id'=>$employee['source_employee_id'] ?: null,
                         'pin'=>$pin, 'employee_code'=>$employee['employee_code'] ?: $pin,
-                        'full_name'=>$employee['full_name'], 'position'=>null,
+                        'full_name'=>$employee['full_name'], 'fingerprint_name'=>$employee['fingerprint_name'] ?? $employee['full_name'], 'position'=>null,
                         'phone'=>$employee['phone'], 'division_1'=>$employee['source_division_1'] ?: null,
                         'division_2'=>$employee['source_division_2'] ?: null, 'division_3'=>$employee['source_division_3'] ?: null,
                         'employment_start'=>$employee['employment_start'], 'employment_end'=>$employee['employment_end'],
