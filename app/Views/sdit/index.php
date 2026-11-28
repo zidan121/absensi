@@ -30,6 +30,11 @@
         </a>
     </div>
     <div class="col-12 col-md-6 col-xl-4">
+        <a href="/sdit/backup" class="card h-100 text-decoration-none text-reset">
+            <div class="card-body p-4"><div class="rounded-3 bg-warning-subtle text-warning d-inline-flex p-3 mb-3"><i class="bi bi-database-lock fs-4"></i></div><h5>Backup &amp; Restore SDIT</h5><p class="text-secondary mb-0">Unduh cadangan dan gabungkan data backup SDIT dengan aman.</p></div>
+        </a>
+    </div>
+    <div class="col-12 col-md-6 col-xl-4">
         <a href="/sdit/scan" class="card h-100 text-decoration-none text-reset">
             <div class="card-body p-4">
                 <div class="rounded-3 bg-info-subtle text-info d-inline-flex p-3 mb-3"><i class="bi bi-list-check fs-4"></i></div>
