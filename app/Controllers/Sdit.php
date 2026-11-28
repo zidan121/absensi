@@ -377,7 +377,7 @@ class Sdit extends BaseController
     public function employeeStore()
     {
         $data = $this->employeePayload();
-        if ($data instanceof \\CodeIgniter\\HTTP\\RedirectResponse) return $data;
+        if ($data instanceof \CodeIgniter\HTTP\RedirectResponse) return $data;
         $db = db_connect();
         if ($db->table('sdit_employees')->where('pin', $data['pin'])->countAllResults() > 0) {
             return redirect()->back()->withInput()->with('error', 'PIN tersebut sudah digunakan pegawai lain.');
@@ -398,7 +398,7 @@ class Sdit extends BaseController
     public function employeeUpdate(int $id)
     {
         $data = $this->employeePayload();
-        if ($data instanceof \\CodeIgniter\\HTTP\\RedirectResponse) return $data;
+        if ($data instanceof \CodeIgniter\HTTP\RedirectResponse) return $data;
         $db = db_connect();
         $employee = $db->table('sdit_employees')->where('id', $id)->get()->getRowArray();
         if (!$employee) return redirect()->to('/sdit/pegawai')->with('error', 'Data pegawai tidak ditemukan.');
