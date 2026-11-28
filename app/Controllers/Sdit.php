@@ -602,7 +602,7 @@ class Sdit extends BaseController
             $summary->fromArray([
                 $number++,
                 $employee['full_name'],
-                $employee['full_name'],
+                $employee['fingerprint_name'] ?: $employee['full_name'],
                 $employee['position'] ?? '',
             ], null, 'A' . $summaryRow);
             $pin = (string) $employee['pin'];
