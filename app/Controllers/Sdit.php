@@ -658,7 +658,7 @@ class Sdit extends BaseController
         }
 
         $db = db_connect();
-        $employees = $db->table('sdit_employees')->orderBy('CAST(employee_code AS UNSIGNED)', 'ASC')->orderBy('employee_code', 'ASC')->get()->getResultArray();
+        $employees = $db->table('sdit_employees')->where('is_active', 1)->orderBy('CAST(employee_code AS UNSIGNED)', 'ASC')->orderBy('employee_code', 'ASC')->get()->getResultArray();
         $endExclusive = date('Y-m-d', strtotime($endDate . ' +1 day')) . ' 00:00:00';
         // Ringkas scan di database per PIN dan tanggal agar ekspor tidak menampung
         // puluhan ribu baris scan mentah sekaligus di memori PHP.
@@ -674,7 +674,8 @@ class Sdit extends BaseController
         )->getResultArray();
         $logsByPin = [];
         foreach ($dailyLogs as $daily) {
-            $times = array_values(array_filter(explode(',', (string) ($daily['scan_times'] ?? ''))));
+            $times = array_values(array_unique(array_filter(explode(',', (string) ($daily['scan_times'] ?? '')))));
+            sort($times);
             $logsByPin[(string) $daily['pin']][] = [
                 'date' => (string) $daily['scan_date'],
                 'scans' => $times,
