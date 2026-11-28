@@ -12,6 +12,15 @@
 
 <div class="row g-3 mb-4">
     <div class="col-12 col-md-6 col-xl-4">
+        <a href="/sdit/pegawai" class="card h-100 text-decoration-none text-reset">
+            <div class="card-body p-4">
+                <div class="rounded-3 bg-primary-subtle text-primary d-inline-flex p-3 mb-3"><i class="bi bi-people fs-4"></i></div>
+                <h5>Master Pegawai SDIT</h5>
+                <p class="text-secondary mb-0">Tambah, cari, edit, dan atur status pegawai serta PIN fingerprint SDIT.</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-12 col-md-6 col-xl-4">
         <a href="/sdit/impor" class="card h-100 text-decoration-none text-reset">
             <div class="card-body p-4">
                 <div class="rounded-3 bg-primary-subtle text-primary d-inline-flex p-3 mb-3"><i class="bi bi-file-earmark-binary fs-4"></i></div>
