@@ -18,5 +18,5 @@
 <div class="alert alert-info mt-3 mb-3 small">Default awal: Senin–Jumat hari kerja, Sabtu–Minggu libur. Silakan ubah centang hari kerja sesuai kebijakan SDIT. Jadwal ini tidak mengubah jadwal unit lain.</div>
 <div class="d-flex gap-2"><button class="btn btn-primary">Simpan Jadwal SDIT</button><a href="/sdit" class="btn btn-outline-secondary">Kembali</a></div>
 </form>
-<div class="text-secondary small mt-3">Prioritas pengaturan: jadwal khusus pegawai → kalender tanggal tertentu → jadwal mingguan SDIT.</div>
+<div class="text-secondary small mt-3">Jam masuk dan toleransi: jadwal khusus pegawai lebih diutamakan daripada jadwal mingguan. Jenis hari: kalender tanggal tertentu mengesampingkan pengaturan hari kerja mingguan.</div>
 <?= $this->endSection() ?>
