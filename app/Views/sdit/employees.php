@@ -4,7 +4,7 @@
 <?php if (session()->getFlashdata('error')): ?><div class="alert alert-danger"><?= esc(session()->getFlashdata('error')) ?></div><?php endif ?>
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <div><h2 class="mb-1">Master Pegawai SDIT</h2><p class="text-secondary mb-0">Kelola pegawai dan identitas fingerprint khusus SDIT.</p></div>
-    <a class="btn btn-primary" href="/sdit/pegawai/tambah"><i class="bi bi-plus-lg me-1"></i>Tambah Pegawai</a>
+    <div class="d-flex flex-wrap gap-2"><a class="btn btn-outline-primary" href="/sdit/pegawai/urutan"><i class="bi bi-sort-numeric-down me-1"></i>Atur Urutan</a><a class="btn btn-primary" href="/sdit/pegawai/tambah"><i class="bi bi-plus-lg me-1"></i>Tambah Pegawai</a></div>
 </div>
 <div class="row g-3 mb-3">
     <div class="col-md-3"><a class="card p-3 text-decoration-none text-reset h-100" href="/sdit/pegawai"><div class="small text-secondary">Semua pegawai</div><div class="fs-3 fw-bold"><?= count($employees) ?></div></a></div>
