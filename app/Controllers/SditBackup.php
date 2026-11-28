@@ -54,6 +54,63 @@ class SditBackup extends BaseController
             ->setHeader('Content-Disposition', 'attachment; filename="Backup-SDIT-Lengkap-' . date('Ymd-His') . '.sql"')
             ->setBody(implode("\n", $lines) . "\n");
     }
+    public function downloadDump()
+    {
+        $db = db_connect();
+        $tables = $this->sditTables();
+        $tick = chr(96);
+        $lines = [
+            '-- NEURO ABSENSI SDIT - MYSQL DUMP',
+            '-- Dibuat: ' . date('Y-m-d H:i:s'),
+            '-- Gaya dump kompatibel dengan format backup Fingerspot.',
+            '-- PERHATIAN: DROP TABLE aktif. Impor manual ke phpMyAdmin dapat menghapus tabel tujuan.',
+            '',
+            '/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;',
+            '/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;',
+            '/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;',
+            '/*!40101 SET NAMES utf8mb4 */;',
+            '/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;',
+            '/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;',
+            ''
+        ];
+        foreach ($tables as $table) {
+            $result = $db->query('SHOW CREATE TABLE ' . $db->protectIdentifiers($table))->getRowArray();
+            $createSql = $result['Create Table'] ?? array_values($result)[1] ?? null;
+            if (!$createSql) throw new RuntimeException('Struktur tabel ' . $table . ' tidak dapat dibaca.');
+            $lines[] = 'DROP TABLE IF EXISTS ' . $tick . $table . $tick . ';';
+            $lines[] = $createSql . ';';
+            $lines[] = '';
+            $lines[] = 'LOCK TABLES ' . $tick . $table . $tick . ' WRITE;';
+            $lines[] = '/*!40000 ALTER TABLE ' . $tick . $table . $tick . ' DISABLE KEYS */;';
+            $offset = 0;
+            do {
+                $rows = $db->query('SELECT * FROM ' . $db->protectIdentifiers($table) . ' LIMIT 500 OFFSET ' . $offset)->getResultArray();
+                if (!$rows) break;
+                $columns = array_keys($rows[0]);
+                $valueRows = [];
+                foreach ($rows as $row) {
+                    $values = [];
+                    foreach ($columns as $column) $values[] = $row[$column] === null ? 'NULL' : $db->escape($row[$column]);
+                    $valueRows[] = '(' . implode(', ', $values) . ')';
+                }
+                $quotedColumns = implode(', ', array_map(static fn ($column) => $tick . str_replace($tick, $tick . $tick, $column) . $tick, $columns));
+                $lines[] = 'INSERT INTO ' . $tick . $table . $tick . ' (' . $quotedColumns . ') VALUES';
+                $lines[] = implode(",\n", $valueRows) . ';';
+                $offset += count($rows);
+            } while (count($rows) === 500);
+            $lines[] = '/*!40000 ALTER TABLE ' . $tick . $table . $tick . ' ENABLE KEYS */;';
+            $lines[] = 'UNLOCK TABLES;';
+            $lines[] = '';
+        }
+        $lines[] = '/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;';
+        $lines[] = '/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;';
+        $lines[] = '/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;';
+        $lines[] = '/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;';
+        $lines[] = '/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;';
+        return $this->response->setHeader('Content-Type', 'application/sql; charset=utf-8')
+            ->setHeader('Content-Disposition', 'attachment; filename="Backup-SDIT-Dump-' . date('Ymd-His') . '.sql"')
+            ->setBody(implode("\n", $lines) . "\n");
+    }
     public function downloadJson()
     {
         $db = db_connect();
@@ -97,23 +154,32 @@ class SditBackup extends BaseController
         if ($sql === false || trim($sql) === '') return redirect()->to('/sdit/backup')->with('error', 'File SQL kosong atau tidak dapat dibaca.');
         $db = db_connect(); $db->transBegin();
         try {
-            $db->query('SET FOREIGN_KEY_CHECKS=0'); $created = 0; $inserted = 0;
+            $db->query('SET FOREIGN_KEY_CHECKS=0');
+            $created = 0; $inserted = 0; $skipped = 0;
             foreach ($this->splitSqlStatements($sql) as $statement) {
+                $statement = trim($statement);
+                if ($statement === '') continue;
+                if (preg_match('/^\/\*![0-9]*\s*.*\*\/$/s', $statement)) { $skipped++; continue; }
                 $statement = trim(preg_replace('/^(?:\s*--[^\r\n]*(?:\r?\n|$))+/', '', $statement));
                 if ($statement === '') continue;
-                if (preg_match('/^SET\s+FOREIGN_KEY_CHECKS\s*=\s*[01]$/i', $statement)) continue;
-                if (preg_match('/^CREATE TABLE IF NOT EXISTS\s+\x60(sdit_[a-zA-Z0-9_]+)\x60/i', $statement)) {
-                    $db->query($statement); $created++; continue;
+                if (preg_match('/^DROP TABLE IF EXISTS\s+\x60(sdit_[a-zA-Z0-9_]+)\x60$/i', $statement)) { $skipped++; continue; }
+                if (preg_match('/^LOCK TABLES\s+\x60sdit_[a-zA-Z0-9_]+\x60\s+WRITE$/i', $statement) || preg_match('/^UNLOCK TABLES$/i', $statement)) { $skipped++; continue; }
+                if (preg_match('/^ALTER TABLE\s+\x60sdit_[a-zA-Z0-9_]+\x60\s+(?:DISABLE|ENABLE) KEYS$/i', $statement)) { $skipped++; continue; }
+                if (preg_match('/^SET\s+(?:FOREIGN_KEY_CHECKS|UNIQUE_CHECKS)\s*=/i', $statement)) { $skipped++; continue; }
+                if (preg_match('/^CREATE TABLE(?: IF NOT EXISTS)?\s+\x60(sdit_[a-zA-Z0-9_]+)\x60/i', $statement)) {
+                    $safeCreate = preg_replace('/^CREATE TABLE\s+/i', 'CREATE TABLE IF NOT EXISTS ', $statement, 1);
+                    $db->query($safeCreate); $created++; continue;
                 }
-                if (preg_match('/^INSERT IGNORE INTO\s+\x60(sdit_[a-zA-Z0-9_]+)\x60\s/i', $statement)) {
-                    $db->query($statement); $inserted += max(0, (int) $db->affectedRows()); continue;
+                if (preg_match('/^INSERT(?: IGNORE)? INTO\s+\x60(sdit_[a-zA-Z0-9_]+)\x60\s/i', $statement)) {
+                    $safeInsert = preg_replace('/^INSERT(?: IGNORE)? INTO\s+/i', 'INSERT IGNORE INTO ', $statement, 1);
+                    $db->query($safeInsert); $inserted += max(0, (int) $db->affectedRows()); continue;
                 }
-                throw new RuntimeException('File berisi perintah SQL yang tidak diizinkan. Hanya CREATE TABLE IF NOT EXISTS dan INSERT IGNORE untuk tabel sdit_* yang diterima.');
+                throw new RuntimeException('File berisi perintah SQL yang tidak diizinkan atau bukan tabel SDIT. Restore hanya menerima CREATE TABLE dan INSERT untuk tabel sdit_* serta melewati DROP/LOCK dari dump.');
             }
             $db->query('SET FOREIGN_KEY_CHECKS=1');
             if ($db->transStatus() === false) throw new RuntimeException('Database menolak proses restore.');
             $db->transCommit();
-            return redirect()->to('/sdit/backup')->with('success', 'Restore SQL selesai. Perintah struktur diproses: ' . $created . '; baris data baru ditambahkan: ' . $inserted . '. Data lama tidak ditimpa.');
+            return redirect()->to('/sdit/backup')->with('success', 'Restore SQL selesai. Struktur diproses: ' . $created . '; baris baru ditambahkan: ' . $inserted . '; perintah dump aman yang dilewati: ' . $skipped . '. Data lama tidak ditimpa dan DROP TABLE tidak dijalankan.');
         } catch (Throwable $e) {
             $db->query('SET FOREIGN_KEY_CHECKS=1'); $db->transRollback();
             log_message('error', 'SDIT SQL restore failed: {message}', ['message' => $e->getMessage()]);
