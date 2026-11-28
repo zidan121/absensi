@@ -553,7 +553,7 @@ class Sdit extends BaseController
                 }
                 $schedule = $individual ?? ($weeklyMap[$weekday] ?? null);
                 $isHoliday = ($calendar['day_type'] ?? '') === 'holiday';
-                $isWorkday = $calendar !== null ? !$isHoliday : (bool)($schedule['is_workday'] ?? true);
+                $isWorkday = $calendar !== null ? !$isHoliday : (bool)($schedule['is_workday'] ?? ($weekday <= 5));
                 $startTime = $schedule['start_time'] ?? null;
                 $lateAfter = $schedule['late_after_minutes'] ?? null;
                 $late = false;
@@ -706,7 +706,7 @@ class Sdit extends BaseController
             }
             $rule = $rule ?? ($weeklyMap[$weekday] ?? null);
             $holiday = ($calendar['day_type'] ?? '') === 'holiday';
-            $workday = $calendar !== null ? !$holiday : (bool) ($rule['is_workday'] ?? true);
+            $workday = $calendar !== null ? !$holiday : (bool) ($rule['is_workday'] ?? ($weekday <= 5));
             if ($holiday) return ['Hari Libur (ada scan)', false, false];
             if (!$workday) return ['Libur Mingguan (ada scan)', false, false];
             if (!empty($calendar['allow_afternoon_entry'])) return ['Izin Masuk Siang', true, false];
