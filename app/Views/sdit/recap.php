@@ -14,9 +14,21 @@ foreach ($employees as $employee) {
             'date'=>$detail['work_date'],
             'scans'=>$detail['scans'] ?? [],
             'status'=>$detail['status'] ?? 'Jadwal Belum Diatur',
+            'calendar'=>$detail['calendar'] ?? '',
         ];
     }
 }
+?>
+<?php
+$statusClass = static function (string $status): string {
+    if ($status === 'Terlambat') return 'text-bg-danger';
+    if ($status === 'Tepat Waktu') return 'text-bg-success';
+    if ($status === 'Izin Masuk Siang') return 'text-bg-info';
+    if ($status === 'Jadwal Belum Diatur') return 'text-bg-warning';
+    if (str_starts_with($status, 'Hari Libur')) return 'text-bg-secondary';
+    if (str_starts_with($status, 'Libur Mingguan')) return 'text-bg-secondary';
+    return 'text-bg-light';
+};
 ?>
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <div><h2 class="mb-1">Rekap Absensi</h2><p class="text-secondary mb-0">Rekap berdasarkan identitas mesin fingerprint + PIN khusus SDIT.</p></div>
@@ -57,7 +69,17 @@ foreach ($employees as $employee) {
     <div class="col-md-2"><div class="card p-3 h-100"><div class="text-secondary small">Hanya satu scan</div><div class="fs-3 fw-bold"><?= (int)$summary['one_scan_days'] ?></div></div></div>
     <div class="col-md-2"><div class="card p-3 h-100"><div class="text-secondary small">PIN belum cocok</div><div class="fs-3 fw-bold <?= $summary['unmatched_identities'] ? 'text-danger' : 'text-success' ?>"><?= (int)$summary['unmatched_identities'] ?></div></div></div>
 </div>
-<div class="alert alert-info small">Setiap baris mewakili satu pegawai pada satu tanggal. Scan ditampilkan berurutan dari yang paling awal. Timestamp duplikat pada waktu yang sama dihitung satu kali; jumlah kolom scan menyesuaikan scan terbanyak dalam hasil filter.</div>
+<div class="alert alert-info small">
+    <div class="fw-semibold mb-1">Panduan membaca status</div>
+    <div class="d-flex flex-wrap gap-2 mb-2">
+        <span class="badge text-bg-success">Tepat Waktu</span>
+        <span class="badge text-bg-danger">Terlambat</span>
+        <span class="badge text-bg-info">Izin Masuk Siang</span>
+        <span class="badge text-bg-secondary">Libur Mingguan / Hari Libur</span>
+        <span class="badge text-bg-warning">Jadwal Belum Diatur</span>
+    </div>
+    Setiap baris mewakili satu pegawai pada satu tanggal. Scan ditampilkan berurutan dari yang paling awal. Timestamp duplikat pada waktu yang sama dihitung satu kali. Scan pada hari libur tetap ditampilkan sebagai informasi, tetapi tidak dihitung sebagai hari kehadiran. Kolom scan menyesuaikan jumlah scan terbanyak dalam hasil filter.
+</div>
 <div class="card p-3">
     <div class="d-flex justify-content-between align-items-center mb-3"><h5 class="mb-0">Detail kehadiran</h5><span class="badge text-bg-light"><?= count($rows) ?> baris</span></div>
     <div class="table-responsive" style="max-height:520px;overflow:auto"><table class="table table-sm table-bordered table-hover align-middle">
@@ -67,9 +89,9 @@ foreach ($employees as $employee) {
         <tbody>
         <?php foreach($rows as $r): ?><tr>
             <td><?= esc($r['fingerprint_pin']) ?></td><td><?= esc($r['full_name']) ?></td><td><?= esc($r['position'] ?: '-') ?></td><td><?= esc(date('d-m-Y',strtotime($r['date']))) ?></td>
-            <?php foreach($r['scans'] as $i=>$scan): ?><td><?= esc(substr($scan,0,5)) ?></td><?php if($i===0): ?><td><?= esc($r['status']) ?></td><?php endif ?><?php endforeach ?>
+            <?php foreach($r['scans'] as $i=>$scan): ?><td><?= esc(substr($scan,0,5)) ?></td><?php if($i===0): ?><td><span class="badge <?= esc($statusClass($r['status'])) ?>"><?= esc($r['status']) ?></span><?php if($r['calendar'] !== ''): ?><div class="small text-secondary mt-1"><?= esc($r['calendar']) ?></div><?php endif ?></td><?php endif ?><?php endforeach ?>
             <?php if(count($r['scans'])<$maxScans): ?>
-                <?php for($i=count($r['scans']);$i<$maxScans;$i++): ?><td>-</td><?php if($i===0): ?><td><?= esc($r['status']) ?></td><?php endif ?><?php endfor ?>
+                <?php for($i=count($r['scans']);$i<$maxScans;$i++): ?><td>-</td><?php if($i===0): ?><td><span class="badge <?= esc($statusClass($r['status'])) ?>"><?= esc($r['status']) ?></span><?php if($r['calendar'] !== ''): ?><div class="small text-secondary mt-1"><?= esc($r['calendar']) ?></div><?php endif ?></td><?php endif ?><?php endfor ?>
             <?php endif ?>
         </tr><?php endforeach ?>
         <?php if(!$rows): ?><tr><td colspan="<?= 5+$maxScans ?>" class="text-center text-secondary py-4">Belum ada scan yang cocok untuk periode ini.</td></tr><?php endif ?>
