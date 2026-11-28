@@ -92,6 +92,9 @@ $routes->group('impor', ['filter' => 'auth'], static function ($routes) {
 $routes->group('sdit', ['filter' => 'auth'], static function ($routes) {
     $routes->get('/', 'Sdit::index');
     $routes->get('impor', 'Sdit::imports');
+    $routes->get('backup', 'SditBackup::index');
+    $routes->get('backup/download', 'SditBackup::download');
+    $routes->post('backup/restore', 'SditBackup::restore');
     $routes->post('impor/preview', 'Sdit::previewImport');
     $routes->post('impor/proses-bin', 'Sdit::processBinImport');
     $routes->post('impor/sql/preview', 'Sdit::previewSqlEmployees');
