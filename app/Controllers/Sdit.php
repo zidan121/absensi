@@ -878,7 +878,7 @@ class Sdit extends BaseController
 
                 // MAX JAM MASUK selalu memakai jadwal mingguan unit SDIT,
                 // bukan jadwal khusus masing-masing pegawai.
-                $weekday = (int) (new \\DateTimeImmutable($date))->format('N');
+                $weekday = (int) (new \DateTimeImmutable($date))->format('N');
                 $unitSchedule = $weeklyMap[$weekday] ?? null;
                 $calendar = $calendarMap[$date] ?? null;
                 $isUnitWorkday = $calendar !== null
@@ -889,7 +889,7 @@ class Sdit extends BaseController
                         'H:i:s',
                         strtotime($unitSchedule['start_time'] . ' +' . (int) ($unitSchedule['late_after_minutes'] ?? 0) . ' minutes')
                     );
-                    $detail->setCellValue('J' . $detailRow, (1 * (int) substr($maxEntry, 0, 2) * 3600
+                    $detail->setCellValue('J' . $detailRow, ((int) substr($maxEntry, 0, 2) * 3600
                         + (int) substr($maxEntry, 3, 2) * 60 + (int) substr($maxEntry, 6, 2)) / 86400);
                 } else {
                     $detail->setCellValue('J' . $detailRow, '');
