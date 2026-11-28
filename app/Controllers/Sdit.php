@@ -444,24 +444,40 @@ class Sdit extends BaseController
     public function scans()
     {
         $db = db_connect();
-        $builder = $db->table('sdit_attendance_logs l')
-            ->select('l.*, e.full_name, e.employee_code')
-            ->join('sdit_employees e', 'e.pin = l.pin', 'left')
-            ->orderBy('l.scanned_at', 'DESC')
-            ->orderBy('l.pin', 'ASC');
-        $date = $this->request->getGet('tanggal');
-        if ($date && preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
-            $builder->where('DATE(l.scanned_at)', $date);
-        }
+        $startDate = trim((string) $this->request->getGet('start_date'));
+        $endDate = trim((string) $this->request->getGet('end_date'));
         $pin = trim((string) $this->request->getGet('pin'));
-        if ($pin !== '') {
-            $builder->where('l.pin', $pin);
+        $q = trim((string) $this->request->getGet('q'));
+        if ($startDate !== '' && !preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $startDate)) $startDate = '';
+        if ($endDate !== '' && !preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $endDate)) $endDate = '';
+        if ($startDate !== '' && $endDate !== '' && $endDate < $startDate) [$startDate, $endDate] = [$endDate, $startDate];
+
+        $builder = $db->table('sdit_attendance_logs')->orderBy('scanned_at', 'DESC')->orderBy('pin', 'ASC');
+        if ($startDate !== '') $builder->where('scanned_at >=', $startDate . ' 00:00:00');
+        if ($endDate !== '') $builder->where('scanned_at <', date('Y-m-d', strtotime($endDate . ' +1 day')) . ' 00:00:00');
+        if ($pin !== '') $builder->where('pin', $pin);
+        $logs = $builder->limit(2000)->get()->getResultArray();
+
+        // Resolve employee identities in PHP to avoid collation conflicts between legacy PIN columns.
+        $employeeRows = $db->table('sdit_employees')->get()->getResultArray();
+        $employeeMap = [];
+        foreach ($employeeRows as $employee) $employeeMap[(string) $employee['pin']] = $employee;
+        $rows = [];
+        foreach ($logs as $log) {
+            $employee = $employeeMap[(string) $log['pin']] ?? [];
+            $log['full_name'] = $employee['full_name'] ?? null;
+            $log['employee_code'] = $employee['employee_code'] ?? null;
+            $log['position'] = $employee['position'] ?? null;
+            $log['fingerprint_name'] = $employee['fingerprint_name'] ?? null;
+            if ($q !== '') {
+                $haystack = implode(' ', [(string)$log['pin'], (string)($log['full_name'] ?? ''), (string)($log['employee_code'] ?? '')]);
+                if (stripos($haystack, $q) === false) continue;
+            }
+            $rows[] = $log;
         }
         return view('sdit/scans', [
-            'title' => 'Detail Scan SDIT',
-            'rows' => $builder->limit(1000)->get()->getResultArray(),
-            'tanggal' => $date,
-            'pin' => $pin,
+            'title' => 'Detail Scan SDIT', 'rows' => $rows,
+            'startDate' => $startDate, 'endDate' => $endDate, 'pin' => $pin, 'q' => $q,
             'total' => $db->table('sdit_attendance_logs')->countAllResults(),
             'invalidTotal' => $db->table('sdit_invalid_scans')->countAllResults(),
         ]);
