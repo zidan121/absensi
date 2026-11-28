@@ -599,7 +599,15 @@ class Sdit extends BaseController
                 }
                 $summary['total_scans'] += (int)$daily['raw_scan_count'];
             }
-            uasort($employees, static function ($x, $y) {\n                $xo = $x['display_order'] ?? null; $yo = $y['display_order'] ?? null;\n                if ($xo !== null || $yo !== null) {\n                    if ($xo === null) return 1;\n                    if ($yo === null) return -1;\n                    if ((int)$xo !== (int)$yo) return (int)$xo <=> (int)$yo;\n                }\n                return strnatcasecmp((string)$x['employee_code'], (string)$y['employee_code']);\n            });
+            uasort($employees, static function ($x, $y) {
+                $xo = $x['display_order'] ?? null; $yo = $y['display_order'] ?? null;
+                if ($xo !== null || $yo !== null) {
+                    if ($xo === null) return 1;
+                    if ($yo === null) return -1;
+                    if ((int)$xo !== (int)$yo) return (int)$xo <=> (int)$yo;
+                }
+                return strnatcasecmp((string)$x['employee_code'], (string)$y['employee_code']);
+            });
             $summary['employees_with_scans'] = count(array_filter($employees, static fn($e) => $e['full_name'] !== 'Belum dipetakan'));
             $summary['unmatched_identities'] = count($unmatched);
         }
