@@ -1014,30 +1014,52 @@ class Sdit extends BaseController
     {
         $month = (string)$this->request->getGet('bulan');
         if (!preg_match('/^\d{4}-(0[1-9]|1[0-2])$/',$month)) $month = date('Y-m');
-        $rows = db_connect()->table('sdit_work_calendar')
+        $db = db_connect();
+        $rows = $db->table('sdit_work_calendar')
             ->where('work_date >=',$month.'-01')
             ->where('work_date <',date('Y-m-d',strtotime($month.'-01 +1 month')))
             ->orderBy('work_date','ASC')->get()->getResultArray();
-        return view('sdit/calendar',['title'=>'Kalender Kerja SDIT','month'=>$month,'rows'=>$rows]);
+
+        $editDate = (string)$this->request->getGet('edit');
+        $editRow = null;
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $editDate)) {
+            $editRow = $db->table('sdit_work_calendar')->where('work_date', $editDate)->get()->getRowArray();
+            if ($editRow) $month = substr($editDate, 0, 7);
+        }
+
+        return view('sdit/calendar', [
+            'title'=>'Kalender Kerja SDIT',
+            'month'=>$month,
+            'rows'=>$rows,
+            'editRow'=>$editRow,
+        ]);
     }
 
     public function saveCalendar()
     {
         $date = (string)$this->request->getPost('work_date');
         $type = (string)$this->request->getPost('day_type');
-        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/',$date) || !in_array($type,['holiday','workday'],true)) {
+        $parts = preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $date, $matches) ? $matches : null;
+        $validDate = $parts && checkdate((int)$parts[2], (int)$parts[3], (int)$parts[1]);
+        if (!$validDate || !in_array($type,['holiday','workday'],true)) {
             return redirect()->to('/sdit/kalender')->with('error','Tanggal atau jenis hari tidak valid.');
         }
+
         $db = db_connect();
+        $allowAfternoon = $type === 'workday' && $this->request->getPost('allow_afternoon_entry') ? 1 : 0;
         $payload = [
-            'work_date'=>$date,'day_type'=>$type,
+            'work_date'=>$date,
+            'day_type'=>$type,
             'description'=>trim((string)$this->request->getPost('description')) ?: null,
-            'allow_afternoon_entry'=>$this->request->getPost('allow_afternoon_entry') ? 1 : 0,
+            'allow_afternoon_entry'=>$allowAfternoon,
             'updated_at'=>date('Y-m-d H:i:s')
         ];
         $exists=$db->table('sdit_work_calendar')->where('work_date',$date)->get()->getRowArray();
         if($exists) $db->table('sdit_work_calendar')->where('id',$exists['id'])->update($payload);
-        else { $payload['created_at']=date('Y-m-d H:i:s'); $db->table('sdit_work_calendar')->insert($payload); }
+        else {
+            $payload['created_at']=date('Y-m-d H:i:s');
+            $db->table('sdit_work_calendar')->insert($payload);
+        }
         return redirect()->to('/sdit/kalender?bulan='.substr($date,0,7))->with('success','Kalender kerja SDIT berhasil disimpan.');
     }
 
