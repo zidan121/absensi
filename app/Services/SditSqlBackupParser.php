@@ -32,6 +32,7 @@ class SditSqlBackupParser
                 'fingerprint_pin' => $pin,
                 'employee_code' => trim((string)($r['pegawai_nip'] ?? '')) ?: $pin,
                 'full_name' => $name,
+                'fingerprint_name' => trim((string)($r['pegawai_alias'] ?? '')) ?: $name,
                 'phone' => $r['pegawai_telp'] ?? null,
                 'is_active' => (int)($r['pegawai_status'] ?? 0) === 1 ? 1 : 0,
                 'source_division_1' => $r['pembagian1_id'] ?? null,
