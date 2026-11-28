@@ -100,6 +100,8 @@ $routes->group('sdit', ['filter' => 'auth'], static function ($routes) {
     $routes->post('impor/sql-scan/proses', 'Sdit::processSqlLogs');
     $routes->get('impor/preview', 'Sdit::showPreview');
     $routes->get('pegawai', 'Sdit::employees');
+    $routes->get('pegawai/urutan', 'Sdit::employeeOrder');
+    $routes->post('pegawai/urutan/simpan', 'Sdit::saveEmployeeOrder');
     $routes->get('pegawai/tambah', 'Sdit::employeeCreate');
     $routes->post('pegawai/simpan', 'Sdit::employeeStore');
     $routes->get('pegawai/(:num)/edit', 'Sdit::employeeEdit/$1');
