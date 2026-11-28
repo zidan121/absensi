@@ -491,74 +491,87 @@ class Sdit extends BaseController
         $hasSearched = $this->request->getGet('show') === '1';
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $startDate)) $startDate = date('Y-m-01');
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $endDate)) $endDate = date('Y-m-d');
-        if ($endDate < $startDate) { [$startDate, $endDate] = [$endDate, $startDate]; }
+        if ($endDate < $startDate) [$startDate, $endDate] = [$endDate, $startDate];
 
         $db = db_connect();
         $employees = [];
-        $summary = ['attendance_days'=>0, 'late_days'=>0, 'one_scan_days'=>0, 'afternoon_entry_days'=>0, 'holiday_scan_days'=>0, 'unmatched_identities'=>0, 'employees_with_scans'=>0, 'total_scans'=>0];
+        $summary = ['attendance_days'=>0,'late_days'=>0,'one_scan_days'=>0,'afternoon_entry_days'=>0,'holiday_scan_days'=>0,'unmatched_identities'=>0,'employees_with_scans'=>0,'total_scans'=>0];
         $unmatched = [];
         if ($hasSearched) {
             $endExclusive = date('Y-m-d', strtotime($endDate . ' +1 day')) . ' 00:00:00';
-            $logs = $db->table('sdit_attendance_logs')
-                ->select('pin, scanned_at')
-                ->where('scanned_at >=', $startDate . ' 00:00:00')
-                ->where('scanned_at <', $endExclusive)
-                ->orderBy('scanned_at', 'ASC')->get()->getResultArray();
-            $pins = array_values(array_unique(array_column($logs, 'pin')));
+            // Aggregate in MySQL: one row per PIN/date instead of loading every raw scan.
+            $dailyRows = $db->query(
+                "SELECT pin, DATE(scanned_at) AS scan_date,
+                        GROUP_CONCAT(TIME(scanned_at) ORDER BY scanned_at ASC SEPARATOR ',') AS scan_times,
+                        COUNT(*) AS raw_scan_count
+                 FROM sdit_attendance_logs
+                 WHERE scanned_at >= ? AND scanned_at < ?
+                 GROUP BY pin, DATE(scanned_at)
+                 ORDER BY pin ASC, scan_date ASC",
+                [$startDate . ' 00:00:00', $endExclusive]
+            )->getResultArray();
+
+            $pins = array_values(array_unique(array_column($dailyRows, 'pin')));
             $masters = $pins ? $db->table('sdit_employees')->whereIn('pin', $pins)->get()->getResultArray() : [];
             $masterMap = [];
             foreach ($masters as $master) $masterMap[(string)$master['pin']] = $master;
 
-            $groups = [];
-            foreach ($logs as $log) {
-                $pin = (string)$log['pin'];
-                $date = substr($log['scanned_at'], 0, 10);
-                $groups[$pin.'|'.$date]['pin'] = $pin;
-                $groups[$pin.'|'.$date]['date'] = $date;
-                $groups[$pin.'|'.$date]['scans'][] = $log['scanned_at'];
-            }
+            $calendarRows = $db->table('sdit_work_calendar')
+                ->where('work_date >=', $startDate)->where('work_date <=', $endDate)->get()->getResultArray();
+            $calendarMap = [];
+            foreach ($calendarRows as $row) $calendarMap[$row['work_date']] = $row;
 
-            foreach ($groups as $group) {
-                $pin = $group['pin'];
-                $employee = $masterMap[$pin] ?? null;
-                $scans = array_values(array_unique($group['scans'], SORT_STRING));
+            $weeklyRows = $db->table('sdit_work_schedules')->where('schedule_name','Jadwal SDIT')->get()->getResultArray();
+            $weeklyMap = [];
+            foreach ($weeklyRows as $row) $weeklyMap[(int)$row['day_of_week']] = $row;
+
+            $individualRows = $pins
+                ? $db->table('sdit_employee_schedules')->whereIn('pin', $pins)->get()->getResultArray()
+                : [];
+            $individualMap = [];
+            foreach ($individualRows as $row) $individualMap[(string)$row['pin']][(int)$row['day_of_week']][] = $row;
+
+            foreach ($dailyRows as $daily) {
+                $pin = (string)$daily['pin'];
+                $date = (string)$daily['scan_date'];
+                $scans = array_values(array_filter(explode(',', (string)$daily['scan_times'])));
+                $scans = array_values(array_unique($scans));
                 sort($scans);
-                $scanTimes = array_map(static fn($v) => substr($v,11,8), $scans);
-                $date = $group['date'];
+                if (!$scans) continue;
+                $scanCount = count($scans);
                 $weekday = (int)(new \DateTimeImmutable($date))->format('N');
+                $calendar = $calendarMap[$date] ?? null;
+                $employee = $masterMap[$pin] ?? null;
 
-                $calendar = $db->table('sdit_work_calendar')->where('work_date',$date)->get()->getRowArray();
-                $individual = $employee ? $db->table('sdit_employee_schedules')
-                    ->where('pin',$pin)->where('day_of_week',$weekday)
-                    ->groupStart()->where('effective_from <=',$date)->orWhere('effective_from',null)->groupEnd()
-                    ->groupStart()->where('effective_until >=',$date)->orWhere('effective_until',null)->groupEnd()
-                    ->orderBy('effective_from','DESC')->get(1)->getRowArray() : null;
-                $weekly = $db->table('sdit_work_schedules')->where('schedule_name','Jadwal SDIT')
-                    ->where('day_of_week',$weekday)->get(1)->getRowArray();
-                $schedule = $individual ?: $weekly;
+                $individual = null;
+                foreach ($individualMap[$pin][$weekday] ?? [] as $candidate) {
+                    $from = $candidate['effective_from'] ?: '0001-01-01';
+                    $until = $candidate['effective_until'] ?: '9999-12-31';
+                    if ($from <= $date && $date <= $until && ($individual === null || ($candidate['effective_from'] ?? '') > ($individual['effective_from'] ?? ''))) {
+                        $individual = $candidate;
+                    }
+                }
+                $schedule = $individual ?? ($weeklyMap[$weekday] ?? null);
                 $isHoliday = ($calendar['day_type'] ?? '') === 'holiday';
-                $isWorkday = $calendar
-                    ? !$isHoliday
-                    : (bool)($schedule['is_workday'] ?? true);
-                $lateAfter = $schedule['late_after_minutes'] ?? null;
+                $isWorkday = $calendar !== null ? !$isHoliday : (bool)($schedule['is_workday'] ?? true);
                 $startTime = $schedule['start_time'] ?? null;
+                $lateAfter = $schedule['late_after_minutes'] ?? null;
                 $late = false;
                 $cutoff = '';
-                $status = 'Jadwal Belum Diatur';
                 if ($isHoliday) $status = 'Hari Libur (ada scan)';
                 elseif (!$isWorkday) $status = 'Libur Mingguan (ada scan)';
                 elseif (!empty($calendar['allow_afternoon_entry'])) $status = 'Izin Masuk Siang';
                 elseif ($startTime !== null && $lateAfter !== null) {
                     $cutoff = date('H:i:s', strtotime($startTime . ' +' . (int)$lateAfter . ' minutes'));
-                    $late = $scanTimes[0] > $cutoff;
+                    $late = $scans[0] > $cutoff;
                     $status = $late ? 'Terlambat' : 'Tepat Waktu';
-                }
+                } else $status = 'Jadwal Belum Diatur';
 
                 if (!$employee) {
-                    if (!isset($unmatched[$pin])) $unmatched[$pin] = ['pin'=>$pin,'scan_count'=>0,'first_scan'=>$scans[0],'last_scan'=>$scans[count($scans)-1]];
-                    $unmatched[$pin]['scan_count'] += count($scans);
-                    $unmatched[$pin]['first_scan'] = min($unmatched[$pin]['first_scan'],$scans[0]);
-                    $unmatched[$pin]['last_scan'] = max($unmatched[$pin]['last_scan'],$scans[count($scans)-1]);
+                    if (!isset($unmatched[$pin])) $unmatched[$pin] = ['pin'=>$pin,'scan_count'=>0,'first_scan'=>$date.' '.$scans[0],'last_scan'=>$date.' '.$scans[$scanCount-1]];
+                    $unmatched[$pin]['scan_count'] += $scanCount;
+                    $unmatched[$pin]['first_scan'] = min($unmatched[$pin]['first_scan'], $date.' '.$scans[0]);
+                    $unmatched[$pin]['last_scan'] = max($unmatched[$pin]['last_scan'], $date.' '.$scans[$scanCount-1]);
                 }
                 $key = $employee ? $pin : 'UNKNOWN-'.$pin;
                 if (!isset($employees[$key])) $employees[$key] = [
@@ -567,38 +580,38 @@ class Sdit extends BaseController
                     'position'=>$employee['position'] ?? '', 'days'=>0,'total_scans'=>0,'details'=>[]
                 ];
                 $employees[$key]['days']++;
-                $employees[$key]['total_scans'] += count($scans);
+                $employees[$key]['total_scans'] += $scanCount;
                 $employees[$key]['details'][] = [
-                    'work_date'=>$date,'first_scan'=>$scanTimes[0],
-                    'last_scan'=>count($scanTimes)>1 ? $scanTimes[count($scanTimes)-1] : '',
-                    'scan_count'=>count($scanTimes),'scans'=>$scanTimes,
-                    'status'=>$status,'late'=>$late,'is_counted'=>!$isHoliday && $isWorkday,
-                    'late_after'=>$startTime !== null && $lateAfter !== null ? $cutoff : '',
+                    'work_date'=>$date,'first_scan'=>$scans[0],
+                    'last_scan'=>$scanCount>1 ? $scans[$scanCount-1] : '',
+                    'scan_count'=>$scanCount,'scans'=>$scans,'status'=>$status,'late'=>$late,
+                    'is_counted'=>!$isHoliday && $isWorkday,
+                    'late_after'=>$cutoff,
                     'calendar'=>$calendar['description'] ?? '',
                 ];
-                if ($isHoliday || !$isWorkday) {
-                    $summary['holiday_scan_days']++;
-                } else {
+
+                if ($isHoliday || !$isWorkday) $summary['holiday_scan_days']++;
+                else {
                     $summary['attendance_days']++;
                     if ($late) $summary['late_days']++;
-                    if (count($scans) === 1) $summary['one_scan_days']++;
+                    if ($scanCount === 1) $summary['one_scan_days']++;
                     if (!empty($calendar['allow_afternoon_entry'])) $summary['afternoon_entry_days']++;
                 }
-                $summary['total_scans'] += count($scans);
+                $summary['total_scans'] += (int)$daily['raw_scan_count'];
             }
-            uasort($employees, static fn($a,$b) => strnatcasecmp($a['employee_code'],$b['employee_code']));
-            $summary['employees_with_scans'] = count(array_filter($employees,static fn($e)=>$e['full_name']!=='Belum dipetakan'));
+            uasort($employees, static fn($x,$y) => strnatcasecmp((string)$x['employee_code'],(string)$y['employee_code']));
+            $summary['employees_with_scans'] = count(array_filter($employees, static fn($e) => $e['full_name'] !== 'Belum dipetakan'));
             $summary['unmatched_identities'] = count($unmatched);
         }
+
         $maxScans = 1;
-        foreach ($employees as $employee) foreach ($employee['details'] as $detail) $maxScans=max($maxScans,count($detail['scans']));
+        foreach ($employees as $employee) foreach ($employee['details'] as $detail) $maxScans = max($maxScans, count($detail['scans']));
         return view('sdit/recap', [
             'title'=>'Rekap Absensi SDIT','startDate'=>$startDate,'endDate'=>$endDate,
             'hasSearched'=>$hasSearched,'employees'=>array_values($employees),'summary'=>$summary,
             'unmatched'=>array_values($unmatched),'maxScans'=>$maxScans,
         ]);
     }
-
     public function exportRecap()
     {
         @set_time_limit(300);
