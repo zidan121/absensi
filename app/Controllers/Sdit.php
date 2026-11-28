@@ -839,7 +839,7 @@ class Sdit extends BaseController
         $detail->setCellValue('D1', 'Data scanlog');
         $detail->setCellValue('J1', 'MAX JAM MASUK');
         $detail->fromArray(['PIN', 'Nama', 'Jabatan', 'Tanggal', 'Scan 1', 'Status', 'Scan 2', 'Scan 3'], null, 'A2');
-        $detail->setCellValue('J2', 'Sesuai jadwal SDIT');
+        $detail->setCellValue('J2', 'Batas masuk unit SDIT');
 
         $detailRow = 3;
         $orderedLogsByPin = [];
@@ -875,6 +875,25 @@ class Sdit extends BaseController
                     $excelTimes[2] ?? '',
                     (string) $pin,
                 ], null, 'A' . $detailRow);
+
+                // MAX JAM MASUK selalu memakai jadwal mingguan unit SDIT,
+                // bukan jadwal khusus masing-masing pegawai.
+                $weekday = (int) (new \\DateTimeImmutable($date))->format('N');
+                $unitSchedule = $weeklyMap[$weekday] ?? null;
+                $calendar = $calendarMap[$date] ?? null;
+                $isUnitWorkday = $calendar !== null
+                    ? (($calendar['day_type'] ?? '') === 'workday')
+                    : (bool) ($unitSchedule['is_workday'] ?? ($weekday <= 5));
+                if ($isUnitWorkday && $unitSchedule && !empty($unitSchedule['start_time'])) {
+                    $maxEntry = date(
+                        'H:i:s',
+                        strtotime($unitSchedule['start_time'] . ' +' . (int) ($unitSchedule['late_after_minutes'] ?? 0) . ' minutes')
+                    );
+                    $detail->setCellValue('J' . $detailRow, (1 * (int) substr($maxEntry, 0, 2) * 3600
+                        + (int) substr($maxEntry, 3, 2) * 60 + (int) substr($maxEntry, 6, 2)) / 86400);
+                } else {
+                    $detail->setCellValue('J' . $detailRow, '');
+                }
                 $detailRow++;
             }
         }
@@ -891,6 +910,7 @@ class Sdit extends BaseController
             ->setWrapText(true);
         $detail->getStyle('E3:E' . $detailLastRow)->getNumberFormat()->setFormatCode('hh:mm');
         $detail->getStyle('G3:H' . $detailLastRow)->getNumberFormat()->setFormatCode('hh:mm');
+        $detail->getStyle('J3:J' . $detailLastRow)->getNumberFormat()->setFormatCode('hh:mm');
         $detail->getStyle('J1')->getFont()->setName('Calibri')->setSize(11);
         $detail->getStyle('J1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
             ->getStartColor()->setARGB('FFFFFF00');
