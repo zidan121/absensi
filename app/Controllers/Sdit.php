@@ -369,6 +369,53 @@ class Sdit extends BaseController
         ]);
     }
 
+    public function employeeOrder()
+    {
+        $employees = db_connect()->table('sdit_employees')
+            ->orderBy('display_order IS NULL', 'ASC', false)
+            ->orderBy('display_order', 'ASC')
+            ->orderBy('CAST(employee_code AS UNSIGNED)', 'ASC')
+            ->orderBy('employee_code', 'ASC')
+            ->get()->getResultArray();
+
+        return view('sdit/employee_order', [
+            'title' => 'Atur Urutan Pegawai SDIT',
+            'employees' => $employees,
+        ]);
+    }
+
+    public function saveEmployeeOrder()
+    {
+        $orders = $this->request->getPost('display_order');
+        if (!is_array($orders) || !$orders) {
+            return redirect()->to('/sdit/pegawai/urutan')->with('error', 'Data urutan tidak ditemukan.');
+        }
+
+        $db = db_connect();
+        $db->transBegin();
+        try {
+            $seen = [];
+            foreach ($orders as $id => $order) {
+                $id = filter_var($id, FILTER_VALIDATE_INT);
+                $order = filter_var($order, FILTER_VALIDATE_INT);
+                if (!$id || $order === false || $order < 1 || $order > 9999 || isset($seen[$order])) {
+                    throw new \\RuntimeException('Nomor urutan harus berupa angka 1–9999 dan tidak boleh ada yang sama.');
+                }
+                $seen[$order] = true;
+                $db->table('sdit_employees')->where('id', $id)->update([
+                    'display_order' => $order,
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ]);
+            }
+            if ($db->transStatus() === false) throw new \\RuntimeException('Gagal menyimpan urutan pegawai.');
+            $db->transCommit();
+            return redirect()->to('/sdit/pegawai/urutan')->with('success', 'Urutan pegawai SDIT berhasil disimpan.');
+        } catch (\\Throwable $e) {
+            $db->transRollback();
+            return redirect()->to('/sdit/pegawai/urutan')->with('error', $e->getMessage());
+        }
+    }
+
     public function employeeCreate()
     {
         return view('sdit/employee_form', ['title' => 'Tambah Pegawai SDIT', 'employee' => null]);
