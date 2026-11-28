@@ -259,8 +259,12 @@ class Sdit extends BaseController
         if (!is_file($path)) return redirect()->to('/sdit/impor')->with('error', 'File sementara tidak ditemukan. Unggah ulang.');
         $db = db_connect();
         $format = $kind === 'employees' ? 'SQL_EMP' : 'SQL_LOG';
-        if ($db->table('sdit_import_batches')->where('file_sha256',$saved['sha256'])->where('source_format',$format)->countAllResults() > 0) {
-            return redirect()->to('/sdit/impor')->with('error', 'File backup ini sudah pernah diimpor.');
+        $existingBatch = $db->table('sdit_import_batches')
+            ->where('file_sha256', $saved['sha256'])->where('source_format', $format)
+            ->orderBy('id', 'DESC')->get(1)->getRowArray();
+        $refreshEmployeeMaster = $kind === 'employees' && $existingBatch !== null;
+        if ($existingBatch !== null && !$refreshEmployeeMaster) {
+            return redirect()->to('/sdit/impor')->with('error', 'File backup log ini sudah pernah diimpor.');
         }
         try {
             $raw = file_get_contents($path);
@@ -271,13 +275,19 @@ class Sdit extends BaseController
             $now = date('Y-m-d H:i:s');
             $validCount = $kind === 'employees' ? count($parsed['records']) : count($parsed['records']);
             $invalidCount = $kind === 'employees' ? $parsed['invalid'] : count($parsed['invalid_records']);
-            $db->table('sdit_import_batches')->insert([
-                'source_format'=>$format, 'original_filename'=>mb_substr($saved['original_name'],0,255),
-                'file_sha256'=>$saved['sha256'], 'total_rows'=>$parsed['total'],
-                'valid_rows'=>$validCount, 'invalid_rows'=>$invalidCount,
-                'duplicate_rows'=>0, 'status'=>'processing', 'created_at'=>$now
-            ]);
-            $batch = (int)$db->insertID();
+            if ($refreshEmployeeMaster) {
+                // Backup master yang sama boleh diproses ulang untuk memperbarui alias/nama
+                // tampilan dari sumber Fingerspot tanpa membuat batch impor ganda.
+                $batch = (int) $existingBatch['id'];
+            } else {
+                $db->table('sdit_import_batches')->insert([
+                    'source_format'=>$format, 'original_filename'=>mb_substr($saved['original_name'],0,255),
+                    'file_sha256'=>$saved['sha256'], 'total_rows'=>$parsed['total'],
+                    'valid_rows'=>$validCount, 'invalid_rows'=>$invalidCount,
+                    'duplicate_rows'=>0, 'status'=>'processing', 'created_at'=>$now
+                ]);
+                $batch = (int) $db->insertID();
+            }
             $duplicates = 0;
             if ($kind === 'employees') {
                 $seen = [];
@@ -322,9 +332,11 @@ class Sdit extends BaseController
                     ]);
                 }
             }
-            $db->table('sdit_import_batches')->where('id',$batch)->update([
-                'valid_rows'=>$validCount-$duplicates, 'duplicate_rows'=>$duplicates, 'status'=>'completed'
-            ]);
+            if (!$refreshEmployeeMaster) {
+                $db->table('sdit_import_batches')->where('id',$batch)->update([
+                    'valid_rows'=>$validCount-$duplicates, 'duplicate_rows'=>$duplicates, 'status'=>'completed'
+                ]);
+            }
             if ($db->transStatus() === false) throw new \RuntimeException('Database menolak sebagian data impor.');
             $db->transCommit();
             @unlink($path);
