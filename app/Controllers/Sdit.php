@@ -355,7 +355,7 @@ class Sdit extends BaseController
         $db = db_connect();
         $q = trim((string) $this->request->getGet('q'));
         $status = (string) $this->request->getGet('status');
-        $builder = $db->table('sdit_employees')->orderBy('CAST(employee_code AS UNSIGNED)', 'ASC')->orderBy('employee_code', 'ASC');
+        $builder = $db->table('sdit_employees')->orderBy('display_order IS NULL', 'ASC', false)->orderBy('display_order', 'ASC')->orderBy('CAST(employee_code AS UNSIGNED)', 'ASC')->orderBy('employee_code', 'ASC');
         if ($q !== '') {
             $builder->groupStart()->like('full_name', $q)->orLike('employee_code', $q)->orLike('pin', $q)->orLike('fingerprint_name', $q)->groupEnd();
         }
@@ -599,7 +599,7 @@ class Sdit extends BaseController
                 }
                 $summary['total_scans'] += (int)$daily['raw_scan_count'];
             }
-            uasort($employees, static fn($x,$y) => strnatcasecmp((string)$x['employee_code'],(string)$y['employee_code']));
+            uasort($employees, static function ($x, $y) {\n                $xo = $x['display_order'] ?? null; $yo = $y['display_order'] ?? null;\n                if ($xo !== null || $yo !== null) {\n                    if ($xo === null) return 1;\n                    if ($yo === null) return -1;\n                    if ((int)$xo !== (int)$yo) return (int)$xo <=> (int)$yo;\n                }\n                return strnatcasecmp((string)$x['employee_code'], (string)$y['employee_code']);\n            });
             $summary['employees_with_scans'] = count(array_filter($employees, static fn($e) => $e['full_name'] !== 'Belum dipetakan'));
             $summary['unmatched_identities'] = count($unmatched);
         }
@@ -658,7 +658,7 @@ class Sdit extends BaseController
         }
 
         $db = db_connect();
-        $employees = $db->table('sdit_employees')->where('is_active', 1)->orderBy('CAST(employee_code AS UNSIGNED)', 'ASC')->orderBy('employee_code', 'ASC')->get()->getResultArray();
+        $employees = $db->table('sdit_employees')->where('is_active', 1)->orderBy('display_order IS NULL', 'ASC', false)->orderBy('display_order', 'ASC')->orderBy('CAST(employee_code AS UNSIGNED)', 'ASC')->orderBy('employee_code', 'ASC')->get()->getResultArray();
         $endExclusive = date('Y-m-d', strtotime($endDate . ' +1 day')) . ' 00:00:00';
         // Ringkas scan di database per PIN dan tanggal agar ekspor tidak menampung
         // puluhan ribu baris scan mentah sekaligus di memori PHP.
