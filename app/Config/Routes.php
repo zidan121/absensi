@@ -99,6 +99,12 @@ $routes->group('sdit', ['filter' => 'auth'], static function ($routes) {
     $routes->post('impor/sql-scan/preview', 'Sdit::previewSqlLogs');
     $routes->post('impor/sql-scan/proses', 'Sdit::processSqlLogs');
     $routes->get('impor/preview', 'Sdit::showPreview');
+    $routes->get('pegawai', 'Sdit::employees');
+    $routes->get('pegawai/tambah', 'Sdit::employeeCreate');
+    $routes->post('pegawai/simpan', 'Sdit::employeeStore');
+    $routes->get('pegawai/(:num)/edit', 'Sdit::employeeEdit/$1');
+    $routes->post('pegawai/(:num)/update', 'Sdit::employeeUpdate/$1');
+    $routes->post('pegawai/(:num)/status', 'Sdit::employeeStatus/$1');
     $routes->get('scan', 'Sdit::scans');
     $routes->get('rekap', 'Sdit::recap');
     $routes->get('rekap/export', 'Sdit::exportRecap');
