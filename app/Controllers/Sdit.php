@@ -787,7 +787,19 @@ class Sdit extends BaseController
         $detail->setCellValue('J2', 'Sesuai jadwal SDIT');
 
         $detailRow = 3;
+        $orderedLogsByPin = [];
+        foreach ($employees as $employee) {
+            $employeePin = (string) $employee['pin'];
+            if (isset($logsByPin[$employeePin])) {
+                $orderedLogsByPin[$employeePin] = $logsByPin[$employeePin];
+            }
+        }
         foreach ($logsByPin as $pin => $dailyRows) {
+            if (!isset($orderedLogsByPin[(string) $pin])) {
+                $orderedLogsByPin[(string) $pin] = $dailyRows;
+            }
+        }
+        foreach ($orderedLogsByPin as $pin => $dailyRows) {
             foreach ($dailyRows as $daily) {
                 $date = $daily['date'];
                 $scans = $daily['scans'];
