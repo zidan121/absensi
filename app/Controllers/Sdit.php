@@ -854,41 +854,76 @@ class Sdit extends BaseController
         $rows = db_connect()->table('sdit_work_schedules')->where('schedule_name','Jadwal SDIT')->orderBy('day_of_week','ASC')->get()->getResultArray();
         $map = [];
         foreach ($rows as $row) $map[(int)$row['day_of_week']] = $row;
+
+        // Default SDIT: Senin-Jumat bekerja, Sabtu-Minggu libur.
+        // Pengaturan yang sudah tersimpan tetap menjadi prioritas.
+        $defaults = [];
+        foreach ([1,2,3,4,5,6,7] as $day) {
+            $defaults[$day] = [
+                'is_workday' => $day <= 5 ? 1 : 0,
+                'start_time' => '07:30:00',
+                'end_time' => '16:00:00',
+                'late_after_minutes' => 0,
+            ];
+        }
+        foreach ($map as $day => $row) $defaults[$day] = $row;
+
         return view('sdit/schedules', ['title'=>'Jadwal Kerja SDIT','days'=>[
             1=>'Senin',2=>'Selasa',3=>'Rabu',4=>'Kamis',5=>'Jumat',6=>'Sabtu',7=>'Minggu'
-        ],'schedules'=>$map]);
+        ],'schedules'=>$defaults]);
     }
 
     public function saveSchedules()
     {
         $db = db_connect();
         $now = date('Y-m-d H:i:s');
-        $days = $this->request->getPost('days') ?? [];
+        $days = $this->request->getPost('days');
+        if (!is_array($days)) {
+            return redirect()->to('/sdit/jadwal')->with('error', 'Data jadwal tidak ditemukan. Silakan muat ulang halaman.');
+        }
+
+        $labels = [1=>'Senin',2=>'Selasa',3=>'Rabu',4=>'Kamis',5=>'Jumat',6=>'Sabtu',7=>'Minggu'];
+        $validated = [];
+        foreach ($labels as $day => $label) {
+            $item = $days[$day] ?? [];
+            $start = (string)($item['start_time'] ?? '');
+            $end = (string)($item['end_time'] ?? '');
+            $late = filter_var($item['late_after_minutes'] ?? null, FILTER_VALIDATE_INT);
+            if (!preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $start)
+                || !preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $end)
+                || $start >= $end || $late === false || $late === null || $late < 0 || $late > 240) {
+                return redirect()->to('/sdit/jadwal')->with('error', 'Periksa jam masuk, jam pulang, dan toleransi hari '.$label.'. Jam pulang harus setelah jam masuk dan toleransi 0–240 menit.');
+            }
+            $validated[$day] = [
+                'schedule_name'=>'Jadwal SDIT',
+                'day_of_week'=>$day,
+                'start_time'=>$start.':00',
+                'end_time'=>$end.':00',
+                'late_after_minutes'=>$late,
+                'is_workday'=>!empty($item['is_workday']) ? 1 : 0,
+                'updated_at'=>$now,
+            ];
+        }
+
         $db->transBegin();
         try {
-            for ($day=1; $day<=7; $day++) {
-                $item = $days[$day] ?? [];
-                $workday = !empty($item['is_workday']) ? 1 : 0;
-                $start = $item['start_time'] ?? '07:30';
-                $end = $item['end_time'] ?? '16:00';
-                if (!preg_match('/^([01]\d|2[0-3]):[0-5]\d$/',$start) || !preg_match('/^([01]\d|2[0-3]):[0-5]\d$/',$end)) {
-                    throw new \InvalidArgumentException('Format jam jadwal tidak valid pada hari '.$day.'.');
+            foreach ($validated as $day => $payload) {
+                $exists = $db->table('sdit_work_schedules')
+                    ->where('schedule_name','Jadwal SDIT')->where('day_of_week',$day)
+                    ->get()->getRowArray();
+                if ($exists) {
+                    $db->table('sdit_work_schedules')->where('id',$exists['id'])->update($payload);
+                } else {
+                    $payload['created_at'] = $now;
+                    $db->table('sdit_work_schedules')->insert($payload);
                 }
-                $payload = [
-                    'schedule_name'=>'Jadwal SDIT','day_of_week'=>$day,
-                    'start_time'=>$start.':00','end_time'=>$end.':00',
-                    'late_after_minutes'=>max(0,(int)($item['late_after_minutes'] ?? 0)),
-                    'is_workday'=>$workday,'updated_at'=>$now
-                ];
-                $exists = $db->table('sdit_work_schedules')->where('schedule_name','Jadwal SDIT')->where('day_of_week',$day)->get()->getRowArray();
-                if ($exists) $db->table('sdit_work_schedules')->where('id',$exists['id'])->update($payload);
-                else { $payload['created_at']=$now; $db->table('sdit_work_schedules')->insert($payload); }
             }
             if ($db->transStatus() === false) throw new \RuntimeException('Gagal menyimpan jadwal SDIT.');
             $db->transCommit();
             return redirect()->to('/sdit/jadwal')->with('success','Jadwal mingguan SDIT berhasil disimpan.');
         } catch (\Throwable $e) {
             $db->transRollback();
+            log_message('error', 'SDIT weekly schedule save failed: '.$e->getMessage());
             return redirect()->to('/sdit/jadwal')->with('error',$e->getMessage());
         }
     }
